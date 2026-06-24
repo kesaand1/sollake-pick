@@ -750,7 +750,8 @@ function setMatchPeriod(p){
 }
 function popMatchSel(){
   const vis=players.filter(p=>p.visible);
-  ['mA1','mA2','mB1','mB2'].forEach(id=>{document.getElementById(id).innerHTML=vis.map(p=>`<option value="${p.name}">${p.name}</option>`).join('')});
+  const blank='<option value="">-- Chọn người chơi --</option>';
+  ['mA1','mA2','mB1','mB2'].forEach(id=>{document.getElementById(id).innerHTML=blank+vis.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');document.getElementById(id).value='';});
 }
 function updateMF(){
   const d=document.getElementById('mType').value==='doubles'?'':'none';
@@ -766,6 +767,8 @@ function logMatch(){
   const sB=parseInt(document.getElementById('mScoreB').value)||0;
   const note=document.getElementById('mNote').value.trim();
   if(!date)return alert('Chọn ngày thi đấu');
+  if(!a1||!b1)return alert('Vui lòng chọn đủ người chơi cho cả 2 bên');
+  if(type==='doubles'&&(!a2||!b2))return alert('Trận đôi cần chọn đủ 4 người chơi');
   if(sA===sB)return alert('Không thể hòa! Nhập điểm khác nhau');
   const tA=type==='singles'?[a1]:[a1,a2];
   const tB=type==='singles'?[b1]:[b1,b2];
@@ -940,16 +943,10 @@ function renderDebt(){
 // ═══════════════════════════════════════════
 function populatePairingSelects(){
   const vis=players.filter(p=>p.visible);
+  const blank='<option value="">-- Chọn người chơi --</option>';
   const opts=vis.map(p=>`<option value="${p.name}">${p.name} (${p.score.toFixed(2)})</option>`).join('');
-  ['pairA1','pairA2','pairB1','pairB2'].forEach(id=>document.getElementById(id).innerHTML=opts);
-  // Set distinct defaults
-  if(vis.length>=4){
-    document.getElementById('pairA1').value=vis[0].name;
-    document.getElementById('pairA2').value=vis[1].name;
-    document.getElementById('pairB1').value=vis[2].name;
-    document.getElementById('pairB2').value=vis[3].name;
-  }
-  calcPairing();
+  ['pairA1','pairA2','pairB1','pairB2'].forEach(id=>{document.getElementById(id).innerHTML=blank+opts;document.getElementById(id).value='';});
+  document.getElementById('pairingResult').innerHTML='';
 }
 
 function calcKeo(diff){
@@ -964,6 +961,12 @@ function calcPairing(){
   const b1n=document.getElementById('pairB1').value;
   const b2n=document.getElementById('pairB2').value;
   const el=document.getElementById('pairingResult');
+
+  // Not all selected yet
+  if(!a1n||!a2n||!b1n||!b2n){
+    el.innerHTML='';
+    return;
+  }
 
   // Check duplicates
   const all=[a1n,a2n,b1n,b2n];
