@@ -294,7 +294,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="stat4" id="profileStats"></div>
 
   <div class="panel" style="margin-bottom:1rem">
-    <div class="panel-hd">📈 Phong độ điểm ELO theo thời gian</div>
+    <div class="panel-hd">📈 Phong độ % thắng/thua theo thời gian</div>
     <div class="chart-wrap"><canvas id="chartElo"></canvas></div>
   </div>
 
@@ -303,10 +303,20 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="chart-wrap"><canvas id="chartWL"></canvas></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" style="margin-bottom:1rem">
     <div class="panel-hd">🏓 Chuỗi trận gần nhất <span id="streakCount" style="color:var(--lime)"></span></div>
     <div class="match-streak" id="profileStreak"></div>
     <div style="margin-top:1rem" id="profileMatchList"></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:1rem">
+    <div class="panel-hd">⚔️ Lịch sử đối đầu (vs từng người)</div>
+    <div id="vsOpponentTable"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd">🤝 Lịch sử đánh cùng (đồng đội)</div>
+    <div id="vsPartnerTable"></div>
   </div>
 </div>
 
@@ -1058,70 +1068,79 @@ function renderProfile(name){
     <div class="sc"><div class="val td">${losses}</div><div class="lbl">Thua</div></div>
     <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>`;
 
-  // ── ELO line chart ──
-  // Simulate ELO history from matches (reconstruct chronologically)
-  let elo = p.score;
-  // Walk backwards to get starting elo, then forward to plot
-  const eloHistory = [{date: p.joined, elo: p.score}]; // current is last
-  // Build forward simulation from matches with recorded deltas
+  // ── % Win rolling chart (cumulative win rate after each match) ──
   const sorted = [...myMatches];
-  // Use actual recorded deltas if available
-  const eloPoints = [];
-  let runElo = p.score;
-  // Walk backwards from current
-  for(let i = sorted.length-1; i >= 0; i--){
-    const m = sorted[i];
-    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const delta = parseFloat(m.elo || 0.04);
-    runElo = isWin ? runElo - delta : runElo + delta;
-  }
-  // Now walk forward
-  let fwdElo = parseFloat(runElo.toFixed(2));
-  const eloLabels = [fmtD(p.joined)];
-  const eloData   = [parseFloat(fwdElo.toFixed(2))];
+  const wrLabels = [];
+  const wrData   = [];
+  const wrWins   = [];
+  const wrLoss   = [];
+  let cumulW = 0, cumulTotal = 0;
   for(const m of sorted){
     const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const delta = parseFloat(m.elo || 0.04);
-    fwdElo = isWin ? fwdElo + delta : fwdElo - delta;
-    fwdElo = parseFloat(Math.min(8, Math.max(2, fwdElo)).toFixed(2));
-    eloLabels.push(fmtD(m.date));
-    eloData.push(fwdElo);
+    cumulTotal++;
+    if(isWin) cumulW++;
+    wrLabels.push(fmtD(m.date) + ' #' + cumulTotal);
+    const pct = Math.round(cumulW / cumulTotal * 100);
+    wrData.push(pct);
+    wrWins.push(cumulW);
+    wrLoss.push(cumulTotal - cumulW);
   }
 
   if(eloChart){ eloChart.destroy(); eloChart=null; }
   const ctxElo = document.getElementById('chartElo').getContext('2d');
-  eloChart = new Chart(ctxElo, {
-    type: 'line',
-    data: {
-      labels: eloLabels,
-      datasets: [{
-        label: 'Điểm ELO',
-        data: eloData,
-        borderColor: '#B5F033',
-        backgroundColor: 'rgba(181,240,51,0.08)',
-        borderWidth: 2.5,
-        pointRadius: eloData.length > 15 ? 2 : 4,
-        pointBackgroundColor: '#B5F033',
-        fill: true,
-        tension: 0.35,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend:{display:false}, tooltip:{
-        backgroundColor:'rgba(18,32,50,0.95)',
-        titleColor:'#B5F033',
-        bodyColor:'#E2EDF8',
-        borderColor:'rgba(255,255,255,0.1)',
-        borderWidth:1,
-      }},
-      scales: {
-        x:{ ticks:{color:'#7A9BB8',font:{size:10},maxRotation:45}, grid:{color:'rgba(255,255,255,0.04)'} },
-        y:{ ticks:{color:'#7A9BB8',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'}, min:2, max:8 }
+  if(wrData.length === 0){
+    ctxElo.canvas.parentElement.innerHTML = '<div class="empty" style="height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div class="ei">📈</div><p>Chưa có trận nào</p></div>';
+  } else {
+    eloChart = new Chart(ctxElo, {
+      type: 'line',
+      data: {
+        labels: wrLabels,
+        datasets: [
+          {
+            label: '% Thắng tích lũy',
+            data: wrData,
+            borderColor: '#B5F033',
+            backgroundColor: 'rgba(181,240,51,0.10)',
+            borderWidth: 2.5,
+            pointRadius: wrData.length > 20 ? 2 : 4,
+            pointBackgroundColor: wrData.map(v => v >= 50 ? '#4ADE80' : '#F87171'),
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor:'rgba(18,32,50,0.95)',
+            titleColor:'#B5F033',
+            bodyColor:'#E2EDF8',
+            borderColor:'rgba(255,255,255,0.1)',
+            borderWidth:1,
+            callbacks: {
+              label: ctx => {
+                const i = ctx.dataIndex;
+                return [`Tỷ lệ thắng: ${ctx.parsed.y}%`, `Thắng: ${wrWins[i]}  |  Thua: ${wrLoss[i]}`];
+              }
+            }
+          }
+        },
+        scales: {
+          x:{ ticks:{color:'#7A9BB8',font:{size:10},maxRotation:45,maxTicksLimit:10}, grid:{color:'rgba(255,255,255,0.04)'} },
+          y:{
+            ticks:{color:'#7A9BB8',font:{size:10},callback:v=>v+'%'},
+            grid:{color:'rgba(255,255,255,0.04)'},
+            min:0, max:100,
+            border:{ dash:[4,4] }
+          }
+        }
       }
-    }
-  });
+    });
+  }
 
   // ── Win/Loss bar chart by month ──
   const monthMap = {};
@@ -1184,29 +1203,103 @@ function renderProfile(name){
   }
   document.getElementById('profileMatchList').innerHTML = recentAll.map(m => {
     const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const teammate = m.type==='doubles'
-      ? ([...m.a,...m.b].find(n2=>n2!==name&&((m.a.includes(name)&&m.a.includes(n2))||(m.b.includes(name)&&m.b.includes(n2)))))
-      : null;
-    const opponents = m.winner==='A'&&m.a.includes(name) ? m.b : m.winner==='B'&&m.b.includes(name) ? m.a : m.winner==='A' ? m.a : m.b;
+    const myTeam  = m.a.includes(name) ? m.a : m.b;
+    const oppTeam = m.a.includes(name) ? m.b : m.a;
+    const teammate = m.type==='doubles' ? myTeam.find(n2=>n2!==name) : null;
     const scoreW = m.winner==='A'?m.scoreA:m.scoreB;
     const scoreL = m.winner==='A'?m.scoreB:m.scoreA;
     const myScore = isWin ? scoreW : scoreL;
     const oppScore = isWin ? scoreL : scoreW;
     return `<div class="fin-row" style="margin-bottom:.4rem">
       <div class="fleft">
-        <div style="display:flex;align-items:center;gap:.5rem">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
           <span class="pill ${isWin?'p-green':'p-red'}" style="flex-shrink:0">${isWin?'Thắng':'Thua'}</span>
-          <span class="small" style="color:var(--text)">vs ${opponents.join(' & ')}${teammate?` (cùng ${teammate})`:''}</span>
+          <span class="small" style="color:var(--text)">vs ${oppTeam.join(' & ')}${teammate?` <span class="tm">(cùng ${teammate})</span>`:''}</span>
         </div>
         <div class="small tm" style="margin-top:3px">${fmtD(m.date)} · ${m.type==='singles'?'Đơn':'Đôi'}${m.elo?` · ${isWin?'+':'-'}${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>
       </div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0">
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0;text-align:right">
         <span style="color:${isWin?'var(--lime)':'var(--muted)'}">${myScore}</span>
         <span style="color:var(--muted);margin:0 3px">:</span>
         <span style="color:${!isWin?'var(--lime)':'var(--muted)'}">${oppScore}</span>
       </div>
     </div>`;
   }).join('');
+
+  // ── Bảng 1: Lịch sử đối đầu ──
+  const oppMap = {};
+  for(const m of myMatches){
+    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    const oppTeam = m.a.includes(name) ? m.b : m.a;
+    oppTeam.forEach(opp => {
+      if(!oppMap[opp]) oppMap[opp]={w:0,l:0,matches:[]};
+      if(isWin) oppMap[opp].w++; else oppMap[opp].l++;
+      oppMap[opp].matches.push(m);
+    });
+  }
+  const oppEntries = Object.entries(oppMap).sort((a,b)=>(b[1].w+b[1].l)-(a[1].w+a[1].l));
+  if(!oppEntries.length){
+    document.getElementById('vsOpponentTable').innerHTML = '<div class="empty" style="padding:1.5rem"><div class="ei">⚔️</div><p>Chưa có dữ liệu</p></div>';
+  } else {
+    const oppRows = oppEntries.map(([opp, st]) => {
+      const total = st.w + st.l;
+      const wr = Math.round(st.w/total*100);
+      const opc = gpc(opp);
+      return `<tr>
+        <td><div class="av-wrap">${av(opp,opc)}<span class="aname" style="cursor:pointer;text-underline-offset:3px;text-decoration:underline;text-decoration-color:rgba(255,255,255,.2)" onclick="openProfile('${opp}')">${opp}</span></div></td>
+        <td style="text-align:center">${total}</td>
+        <td style="text-align:center" class="ts bold">${st.w}</td>
+        <td style="text-align:center" class="td">${st.l}</td>
+        <td style="text-align:center"><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
+        <td style="text-align:center">
+          <div style="display:flex;gap:3px;justify-content:center">
+            ${st.matches.slice(-5).reverse().map(m=>{const w=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));return`<div class="streak-dot ${w?'streak-w':'streak-l'}" title="${fmtD(m.date)}">${w?'W':'L'}</div>`;}).join('')}
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('vsOpponentTable').innerHTML = `<div class="tbl-wrap"><table style="min-width:380px">
+      <thead><tr><th>Đối thủ</th><th style="text-align:center">Trận</th><th style="text-align:center">Thắng</th><th style="text-align:center">Thua</th><th style="text-align:center">Tỷ lệ</th><th style="text-align:center">5 trận gần</th></tr></thead>
+      <tbody>${oppRows}</tbody></table></div>`;
+  }
+
+  // ── Bảng 2: Lịch sử đánh cùng ──
+  const partnerMap = {};
+  for(const m of myMatches){
+    if(m.type !== 'doubles') continue;
+    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    const myTeam = m.a.includes(name) ? m.a : m.b;
+    const partner = myTeam.find(n2=>n2!==name);
+    if(!partner) continue;
+    if(!partnerMap[partner]) partnerMap[partner]={w:0,l:0,matches:[]};
+    if(isWin) partnerMap[partner].w++; else partnerMap[partner].l++;
+    partnerMap[partner].matches.push(m);
+  }
+  const partEntries = Object.entries(partnerMap).sort((a,b)=>(b[1].w+b[1].l)-(a[1].w+a[1].l));
+  if(!partEntries.length){
+    document.getElementById('vsPartnerTable').innerHTML = '<div class="empty" style="padding:1.5rem"><div class="ei">🤝</div><p>Chưa có trận đôi nào</p></div>';
+  } else {
+    const partRows = partEntries.map(([partner, st]) => {
+      const total = st.w + st.l;
+      const wr = Math.round(st.w/total*100);
+      const pc = gpc(partner);
+      return `<tr>
+        <td><div class="av-wrap">${av(partner,pc)}<span class="aname" style="cursor:pointer;text-underline-offset:3px;text-decoration:underline;text-decoration-color:rgba(255,255,255,.2)" onclick="openProfile('${partner}')">${partner}</span></div></td>
+        <td style="text-align:center">${total}</td>
+        <td style="text-align:center" class="ts bold">${st.w}</td>
+        <td style="text-align:center" class="td">${st.l}</td>
+        <td style="text-align:center"><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
+        <td style="text-align:center">
+          <div style="display:flex;gap:3px;justify-content:center">
+            ${st.matches.slice(-5).reverse().map(m=>{const w=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));return`<div class="streak-dot ${w?'streak-w':'streak-l'}" title="${fmtD(m.date)}">${w?'W':'L'}</div>`;}).join('')}
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    document.getElementById('vsPartnerTable').innerHTML = `<div class="tbl-wrap"><table style="min-width:380px">
+      <thead><tr><th>Đồng đội</th><th style="text-align:center">Trận</th><th style="text-align:center">Thắng</th><th style="text-align:center">Thua</th><th style="text-align:center">Tỷ lệ</th><th style="text-align:center">5 trận gần</th></tr></thead>
+      <tbody>${partRows}</tbody></table></div>`;
+  }
 }
 
 function init(){
