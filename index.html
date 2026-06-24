@@ -314,11 +314,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="modal">
     <div class="modal-title">👤 Thêm thành viên mới</div>
     <div class="fgroup"><label>Họ tên</label><input class="finput" id="pName" placeholder="Nguyễn Văn A"/></div>
-    <div class="fgroup"><label>Điểm khởi đầu (ELO)</label><input class="finput" id="pScore" type="number" value="1000" min="0"/></div>
-    <div class="fgroup"><label>Trình độ</label>
-      <select class="finput" id="pLevel">
-        <option>Mới</option><option>Cơ bản</option><option selected>Trung cấp</option><option>Nâng cao</option><option>Chuyên</option>
-      </select>
+    <div class="fgroup">
+      <label>Điểm (2.00 – 8.00)</label>
+      <input class="finput" id="pScore" type="number" value="3.00" min="2.00" max="8.00" step="0.01" oninput="updateLevelPreview()" placeholder="Ví dụ: 3.50"/>
+      <div id="levelPreview" style="margin-top:.5rem;display:flex;align-items:center;gap:.5rem;min-height:24px"></div>
     </div>
     <div class="fgroup"><label>Ghi chú</label><input class="finput" id="pNote" placeholder="Thông tin thêm..."/></div>
     <div class="modal-footer">
@@ -412,11 +411,11 @@ const ld=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}ca
 const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 
 let players=ld('sp2_players',[
-  {id:1,name:'Trần Minh Khoa',score:1350,level:'Nâng cao',note:'Đội trưởng',color:'c0',visible:true,joined:'2024-01-10'},
-  {id:2,name:'Nguyễn Thu Hà',score:1280,level:'Nâng cao',note:'',color:'c1',visible:true,joined:'2024-02-05'},
-  {id:3,name:'Lê Đức Thành',score:1190,level:'Trung cấp',note:'',color:'c2',visible:true,joined:'2024-03-12'},
-  {id:4,name:'Phạm Ngọc Anh',score:1140,level:'Trung cấp',note:'',color:'c3',visible:true,joined:'2024-03-20'},
-  {id:5,name:'Hoàng Việt Long',score:1080,level:'Cơ bản',note:'',color:'c4',visible:true,joined:'2024-05-01'},
+  {id:1,name:'Trần Minh Khoa',score:4.52,note:'Đội trưởng',color:'c0',visible:true,joined:'2024-01-10'},
+  {id:2,name:'Nguyễn Thu Hà',score:4.10,note:'',color:'c1',visible:true,joined:'2024-02-05'},
+  {id:3,name:'Lê Đức Thành',score:3.75,note:'',color:'c2',visible:true,joined:'2024-03-12'},
+  {id:4,name:'Phạm Ngọc Anh',score:3.40,note:'',color:'c3',visible:true,joined:'2024-03-20'},
+  {id:5,name:'Hoàng Việt Long',score:2.80,note:'',color:'c4',visible:true,joined:'2024-05-01'},
 ]);
 let matches=ld('sp2_matches',[
   {id:1,date:'2025-06-18',type:'singles',a:['Trần Minh Khoa'],b:['Nguyễn Thu Hà'],scoreA:11,scoreB:7,note:'',winner:'A',elo:16},
@@ -441,6 +440,20 @@ let nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
 
 // Helpers
 const fmt=n=>n.toLocaleString('vi-VN')+'đ';
+function getLevel(score){
+  const s=parseFloat(score);
+  if(s>=5.0)return{label:'Tuyển thủ',pill:'p-lime',icon:'⚡'};
+  if(s>=4.0)return{label:'Nâng cao',pill:'p-green',icon:'🔥'};
+  if(s>=3.0)return{label:'Trung bình',pill:'p-yellow',icon:'📈'};
+  return{label:'Người mới',pill:'p-gray',icon:'🌱'};
+}
+function updateLevelPreview(){
+  const val=parseFloat(document.getElementById('pScore').value);
+  const el=document.getElementById('levelPreview');
+  if(isNaN(val)||val<2||val>8){el.innerHTML='<span style="font-size:.75rem;color:var(--muted)">Nhập điểm từ 2.00 đến 8.00</span>';return;}
+  const lv=getLevel(val);
+  el.innerHTML=`<span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span><span style="font-size:.73rem;color:var(--muted)">Trình độ tự động theo điểm</span>`;
+}
 const fmtD=d=>{if(!d)return'';const[y,m,da]=d.split('-');return`${da}/${m}/${y}`};
 const today=()=>new Date().toISOString().split('T')[0];
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0]};
@@ -485,16 +498,17 @@ document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e
 // Players
 function addPlayer(){
   const name=document.getElementById('pName').value.trim();
-  const score=parseInt(document.getElementById('pScore').value)||1000;
-  const level=document.getElementById('pLevel').value;
+  const score=parseFloat(parseFloat(document.getElementById('pScore').value).toFixed(2));
   const note=document.getElementById('pNote').value.trim();
   if(!name)return alert('Vui lòng nhập tên');
+  if(isNaN(score)||score<2||score>8)return alert('Điểm phải từ 2.00 đến 8.00');
   if(players.find(p=>p.name===name))return alert('Tên đã tồn tại');
   const color=COLORS[players.length%8];
-  players.push({id:nP++,name,score,level,note,color,visible:true,joined:today()});
+  players.push({id:nP++,name,score,note,color,visible:true,joined:today()});
   saveAll();renderPlayers();closeModal('addPlayerModal');
   ['pName','pNote'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('pScore').value=1000;
+  document.getElementById('pScore').value='3.00';
+  document.getElementById('levelPreview').innerHTML='';
   notify('✅ Đã thêm: '+name);
 }
 function togglePlayerVis(id){const p=players.find(x=>x.id===id);if(p){p.visible=!p.visible;saveAll();renderPlayers();}}
@@ -505,10 +519,11 @@ function toggleHidden(){
 }
 function editScore(id){
   const p=players.find(x=>x.id===id);if(!p)return;
-  const ns=prompt(`Điểm mới cho ${p.name} (hiện: ${p.score}):`,p.score);
-  if(ns===null)return;const n=parseInt(ns);
-  if(isNaN(n))return alert('Số không hợp lệ');
-  p.score=n;saveAll();renderPlayers();renderRanking();notify(`✅ Điểm ${p.name}: ${n}`);
+  const ns=prompt(`Điểm mới cho ${p.name} (hiện: ${p.score.toFixed(2)}, từ 2.00 đến 8.00):`,p.score.toFixed(2));
+  if(ns===null)return;
+  const n=parseFloat(parseFloat(ns).toFixed(2));
+  if(isNaN(n)||n<2||n>8)return alert('Điểm phải từ 2.00 đến 8.00');
+  p.score=n;saveAll();renderPlayers();renderRanking();notify(`✅ Điểm ${p.name}: ${n.toFixed(2)}`);
 }
 function delPlayer(id){
   const p=players.find(x=>x.id===id);if(!p)return;
@@ -521,10 +536,10 @@ function renderPlayers(){
     const e=empty('👥','Chưa có thành viên nào');
     document.getElementById('playerD').innerHTML=e;document.getElementById('playerM').innerHTML=e;return;
   }
-  const rows=list.map(p=>`<tr>
+  const rows=list.map(p=>{const lv=getLevel(p.score);return`<tr>
     <td>${avW(p.name,p.color,p.visible?'':' <span class="hbadge">Ẩn</span>')}</td>
-    <td><span style="font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--lime);font-size:1rem">${p.score}</span></td>
-    <td><span class="pill p-gray">${p.level}</span></td>
+    <td><span style="font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--lime);font-size:1rem">${p.score.toFixed(2)}</span></td>
+    <td><span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span></td>
     <td class="tm small">${fmtD(p.joined)}</td>
     <td class="tm small ell" style="max-width:120px">${p.note||'—'}</td>
     <td><div class="gap">
@@ -532,22 +547,22 @@ function renderPlayers(){
       <button class="btn btn-ghost btn-xs" onclick="togglePlayerVis(${p.id})">${p.visible?'🙈 Ẩn':'👁 Hiện'}</button>
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑</button>
     </div></td>
-  </tr>`).join('');
-  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Điểm ELO</th><th>Trình độ</th><th>Ngày vào</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
-  const cards=list.map(p=>`<div class="card-item">
+  </tr>`}).join('');
+  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const cards=list.map(p=>{const lv=getLevel(p.score);return`<div class="card-item">
     <div class="card-item-row">
       <div class="av-wrap">${av(p.name,p.color,'av-lg')}<div>
         <div class="bold">${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
-        <div class="small tm">${p.level} · ${fmtD(p.joined)}</div>
+        <div class="small tm"><span class="pill ${lv.pill}" style="font-size:.62rem">${lv.icon} ${lv.label}</span> · ${fmtD(p.joined)}</div>
       </div></div>
-      <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.25rem;color:var(--lime)">${p.score}</span>
+      <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.25rem;color:var(--lime)">${p.score.toFixed(2)}</span>
     </div>
     <div class="gap mt1">
       <button class="btn btn-ghost btn-xs" onclick="editScore(${p.id})">✏️ Sửa điểm</button>
       <button class="btn btn-ghost btn-xs" onclick="togglePlayerVis(${p.id})">${p.visible?'🙈 Ẩn':'👁 Hiện'}</button>
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑 Xóa</button>
     </div>
-  </div>`).join('');
+  </div>`}).join('');
   document.getElementById('playerM').innerHTML=`<div class="card-list">${cards}</div>`;
 }
 
@@ -579,10 +594,10 @@ function renderRanking(){
     return`<tr>
       <td><span class="rnum ${rc}">${medal}</span></td>
       <td>${avW(p.name,p.color)}</td>
-      <td><span style="font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:700;color:var(--lime)">${p.score}</span></td>
+      <td><span style="font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</span></td>
       <td>${s.played}</td><td class="ts">${s.wins}</td><td class="td">${s.losses}</td>
       <td><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
-      <td><span class="pill p-gray">${p.level}</span></td>
+      <td><span class="pill ${getLevel(p.score).pill}">${getLevel(p.score).icon} ${getLevel(p.score).label}</span></td>
     </tr>`;
   }).join('');
   document.getElementById('rankD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm ELO</th><th>Đã đấu</th><th>Thắng</th><th>Thua</th><th>Tỷ lệ</th><th>Trình độ</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -596,9 +611,9 @@ function renderRanking(){
         <div class="av-wrap">
           <span class="rnum ${rc}" style="min-width:26px;text-align:center">${medal||('#'+(i+1))}</span>
           ${av(p.name,p.color,'av-lg')}
-          <div><div class="bold">${p.name}</div><div class="small tm">${p.level}</div></div>
+          <div><div class="bold">${p.name}</div><div class="small tm">${getLevel(p.score).icon} ${getLevel(p.score).label}</div></div>
         </div>
-        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.35rem;font-weight:700;color:var(--lime)">${p.score}</span>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.35rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</span>
       </div>
       <div class="card-meta mt1">
         <span>⚔️ ${s.played} trận</span>
@@ -624,7 +639,7 @@ function updateMF(){
   const d=document.getElementById('mType').value==='doubles'?'':'none';
   document.getElementById('mA2w').style.display=d;document.getElementById('mB2w').style.display=d;
 }
-function calcElo(ws,ls){return Math.round(32*(1-1/(1+Math.pow(10,(ls-ws)/400))))}
+function calcElo(ws,ls){return parseFloat((0.1*(1-1/(1+Math.pow(10,(ls-ws)/4)))).toFixed(2))}
 function logMatch(){
   const date=document.getElementById('mDate').value;
   const type=document.getElementById('mType').value;
@@ -643,11 +658,11 @@ function logMatch(){
   const avgW=wt.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/wt.length;
   const avgL=lt.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/lt.length;
   const delta=calcElo(avgW,avgL);
-  wt.forEach(n=>{const p=gp(n);if(p)p.score+=delta;});
-  lt.forEach(n=>{const p=gp(n);if(p)p.score=Math.max(0,p.score-delta);});
+  wt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.min(8,p.score+delta).toFixed(2));});
+  lt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.max(2,p.score-delta).toFixed(2));});
   matches.push({id:nM++,date,type,a:tA,b:tB,scoreA:sA,scoreB:sB,note,winner,elo:delta});
   saveAll();closeModal('matchModal');renderMatches();renderRanking();renderPlayers();
-  notify(`🏆 ${wt.join(' & ')} thắng! ±${delta} ELO`);
+  notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
 }
 function delMatch(id){
   if(!confirm('Xóa trận? Điểm ELO không hoàn lại.'))return;
@@ -667,7 +682,7 @@ function renderMatches(){
       <td class="tm small">${fmtD(m.date)}</td>
       <td><span class="pill p-gray">${m.type==='singles'?'Đơn':'Đôi'}</span></td>
       <td>${m.a.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
-      <td style="text-align:center"><div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 4px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>${m.elo?`<div class="small tm">±${m.elo} ELO</div>`:''}</td>
+      <td style="text-align:center"><div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 4px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>${m.elo?`<div class="small tm">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''}</td>
       <td>${m.b.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
       <td><span class="pill p-lime">${(wA?m.a:m.b).join(' & ')} thắng</span></td>
       <td class="tm small">${m.note||'—'}</td>
