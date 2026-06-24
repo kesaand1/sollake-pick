@@ -40,7 +40,7 @@ body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);min
   background:rgba(11,25,41,0.98);border-top:1px solid var(--border);
   z-index:200;backdrop-filter:blur(14px);
   padding-bottom:env(safe-area-inset-bottom);}
-.botnav-inner{display:grid;grid-template-columns:repeat(5,1fr);height:var(--bot-h)}
+.botnav-inner{display:grid;grid-template-columns:repeat(6,1fr);height:var(--bot-h)}
 .bot-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:none;color:var(--muted);transition:color .18s;padding:.2rem .25rem;font-family:'Inter',sans-serif}
 .bot-tab .bicon{font-size:1.2rem;line-height:1}
 .bot-tab .blabel{font-size:.6rem;font-weight:500;letter-spacing:.2px}
@@ -157,6 +157,16 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .tm{color:var(--muted)}.tl{color:var(--lime)}.td{color:var(--danger)}.ts{color:var(--success)}.tw{color:var(--warn)}
 .bold{font-weight:600}.small{font-size:.73rem}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* PAIRING RESULT */
+.pair-result{border-radius:var(--r);padding:1.25rem;text-align:center;border:1px solid var(--border);margin-top:.5rem}
+.pair-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center;margin-bottom:1rem}
+.pair-team{padding:.75rem;border-radius:var(--rs);border:1px solid var(--border)}
+.pair-team-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:.4rem}
+.pair-score{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:700;line-height:1}
+.pair-names{font-size:.75rem;color:var(--muted);margin-top:.3rem;line-height:1.5}
+.keo-box{background:rgba(255,255,255,.04);border-radius:var(--rs);padding:1rem 1.25rem;border:1px solid var(--border)}
+.keo-value{font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:700;margin:.3rem 0}
+.keo-label{font-size:.73rem;color:var(--muted)}
 .notif{position:fixed;top:.85rem;left:50%;transform:translate(-50%,-200%);width:min(90vw,340px);
   background:var(--navy3);border:1px solid var(--lime);border-radius:var(--rs);
   padding:.65rem 1.1rem;font-size:.82rem;color:var(--lime);z-index:999;
@@ -193,10 +203,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- TOP NAV -->
 <nav class="topnav">
-  <div class="logo">Sollake <span>Pick</span> 🏓</div>
+  <div class="logo">Sollake <span>Pick</span></div>
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="showPage('ranking')">🏆 Xếp hạng</button>
     <button class="tab-btn" onclick="showPage('matches')">🏓 Trận đấu</button>
+    <button class="tab-btn" onclick="showPage('pairing')">🎯 Ghép đôi</button>
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
   </div>
@@ -214,6 +225,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </button>
     <button class="bot-tab add-btn" onclick="openModal('matchModal')">
       <span class="bicon">＋</span><span class="blabel">Ghi trận</span>
+    </button>
+    <button class="bot-tab" onclick="showPage('pairing');botActive(this)">
+      <span class="bicon">🎯</span><span class="blabel">Ghép đôi</span>
     </button>
     <button class="bot-tab" onclick="showPage('players');botActive(this)">
       <span class="bicon">👥</span><span class="blabel">Thành viên</span>
@@ -241,6 +255,46 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
     <div class="desk tbl-wrap" id="rankD"></div>
     <div class="mob" id="rankM"></div>
+  </div>
+</div>
+
+<!-- PAGE: PAIRING -->
+<div class="page" id="page-pairing">
+  <div class="sec-title">Ghép đôi & Dự đoán kèo</div>
+  <div class="panel">
+    <div class="panel-hd">Chọn 4 người chơi vào 2 cặp</div>
+    <div class="g2" style="margin-bottom:1rem">
+      <div style="border:1px solid var(--border);border-radius:var(--rs);padding:1rem;background:rgba(181,240,51,0.04)">
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--lime);margin-bottom:.75rem">⚡ Cặp A</div>
+        <div class="fgroup"><label>Người 1</label><select class="finput" id="pairA1" onchange="calcPairing()"></select></div>
+        <div class="fgroup" style="margin-bottom:0"><label>Người 2</label><select class="finput" id="pairA2" onchange="calcPairing()"></select></div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:var(--rs);padding:1rem;background:rgba(96,165,250,0.04)">
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#60A5FA;margin-bottom:.75rem">🔵 Cặp B</div>
+        <div class="fgroup"><label>Người 1</label><select class="finput" id="pairB1" onchange="calcPairing()"></select></div>
+        <div class="fgroup" style="margin-bottom:0"><label>Người 2</label><select class="finput" id="pairB2" onchange="calcPairing()"></select></div>
+      </div>
+    </div>
+    <div id="pairingResult"></div>
+  </div>
+  <div class="panel mt1">
+    <div class="panel-hd">📊 Bảng tính kèo nhanh</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;line-height:1.7">
+      Dựa trên <strong style="color:var(--text)">tổng điểm</strong> của mỗi cặp. Chênh lệch mỗi <strong style="color:var(--lime)">0.2 điểm</strong> = chấp 1 quả. Tối đa 5 quả.
+    </div>
+    <div class="tbl-wrap">
+      <table style="min-width:300px">
+        <thead><tr><th>Chênh lệch tổng điểm</th><th>Dự đoán kèo</th></tr></thead>
+        <tbody>
+          <tr><td class="tm">0.00 – 0.30</td><td><span class="pill p-yellow">⚖️ Ngang kèo</span></td></tr>
+          <tr><td class="tm">0.31 – 0.50</td><td><span class="pill p-lime">Cặp mạnh chấp 1 quả</span></td></tr>
+          <tr><td class="tm">0.51 – 0.70</td><td><span class="pill p-lime">Cặp mạnh chấp 2 quả</span></td></tr>
+          <tr><td class="tm">0.71 – 0.90</td><td><span class="pill p-lime">Cặp mạnh chấp 3 quả</span></td></tr>
+          <tr><td class="tm">0.91 – 1.10</td><td><span class="pill p-lime">Cặp mạnh chấp 4 quả</span></td></tr>
+          <tr><td class="tm">&gt; 1.10</td><td><span class="pill p-green">Cặp mạnh chấp 5 quả (tối đa)</span></td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -476,12 +530,13 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const map={ranking:'xếp',matches:'trận',players:'thành',finance:'thu'};
+  const map={ranking:'xếp',matches:'trận',pairing:'ghép',players:'thành',finance:'thu'};
   document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   if(id==='ranking')renderRanking();
   if(id==='matches')renderMatches();
   if(id==='players')renderPlayers();
   if(id==='finance'){renderFinance();renderFines();renderDebt();}
+  if(id==='pairing')populatePairingSelects();
 }
 function botActive(el){document.querySelectorAll('.bot-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active')}
 
@@ -816,6 +871,86 @@ function renderDebt(){
     <td><span class="pill ${d.debt>0?'p-red':'p-green'}">${d.debt>0?'Còn nợ':'Sạch nợ'}</span></td>
   </tr>`).join('');
   document.getElementById('debtTbl').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Còn nợ</th><th>Đã nộp</th><th>Trạng thái</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ═══════════════════════════════════════════
+// PAIRING
+// ═══════════════════════════════════════════
+function populatePairingSelects(){
+  const vis=players.filter(p=>p.visible);
+  const opts=vis.map(p=>`<option value="${p.name}">${p.name} (${p.score.toFixed(2)})</option>`).join('');
+  ['pairA1','pairA2','pairB1','pairB2'].forEach(id=>document.getElementById(id).innerHTML=opts);
+  // Set distinct defaults
+  if(vis.length>=4){
+    document.getElementById('pairA1').value=vis[0].name;
+    document.getElementById('pairA2').value=vis[1].name;
+    document.getElementById('pairB1').value=vis[2].name;
+    document.getElementById('pairB2').value=vis[3].name;
+  }
+  calcPairing();
+}
+
+function calcKeo(diff){
+  if(diff<=0.30)return{text:'⚖️ Ngang kèo',quả:0,pill:'p-yellow'};
+  const qua=Math.min(5,Math.ceil((diff-0.30)/0.20));
+  return{text:`Chấp ${qua} quả`,quả:qua,pill:qua>=4?'p-green':'p-lime'};
+}
+
+function calcPairing(){
+  const a1n=document.getElementById('pairA1').value;
+  const a2n=document.getElementById('pairA2').value;
+  const b1n=document.getElementById('pairB1').value;
+  const b2n=document.getElementById('pairB2').value;
+  const el=document.getElementById('pairingResult');
+
+  // Check duplicates
+  const all=[a1n,a2n,b1n,b2n];
+  if(new Set(all).size<4){
+    el.innerHTML=`<div style="color:var(--danger);font-size:.82rem;padding:.75rem;background:rgba(248,113,113,.08);border-radius:var(--rs);border:1px solid rgba(248,113,113,.2)">⚠️ Mỗi người chơi chỉ được chọn một lần. Vui lòng chọn 4 người khác nhau.</div>`;
+    return;
+  }
+
+  const a1=gp(a1n),a2=gp(a2n),b1=gp(b1n),b2=gp(b2n);
+  if(!a1||!a2||!b1||!b2)return;
+
+  const sumA=parseFloat((a1.score+a2.score).toFixed(2));
+  const sumB=parseFloat((b1.score+b2.score).toFixed(2));
+  const diff=parseFloat(Math.abs(sumA-sumB).toFixed(2));
+  const stronger=sumA>=sumB?'A':'B';
+  const keo=calcKeo(diff);
+
+  const strongerLabel=stronger==='A'?'Cặp A':'Cặp B';
+  const weakerLabel=stronger==='A'?'Cặp B':'Cặp A';
+  const strongerColor=stronger==='A'?'var(--lime)':'#60A5FA';
+
+  let keoDesc='';
+  if(keo.quả===0){
+    keoDesc='Hai cặp có lực chơi tương đương nhau';
+  } else {
+    keoDesc=`<strong style="color:${strongerColor}">${strongerLabel}</strong> chấp <strong style="color:${strongerColor}">${weakerLabel}</strong> ${keo.quả} quả`;
+  }
+
+  el.innerHTML=`
+  <div class="pair-result">
+    <div class="pair-vs">
+      <div class="pair-team" style="border-color:rgba(181,240,51,0.3);background:rgba(181,240,51,0.05)">
+        <div class="pair-team-label" style="color:var(--lime)">⚡ Cặp A</div>
+        <div class="pair-score" style="color:var(--lime)">${sumA.toFixed(2)}</div>
+        <div class="pair-names">${a1n}<br/>${a2n}</div>
+      </div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--muted)">VS</div>
+      <div class="pair-team" style="border-color:rgba(96,165,250,0.3);background:rgba(96,165,250,0.05)">
+        <div class="pair-team-label" style="color:#60A5FA">🔵 Cặp B</div>
+        <div class="pair-score" style="color:#60A5FA">${sumB.toFixed(2)}</div>
+        <div class="pair-names">${b1n}<br/>${b2n}</div>
+      </div>
+    </div>
+    <div class="keo-box">
+      <div class="keo-label">Chênh lệch tổng điểm: <strong style="color:var(--text)">${diff.toFixed(2)}</strong></div>
+      <div class="keo-value"><span class="pill ${keo.pill}" style="font-size:1rem;padding:.4rem 1.1rem">${keo.text}</span></div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.5rem;line-height:1.7">${keoDesc}</div>
+    </div>
+  </div>`;
 }
 
 function init(){
