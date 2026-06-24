@@ -5,6 +5,28 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <title>Sollake Pick</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAF4GMR-pn-7MXbwtKIF9u-hp4azUqbF8E",
+  authDomain: "sollake-pick.firebaseapp.com",
+  databaseURL: "https://sollake-pick-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sollake-pick",
+  storageBucket: "sollake-pick.firebasestorage.app",
+  messagingSenderId: "223126852935",
+  appId: "1:223126852935:web:e2ccfca7e1f1b86f3f6862",
+  measurementId: "G-MX5V4L3W3L"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ── Expose to global scope so the rest of the app can call them ──
+window._fbSet = (path, data) => set(ref(db, path), data);
+window._fbOn  = (path, cb)   => onValue(ref(db, path), snap => cb(snap.val()));
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -229,7 +251,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
   </div>
-  <button class="btn-log" onclick="openModal('matchModal')">+ Ghi trận</button>
+  <div style="display:flex;align-items:center;gap:.6rem">
+    <span id="syncDot" title="Trạng thái đồng bộ" style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s"></span>
+    <button id="uploadBtn" onclick="manualSync()" title="Đẩy dữ liệu local lên Firebase" style="background:rgba(255,255,255,.07);border:1px solid var(--border);color:var(--muted);border-radius:var(--rs);padding:.38rem .7rem;font-size:.75rem;cursor:pointer;transition:all .2s;white-space:nowrap">☁️ Sync</button>
+    <button class="btn-log" onclick="openModal('matchModal')">+ Ghi trận</button>
+  </div>
 </nav>
 
 <!-- BOTTOM NAV -->
@@ -523,8 +549,35 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script>
 const COLORS=['c0','c1','c2','c3','c4','c5','c6','c7'];
 let showHidden=false,pendingFineId=null;
+// localStorage kept as offline cache; Firebase is source of truth
 const ld=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
 const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+
+// Push all 4 collections to Firebase
+function pushToFirebase(){
+  if(!window._fbSet) return;
+  const dot=document.getElementById('syncDot');
+  if(dot) dot.style.background='var(--warn)';
+  Promise.all([
+    window._fbSet('players',  players),
+    window._fbSet('matches',  matches),
+    window._fbSet('finances', finances),
+    window._fbSet('fines',    fines),
+  ]).then(()=>{
+    if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',2000);}
+  }).catch(()=>{if(dot)dot.style.background='var(--danger)';});
+}
+
+// Subscribe once; merge Firebase data & re-render
+function subscribeFirebase(){
+  const dot=document.getElementById('syncDot');
+  if(dot) dot.style.background='var(--warn)';
+  if(!window._fbOn) return;
+  window._fbOn('players',  val=>{ if(val&&Array.isArray(val)){players=val;sv('sp2_players',val);nP=players.length?Math.max(...players.map(p=>p.id))+1:1;renderPlayers();renderRanking();const dot=document.getElementById('syncDot');if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}}});
+  window._fbOn('matches',  val=>{ if(val&&Array.isArray(val)){matches=val;sv('sp2_matches',val);nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;renderMatches();}});
+  window._fbOn('finances', val=>{ if(val&&Array.isArray(val)){finances=val;sv('sp2_finances',val);nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;}});
+  window._fbOn('fines',    val=>{ if(val&&Array.isArray(val)){fines=val;sv('sp2_fines',val);nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;}});
+}
 
 let players=ld('sp2_players',[
   {id:1,name:'Trần Minh Khoa',score:4.52,note:'Đội trưởng',color:'c0',visible:true,joined:'2024-01-10'},
@@ -548,7 +601,7 @@ let fines=ld('sp2_fines',[
   {id:2,player:'Lê Đức Thành',reason:'Bỏ buổi không báo',amount:100000,date:'2025-06-18',paid:true},
 ]);
 
-const saveAll=()=>{sv('sp2_players',players);sv('sp2_matches',matches);sv('sp2_finances',finances);sv('sp2_fines',fines)};
+const saveAll=()=>{sv('sp2_players',players);sv('sp2_matches',matches);sv('sp2_finances',finances);sv('sp2_fines',fines);pushToFirebase();};
 let nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
 let nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
 let nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
@@ -1329,12 +1382,40 @@ function renderProfile(name){
   }
 }
 
+// Manual one-time sync: push localStorage → Firebase
+function manualSync(){
+  const btn = document.getElementById('uploadBtn');
+  const dot = document.getElementById('syncDot');
+  if(!window._fbSet){
+    notify('⚠️ Firebase chưa kết nối. Hãy mở app từ GitHub Pages.');
+    return;
+  }
+  if(btn) btn.textContent='☁️ Đang sync...';
+  if(dot) dot.style.background='var(--warn)';
+  Promise.all([
+    window._fbSet('players',  players),
+    window._fbSet('matches',  matches),
+    window._fbSet('finances', finances),
+    window._fbSet('fines',    fines),
+  ]).then(()=>{
+    if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}
+    if(btn) btn.textContent='☁️ Sync';
+    notify('✅ Đã đẩy dữ liệu lên Firebase thành công!');
+  }).catch(err=>{
+    if(dot) dot.style.background='var(--danger)';
+    if(btn) btn.textContent='☁️ Sync';
+    notify('❌ Lỗi: '+err.message);
+  });
+}
+
 function init(){
   document.getElementById('rankTo').value=today();
   document.getElementById('matchTo').value=today();
   document.getElementById('finTo').value=today();
   document.getElementById('finFrom').value=ago(30);
   renderRanking();renderPlayers();
+  // Wait for Firebase module to load then subscribe
+  setTimeout(()=>subscribeFirebase(), 800);
 }
 init();
 </script>
