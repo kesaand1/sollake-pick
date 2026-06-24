@@ -206,7 +206,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="logo">Sollake <span>Pick</span></div>
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="showPage('ranking')">🏆 Xếp hạng</button>
-    <button class="tab-btn" onclick="showPage('matches')">🏓 Trận đấu</button>
+    <button class="tab-btn" onclick="showPage('matches')">Trận đấu</button>
     <button class="tab-btn" onclick="showPage('pairing')">🎯 Ghép đôi</button>
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
@@ -221,7 +221,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span class="bicon">🏆</span><span class="blabel">Xếp hạng</span>
     </button>
     <button class="bot-tab" onclick="showPage('matches');botActive(this)">
-      <span class="bicon">🏓</span><span class="blabel">Trận đấu</span>
+      <span class="bicon">🎾</span><span class="blabel">Trận đấu</span>
     </button>
     <button class="bot-tab add-btn" onclick="openModal('matchModal')">
       <span class="bicon">＋</span><span class="blabel">Ghi trận</span>
@@ -280,18 +280,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="panel mt1">
     <div class="panel-hd">📊 Bảng tính kèo nhanh</div>
     <div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;line-height:1.7">
-      Dựa trên <strong style="color:var(--text)">tổng điểm</strong> của mỗi cặp. Chênh lệch mỗi <strong style="color:var(--lime)">0.2 điểm</strong> = chấp 1 quả. Tối đa 5 quả.
+      Dựa trên <strong style="color:var(--text)">tổng điểm</strong> của mỗi cặp. Chênh lệch ≤ 0.5 điểm = ngang kèo. Mỗi <strong style="color:var(--lime)">0.3 điểm</strong> tiếp theo = chấp thêm 1 quả. Tối đa 5 quả.
     </div>
     <div class="tbl-wrap">
       <table style="min-width:300px">
         <thead><tr><th>Chênh lệch tổng điểm</th><th>Dự đoán kèo</th></tr></thead>
         <tbody>
-          <tr><td class="tm">0.00 – 0.30</td><td><span class="pill p-yellow">⚖️ Ngang kèo</span></td></tr>
-          <tr><td class="tm">0.31 – 0.50</td><td><span class="pill p-lime">Cặp mạnh chấp 1 quả</span></td></tr>
-          <tr><td class="tm">0.51 – 0.70</td><td><span class="pill p-lime">Cặp mạnh chấp 2 quả</span></td></tr>
-          <tr><td class="tm">0.71 – 0.90</td><td><span class="pill p-lime">Cặp mạnh chấp 3 quả</span></td></tr>
-          <tr><td class="tm">0.91 – 1.10</td><td><span class="pill p-lime">Cặp mạnh chấp 4 quả</span></td></tr>
-          <tr><td class="tm">&gt; 1.10</td><td><span class="pill p-green">Cặp mạnh chấp 5 quả (tối đa)</span></td></tr>
+          <tr><td class="tm">0.00 – 0.50</td><td><span class="pill p-yellow">⚖️ Ngang kèo</span></td></tr>
+          <tr><td class="tm">0.51 – 0.80</td><td><span class="pill p-lime">Cặp mạnh chấp 1 quả</span></td></tr>
+          <tr><td class="tm">0.81 – 1.10</td><td><span class="pill p-lime">Cặp mạnh chấp 2 quả</span></td></tr>
+          <tr><td class="tm">1.11 – 1.40</td><td><span class="pill p-lime">Cặp mạnh chấp 3 quả</span></td></tr>
+          <tr><td class="tm">1.41 – 1.70</td><td><span class="pill p-lime">Cặp mạnh chấp 4 quả</span></td></tr>
+          <tr><td class="tm">&gt; 1.70</td><td><span class="pill p-green">Cặp mạnh chấp 5 quả (tối đa)</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -891,8 +891,8 @@ function populatePairingSelects(){
 }
 
 function calcKeo(diff){
-  if(diff<=0.30)return{text:'⚖️ Ngang kèo',quả:0,pill:'p-yellow'};
-  const qua=Math.min(5,Math.ceil((diff-0.30)/0.20));
+  if(diff<=0.50)return{text:'⚖️ Ngang kèo',quả:0,pill:'p-yellow'};
+  const qua=Math.min(5,Math.ceil((diff-0.50)/0.30));
   return{text:`Chấp ${qua} quả`,quả:qua,pill:qua>=4?'p-green':'p-lime'};
 }
 
