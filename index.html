@@ -733,7 +733,7 @@ function renderRanking(){
       <td><span class="pill ${getLevel(p.score).pill}">${getLevel(p.score).icon} ${getLevel(p.score).label}</span></td>
     </tr>`;
   }).join('');
-  document.getElementById('rankD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Đã đấu</th><th>Thắng</th><th>Thua</th><th>Tỷ lệ</th><th>Trend</th><th>Trình độ</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('rankD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Đã đấu</th><th>Thắng</th><th>Thua</th><th>Tỷ lệ</th><th>Phong độ</th><th>Trình độ</th></tr></thead><tbody>${rows}</tbody></table>`;
 
   const cards=sorted.map((p,i)=>{
     const s=st[p.name]||{wins:0,losses:0,played:0,trend:0};
