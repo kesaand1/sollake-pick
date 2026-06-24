@@ -125,7 +125,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 /* CARD LIST (mobile) */
 .card-list{display:flex;flex-direction:column;gap:.5rem}
-.card-item{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs);padding:.85rem .9rem}
+.card-item{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs);padding:.85rem .9rem;-webkit-tap-highlight-color:rgba(181,240,51,.1)}
 .card-item-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
 .card-meta{font-size:.72rem;color:var(--muted);margin-top:.35rem;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
 
@@ -265,7 +265,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span class="bicon">🏆</span><span class="blabel">Xếp hạng</span>
     </button>
     <button class="bot-tab" onclick="showPage('matches');botActive(this)">
-      <span class="bicon">🎾</span><span class="blabel">Trận đấu</span>
+      <span class="bicon">🏸</span><span class="blabel">Trận đấu</span>
     </button>
     <button class="bot-tab add-btn" onclick="openModal('matchModal')">
       <span class="bicon">＋</span><span class="blabel">Ghi trận</span>
@@ -721,8 +721,8 @@ function renderPlayers(){
   document.getElementById('playerD').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map(p=>{const lv=getLevel(p.score);return`<div class="card-item">
     <div class="card-item-row">
-      <div class="av-wrap">${av(p.name,p.color,'av-lg')}<div>
-        <div class="bold">${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
+      <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer">${av(p.name,p.color,'av-lg')}<div>
+        <div class="bold" style="text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)">${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
         <div class="small tm"><span class="pill ${lv.pill}" style="font-size:.62rem">${lv.icon} ${lv.label}</span> · ${fmtD(p.joined)}</div>
       </div></div>
       <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.25rem;color:var(--lime)">${p.score.toFixed(2)}</span>
@@ -893,7 +893,7 @@ function renderMatches(){
     return`<div class="card-item">
       <div class="card-item-row">
         <div style="min-width:0">
-          <div class="bold ell" style="font-size:.85rem">${m.a.join(' & ')} <span class="tm" style="font-weight:400">vs</span> ${m.b.join(' & ')}</div>
+          <div class="bold ell" style="font-size:.85rem">${m.a.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)">${n}</span>`).join(' & ')} <span class="tm" style="font-weight:400">vs</span> ${m.b.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)">${n}</span>`).join(' & ')}</div>
           <div class="card-meta"><span>${fmtD(m.date)}</span><span class="pill p-gray" style="font-size:.62rem">${m.type==='singles'?'Đơn':'Đôi'}</span>${m.elo?`<span class="tm">±${m.elo} ELO</span>`:''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
