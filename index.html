@@ -265,7 +265,21 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span class="bicon">🏆</span><span class="blabel">Xếp hạng</span>
     </button>
     <button class="bot-tab" onclick="showPage('matches');botActive(this)">
-      <span class="bicon">🏸</span><span class="blabel">Trận đấu</span>
+      <span class="bicon" style="font-size:1rem;display:flex;align-items:center;justify-content:center">
+          <svg width="26" height="20" viewBox="0 0 26 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- outer court -->
+            <rect x="1" y="1" width="24" height="18" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <!-- center line vertical -->
+            <line x1="13" y1="1" x2="13" y2="19" stroke="currentColor" stroke-width="1.2"/>
+            <!-- kitchen/NVZ lines -->
+            <line x1="1" y1="6" x2="13" y2="6" stroke="currentColor" stroke-width="1"/>
+            <line x1="13" y1="6" x2="25" y2="6" stroke="currentColor" stroke-width="1"/>
+            <line x1="1" y1="14" x2="13" y2="14" stroke="currentColor" stroke-width="1"/>
+            <line x1="13" y1="14" x2="25" y2="14" stroke="currentColor" stroke-width="1"/>
+            <!-- net -->
+            <line x1="1" y1="10" x2="25" y2="10" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </span><span class="blabel">Trận đấu</span>
     </button>
     <button class="bot-tab add-btn" onclick="openModal('matchModal')">
       <span class="bicon">＋</span><span class="blabel">Ghi trận</span>
