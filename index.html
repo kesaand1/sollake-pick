@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <title>Sollake Pick</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -157,6 +158,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .tm{color:var(--muted)}.tl{color:var(--lime)}.td{color:var(--danger)}.ts{color:var(--success)}.tw{color:var(--warn)}
 .bold{font-weight:600}.small{font-size:.73rem}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* PROFILE PAGE */
+.profile-hero{display:flex;align-items:center;gap:1.25rem;padding:1.25rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:1rem}
+.profile-av{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;flex-shrink:0;font-family:'Space Grotesk',sans-serif}
+.profile-info{flex:1;min-width:0}
+.profile-name{font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:700;line-height:1.2}
+.profile-meta{font-size:.78rem;color:var(--muted);margin-top:.3rem;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.profile-score{font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:700;color:var(--lime);line-height:1}
+.profile-score-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-top:.2rem}
+.stat4{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-bottom:1rem}
+@media(max-width:500px){.stat4{grid-template-columns:repeat(2,1fr)}.profile-hero{flex-wrap:wrap}.profile-score{font-size:1.5rem}}
+.back-btn{display:inline-flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:var(--rs);padding:.38rem .8rem;font-size:.78rem;color:var(--muted);cursor:pointer;margin-bottom:1rem;font-family:'Inter',sans-serif;transition:all .2s}
+.back-btn:hover{color:var(--text);background:rgba(255,255,255,.1)}
+.chart-wrap{position:relative;width:100%;height:200px}
+.match-streak{display:flex;gap:4px;flex-wrap:wrap;margin-top:.5rem}
+.streak-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700}
+.streak-w{background:rgba(74,222,128,.2);color:var(--success)}
+.streak-l{background:rgba(248,113,113,.15);color:var(--danger)}
 /* PAIRING RESULT */
 .pair-result{border-radius:var(--r);padding:1.25rem;text-align:center;border:1px solid var(--border);margin-top:.5rem}
 .pair-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center;margin-bottom:1rem}
@@ -255,6 +273,40 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
     <div class="desk tbl-wrap" id="rankD"></div>
     <div class="mob" id="rankM"></div>
+  </div>
+</div>
+
+<!-- PAGE: PROFILE -->
+<div class="page" id="page-profile">
+  <button class="back-btn" onclick="goBack()">← Quay lại</button>
+  <div class="profile-hero">
+    <div class="profile-av" id="profileAv"></div>
+    <div class="profile-info">
+      <div class="profile-name" id="profileName"></div>
+      <div class="profile-meta" id="profileMeta"></div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div class="profile-score" id="profileScore"></div>
+      <div class="profile-score-lbl">Điểm hiện tại</div>
+    </div>
+  </div>
+
+  <div class="stat4" id="profileStats"></div>
+
+  <div class="panel" style="margin-bottom:1rem">
+    <div class="panel-hd">📈 Phong độ điểm ELO theo thời gian</div>
+    <div class="chart-wrap"><canvas id="chartElo"></canvas></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:1rem">
+    <div class="panel-hd">📊 Thắng / Thua theo tháng</div>
+    <div class="chart-wrap"><canvas id="chartWL"></canvas></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd">🏓 Chuỗi trận gần nhất <span id="streakCount" style="color:var(--lime)"></span></div>
+    <div class="match-streak" id="profileStreak"></div>
+    <div style="margin-top:1rem" id="profileMatchList"></div>
   </div>
 </div>
 
@@ -513,7 +565,7 @@ const today=()=>new Date().toISOString().split('T')[0];
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0]};
 const ini=n=>n.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();
 const av=(n,c,lg='')=>`<div class="av ${lg} ${c||'c0'}">${ini(n)}</div>`;
-const avW=(n,c,ex='')=>`<div class="av-wrap">${av(n,c)}<span class="aname">${n}${ex}</span></div>`;
+const avW=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${av(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
 const gp=n=>players.find(p=>p.name===n);
 const gpc=n=>{const p=gp(n);return p?p.color:'c0'};
 const inR=(d,f,t)=>{if(f&&d<f)return false;if(t&&d>t)return false;return true};
@@ -530,8 +582,8 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const map={ranking:'xếp',matches:'trận',pairing:'ghép',players:'thành',finance:'thu'};
-  document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
+  const map={ranking:'xếp',matches:'trận',pairing:'ghép',players:'thành',finance:'thu',profile:''};
+  if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   if(id==='ranking')renderRanking();
   if(id==='matches')renderMatches();
   if(id==='players')renderPlayers();
@@ -951,6 +1003,210 @@ function calcPairing(){
       <div style="font-size:.82rem;color:var(--muted);margin-top:.5rem;line-height:1.7">${keoDesc}</div>
     </div>
   </div>`;
+}
+
+// ═══════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════
+let prevPage = 'ranking';
+let eloChart = null;
+let wlChart  = null;
+
+function openProfile(name){
+  const p = gp(name);
+  if(!p) return;
+  prevPage = document.querySelector('.page.active')?.id?.replace('page-','') || 'ranking';
+  showPage('profile');
+  renderProfile(name);
+}
+
+function goBack(){
+  showPage(prevPage);
+}
+
+function renderProfile(name){
+  const p = gp(name);
+  if(!p) return;
+  const lv = getLevel(p.score);
+
+  // Hero
+  document.getElementById('profileAv').className = 'profile-av ' + p.color;
+  document.getElementById('profileAv').textContent = ini(name);
+  document.getElementById('profileName').textContent = name;
+  document.getElementById('profileScore').textContent = p.score.toFixed(2);
+  document.getElementById('profileMeta').innerHTML =
+    `<span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span>` +
+    `<span>Tham gia: ${fmtD(p.joined)}</span>` +
+    (p.note ? `<span>📝 ${p.note}</span>` : '');
+
+  // Compute match stats for this player
+  const myMatches = matches
+    .filter(m => m.a.includes(name) || m.b.includes(name))
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  const wins   = myMatches.filter(m => (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
+  const losses = myMatches.length - wins;
+  const wr     = myMatches.length > 0 ? Math.round(wins/myMatches.length*100) : 0;
+
+  // Singles vs doubles
+  const singles = myMatches.filter(m=>m.type==='singles').length;
+  const doubles = myMatches.filter(m=>m.type==='doubles').length;
+
+  document.getElementById('profileStats').innerHTML = `
+    <div class="sc"><div class="val">${myMatches.length}</div><div class="lbl">Tổng trận</div></div>
+    <div class="sc"><div class="val ts">${wins}</div><div class="lbl">Thắng</div></div>
+    <div class="sc"><div class="val td">${losses}</div><div class="lbl">Thua</div></div>
+    <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>`;
+
+  // ── ELO line chart ──
+  // Simulate ELO history from matches (reconstruct chronologically)
+  let elo = p.score;
+  // Walk backwards to get starting elo, then forward to plot
+  const eloHistory = [{date: p.joined, elo: p.score}]; // current is last
+  // Build forward simulation from matches with recorded deltas
+  const sorted = [...myMatches];
+  // Use actual recorded deltas if available
+  const eloPoints = [];
+  let runElo = p.score;
+  // Walk backwards from current
+  for(let i = sorted.length-1; i >= 0; i--){
+    const m = sorted[i];
+    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    const delta = parseFloat(m.elo || 0.04);
+    runElo = isWin ? runElo - delta : runElo + delta;
+  }
+  // Now walk forward
+  let fwdElo = parseFloat(runElo.toFixed(2));
+  const eloLabels = [fmtD(p.joined)];
+  const eloData   = [parseFloat(fwdElo.toFixed(2))];
+  for(const m of sorted){
+    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    const delta = parseFloat(m.elo || 0.04);
+    fwdElo = isWin ? fwdElo + delta : fwdElo - delta;
+    fwdElo = parseFloat(Math.min(8, Math.max(2, fwdElo)).toFixed(2));
+    eloLabels.push(fmtD(m.date));
+    eloData.push(fwdElo);
+  }
+
+  if(eloChart){ eloChart.destroy(); eloChart=null; }
+  const ctxElo = document.getElementById('chartElo').getContext('2d');
+  eloChart = new Chart(ctxElo, {
+    type: 'line',
+    data: {
+      labels: eloLabels,
+      datasets: [{
+        label: 'Điểm ELO',
+        data: eloData,
+        borderColor: '#B5F033',
+        backgroundColor: 'rgba(181,240,51,0.08)',
+        borderWidth: 2.5,
+        pointRadius: eloData.length > 15 ? 2 : 4,
+        pointBackgroundColor: '#B5F033',
+        fill: true,
+        tension: 0.35,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend:{display:false}, tooltip:{
+        backgroundColor:'rgba(18,32,50,0.95)',
+        titleColor:'#B5F033',
+        bodyColor:'#E2EDF8',
+        borderColor:'rgba(255,255,255,0.1)',
+        borderWidth:1,
+      }},
+      scales: {
+        x:{ ticks:{color:'#7A9BB8',font:{size:10},maxRotation:45}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y:{ ticks:{color:'#7A9BB8',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'}, min:2, max:8 }
+      }
+    }
+  });
+
+  // ── Win/Loss bar chart by month ──
+  const monthMap = {};
+  for(const m of myMatches){
+    const [y,mo] = m.date.split('-');
+    const key = `${y}/${mo}`;
+    if(!monthMap[key]) monthMap[key]={w:0,l:0};
+    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    if(isWin) monthMap[key].w++; else monthMap[key].l++;
+  }
+  const mLabels = Object.keys(monthMap).sort();
+  const mWins   = mLabels.map(k=>monthMap[k].w);
+  const mLoss   = mLabels.map(k=>monthMap[k].l);
+
+  if(wlChart){ wlChart.destroy(); wlChart=null; }
+  const ctxWL = document.getElementById('chartWL').getContext('2d');
+  wlChart = new Chart(ctxWL, {
+    type: 'bar',
+    data: {
+      labels: mLabels.length ? mLabels : ['Chưa có dữ liệu'],
+      datasets: [
+        { label:'Thắng', data: mWins, backgroundColor:'rgba(74,222,128,0.7)', borderRadius:4 },
+        { label:'Thua',  data: mLoss, backgroundColor:'rgba(248,113,113,0.55)', borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend:{ labels:{color:'#7A9BB8', font:{size:11}, boxWidth:12} },
+        tooltip:{
+          backgroundColor:'rgba(18,32,50,0.95)',
+          titleColor:'#E2EDF8',
+          bodyColor:'#E2EDF8',
+          borderColor:'rgba(255,255,255,0.1)',
+          borderWidth:1,
+        }
+      },
+      scales: {
+        x:{ ticks:{color:'#7A9BB8',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y:{ ticks:{color:'#7A9BB8',font:{size:10},stepSize:1}, grid:{color:'rgba(255,255,255,0.04)'}, beginAtZero:true }
+      }
+    }
+  });
+
+  // ── Streak dots (last 20 matches) ──
+  const recent = [...myMatches].reverse().slice(0, 20);
+  const streakDots = recent.map(m => {
+    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    return `<div class="streak-dot ${isWin?'streak-w':'streak-l'}" title="${fmtD(m.date)}">${isWin?'W':'L'}</div>`;
+  }).join('');
+  document.getElementById('profileStreak').innerHTML = streakDots || '<span class="tm small">Chưa có trận nào</span>';
+  document.getElementById('streakCount').textContent = recent.length ? `(${recent.length} trận gần nhất)` : '';
+
+  // ── Recent match list ──
+  const recentAll = [...myMatches].reverse().slice(0, 8);
+  if(!recentAll.length){
+    document.getElementById('profileMatchList').innerHTML = '<div class="empty"><div class="ei">🏓</div><p>Chưa có trận nào</p></div>';
+    return;
+  }
+  document.getElementById('profileMatchList').innerHTML = recentAll.map(m => {
+    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    const teammate = m.type==='doubles'
+      ? ([...m.a,...m.b].find(n2=>n2!==name&&((m.a.includes(name)&&m.a.includes(n2))||(m.b.includes(name)&&m.b.includes(n2)))))
+      : null;
+    const opponents = m.winner==='A'&&m.a.includes(name) ? m.b : m.winner==='B'&&m.b.includes(name) ? m.a : m.winner==='A' ? m.a : m.b;
+    const scoreW = m.winner==='A'?m.scoreA:m.scoreB;
+    const scoreL = m.winner==='A'?m.scoreB:m.scoreA;
+    const myScore = isWin ? scoreW : scoreL;
+    const oppScore = isWin ? scoreL : scoreW;
+    return `<div class="fin-row" style="margin-bottom:.4rem">
+      <div class="fleft">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span class="pill ${isWin?'p-green':'p-red'}" style="flex-shrink:0">${isWin?'Thắng':'Thua'}</span>
+          <span class="small" style="color:var(--text)">vs ${opponents.join(' & ')}${teammate?` (cùng ${teammate})`:''}</span>
+        </div>
+        <div class="small tm" style="margin-top:3px">${fmtD(m.date)} · ${m.type==='singles'?'Đơn':'Đôi'}${m.elo?` · ${isWin?'+':'-'}${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>
+      </div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0">
+        <span style="color:${isWin?'var(--lime)':'var(--muted)'}">${myScore}</span>
+        <span style="color:var(--muted);margin:0 3px">:</span>
+        <span style="color:${!isWin?'var(--lime)':'var(--muted)'}">${oppScore}</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function init(){
