@@ -692,19 +692,34 @@ function renderRanking(){
   const from=document.getElementById('rankFrom').value;
   const to=document.getElementById('rankTo').value;
   const vis=players.filter(p=>p.visible);
-  const st={};vis.forEach(p=>{st[p.name]={wins:0,losses:0,played:0}});
+
+  // Stats + trend per player
+  const st={};
+  vis.forEach(p=>{st[p.name]={wins:0,losses:0,played:0,trend:0}});
+
   matches.filter(m=>inR(m.date,from,to)).forEach(m=>{
-    const wt=m.winner==='A'?m.a:m.b,lt=m.winner==='A'?m.b:m.a;
-    wt.forEach(n=>{if(st[n]){st[n].wins++;st[n].played++;}});
-    lt.forEach(n=>{if(st[n]){st[n].losses++;st[n].played++;}});
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    const delta=parseFloat(m.elo||0.04);
+    wt.forEach(n=>{if(st[n]){st[n].wins++;st[n].played++;st[n].trend=parseFloat((st[n].trend+delta).toFixed(2));}});
+    lt.forEach(n=>{if(st[n]){st[n].losses++;st[n].played++;st[n].trend=parseFloat((st[n].trend-delta).toFixed(2));}});
   });
+
   const sorted=[...vis].sort((a,b)=>b.score-a.score);
   if(!sorted.length){
     const e=empty('🏆','Chưa có dữ liệu xếp hạng');
     document.getElementById('rankD').innerHTML=e;document.getElementById('rankM').innerHTML=e;return;
   }
+
+  function trendHtml(trend){
+    if(trend===0) return `<span style="color:var(--muted);font-size:.8rem">—</span>`;
+    const up = trend > 0;
+    const arrow = up ? '▲' : '▼';
+    const col = up ? 'var(--success)' : 'var(--danger)';
+    return `<span style="color:${col};font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.85rem;white-space:nowrap">${arrow} ${up?'+':''}${trend.toFixed(2)}</span>`;
+  }
+
   const rows=sorted.map((p,i)=>{
-    const s=st[p.name]||{wins:0,losses:0,played:0};
+    const s=st[p.name]||{wins:0,losses:0,played:0,trend:0};
     const wr=s.played>0?Math.round(s.wins/s.played*100):0;
     const rc=i===0?'r1':i===1?'r2':i===2?'r3':'';
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
@@ -714,15 +729,21 @@ function renderRanking(){
       <td><span style="font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</span></td>
       <td>${s.played}</td><td class="ts">${s.wins}</td><td class="td">${s.losses}</td>
       <td><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
+      <td>${trendHtml(s.trend)}</td>
       <td><span class="pill ${getLevel(p.score).pill}">${getLevel(p.score).icon} ${getLevel(p.score).label}</span></td>
     </tr>`;
   }).join('');
-  document.getElementById('rankD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm ELO</th><th>Đã đấu</th><th>Thắng</th><th>Thua</th><th>Tỷ lệ</th><th>Trình độ</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('rankD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Đã đấu</th><th>Thắng</th><th>Thua</th><th>Tỷ lệ</th><th>Trend</th><th>Trình độ</th></tr></thead><tbody>${rows}</tbody></table>`;
+
   const cards=sorted.map((p,i)=>{
-    const s=st[p.name]||{wins:0,losses:0,played:0};
+    const s=st[p.name]||{wins:0,losses:0,played:0,trend:0};
     const wr=s.played>0?Math.round(s.wins/s.played*100):0;
     const rc=i===0?'r1':i===1?'r2':i===2?'r3':'';
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    const trend=s.trend;
+    const trendUp=trend>0, trendZero=trend===0;
+    const trendStr=trendZero?'—':`${trendUp?'▲':'▼'} ${trendUp?'+':''}${trend.toFixed(2)}`;
+    const trendCol=trendZero?'var(--muted)':trendUp?'var(--success)':'var(--danger)';
     return`<div class="card-item">
       <div class="card-item-row">
         <div class="av-wrap">
@@ -730,7 +751,10 @@ function renderRanking(){
           ${av(p.name,p.color,'av-lg')}
           <div><div class="bold">${p.name}</div><div class="small tm">${getLevel(p.score).icon} ${getLevel(p.score).label}</div></div>
         </div>
-        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.35rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</span>
+        <div style="text-align:right">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</div>
+          <div style="font-size:.78rem;font-weight:700;color:${trendCol}">${trendStr}</div>
+        </div>
       </div>
       <div class="card-meta mt1">
         <span>⚔️ ${s.played} trận</span>
