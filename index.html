@@ -302,6 +302,21 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- PAGE: RANKING -->
 <div class="page active" id="page-ranking">
   <div class="sec-title">Tổng quan</div>
+  <div class="panel" style="margin-bottom:.85rem;padding:.85rem 1.1rem">
+    <div class="panel-hd" style="margin-bottom:.6rem">Thống kê theo thời gian
+      <div class="right period-btns">
+        <button class="btn btn-ghost btn-sm" onclick="setOvPeriod('week')">7 ngày</button>
+        <button class="btn btn-ghost btn-sm" onclick="setOvPeriod('month')">30 ngày</button>
+        <button class="btn btn-ghost btn-sm" onclick="setOvPeriod('all')">Tất cả</button>
+      </div>
+    </div>
+    <div class="filter-row" style="margin-bottom:0">
+      <label>Từ</label>
+      <input type="date" class="finput" id="ovFrom" onchange="renderOverviewCards()"/>
+      <label>Đến</label>
+      <input type="date" class="finput" id="ovTo" onchange="renderOverviewCards()"/>
+    </div>
+  </div>
   <div class="ov-cards" id="ovCards"></div>
   <div class="panel">
     <div class="panel-hd">Lọc thời gian
@@ -780,25 +795,47 @@ function setRankPeriod(p){
   document.getElementById('rankFrom').value=p==='all'?'':p==='week'?ago(7):ago(30);
   document.getElementById('rankTo').value=today();renderRanking();
 }
+function setOvPeriod(p){
+  document.getElementById('ovFrom').value = p==='all'?'':p==='week'?ago(7):ago(30);
+  document.getElementById('ovTo').value = today();
+  renderOverviewCards();
+}
+
 function renderOverviewCards(){
   const el = document.getElementById('ovCards');
   if(!el) return;
   if(!players.length){ el.innerHTML=''; return; }
 
-  // Tốp nộp: player with most negative kèo tiền balance
-  const tienBalance = {};
-  players.filter(p=>p.visible).forEach(p=>{ tienBalance[p.name]=0; });
-  matches.forEach(m=>{
-    if(m.keo!=='tien') return;
-    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
-    wt.forEach(n=>{ if(tienBalance[n]!==undefined) tienBalance[n]+=(m.keoTien||0); });
-    lt.forEach(n=>{ if(tienBalance[n]!==undefined) tienBalance[n]-=(m.keoTien||0); });
-  });
-  const topNop = Object.entries(tienBalance).sort((a,b)=>a[1]-b[1])[0];
+  const from = (document.getElementById('ovFrom')||{}).value||'';
+  const to   = (document.getElementById('ovTo')||{}).value||'';
+  const vis  = players.filter(p=>p.visible);
+  const filtered = matches.filter(m=>inR(m.date,from,to));
 
-  // Cặp đôi bú: doubles pair with most wins together
+  // ── Tốp nộp: most negative COMBINED kèo balance (nước + tiền) ──
+  const lopNopBal = {};
+  vis.forEach(p=>{ lopNopBal[p.name]={tien:0,nuoc:0}; });
+  filtered.forEach(m=>{
+    if(!m.keo||m.keo==='none') return;
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    if(m.keo==='tien'){
+      const v=m.keoTien||0;
+      wt.forEach(n=>{ if(lopNopBal[n]) lopNopBal[n].tien+=v; });
+      lt.forEach(n=>{ if(lopNopBal[n]) lopNopBal[n].tien-=v; });
+    } else if(m.keo==='nuoc'){
+      const v=m.keoNuoc||1;
+      wt.forEach(n=>{ if(lopNopBal[n]) lopNopBal[n].nuoc+=v; });
+      lt.forEach(n=>{ if(lopNopBal[n]) lopNopBal[n].nuoc-=v; });
+    }
+  });
+  // Score = tien + nuoc*10k equiv for sorting
+  const topNopEntry = Object.entries(lopNopBal)
+    .sort((a,b)=>(a[1].tien+a[1].nuoc*10000)-(b[1].tien+b[1].nuoc*10000))[0];
+  const topNopName = topNopEntry?topNopEntry[0]:'—';
+  const topNopData = topNopEntry?topNopEntry[1]:{tien:0,nuoc:0};
+
+  // ── Cặp lùa chuyên nghiệp: doubles pair with most wins in period ──
   const pairWins = {};
-  matches.filter(m=>m.type==='doubles').forEach(m=>{
+  filtered.filter(m=>m.type==='doubles').forEach(m=>{
     const wt=m.winner==='A'?m.a:m.b;
     if(wt.length===2){
       const key=[...wt].sort().join(' & ');
@@ -807,40 +844,69 @@ function renderOverviewCards(){
   });
   const topPair = Object.entries(pairWins).sort((a,b)=>b[1]-a[1])[0];
 
-  // Vua lùa kèo: player with highest positive kèo balance (nước + tiền combined)
-  const totalBalance = {};
-  players.filter(p=>p.visible).forEach(p=>{ totalBalance[p.name]=0; });
-  matches.forEach(m=>{
+  // ── Vua lùa kèo: most positive kèo balance in period ──
+  const vuaBal = {};
+  vis.forEach(p=>{ vuaBal[p.name]={tien:0,nuoc:0}; });
+  filtered.forEach(m=>{
     if(!m.keo||m.keo==='none') return;
     const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
-    const val = m.keo==='tien'?(m.keoTien||0)/1000 : (m.keoNuoc||1)*5; // nuoc=5k equiv
-    wt.forEach(n=>{ if(totalBalance[n]!==undefined) totalBalance[n]+=val; });
-    lt.forEach(n=>{ if(totalBalance[n]!==undefined) totalBalance[n]-=val; });
+    if(m.keo==='tien'){
+      const v=m.keoTien||0;
+      wt.forEach(n=>{ if(vuaBal[n]) vuaBal[n].tien+=v; });
+      lt.forEach(n=>{ if(vuaBal[n]) vuaBal[n].tien-=v; });
+    } else if(m.keo==='nuoc'){
+      const v=m.keoNuoc||1;
+      wt.forEach(n=>{ if(vuaBal[n]) vuaBal[n].nuoc+=v; });
+      lt.forEach(n=>{ if(vuaBal[n]) vuaBal[n].nuoc-=v; });
+    }
   });
-  const vuaKeo = Object.entries(totalBalance).sort((a,b)=>b[1]-a[1])[0];
+  const vuaEntry = Object.entries(vuaBal)
+    .sort((a,b)=>(b[1].tien+b[1].nuoc*10000)-(a[1].tien+a[1].nuoc*10000))[0];
+  const vuaName = vuaEntry?vuaEntry[0]:'—';
+  const vuaData = vuaEntry?vuaEntry[1]:{tien:0,nuoc:0};
+
+  // Helper: format balance line
+  function fmtBalance(data, positive){
+    const parts=[];
+    if(data.tien!==0) parts.push(`${data.tien>0?'+':''}${(data.tien/1000).toFixed(0)}k`);
+    if(data.nuoc!==0) parts.push(`${data.nuoc>0?'+':''}${data.nuoc} chai`);
+    if(!parts.length) return positive?'+0':'0';
+    return parts.join(' · ');
+  }
+
+  const topNopStr = fmtBalance(topNopData, false);
+  const vuaStr    = fmtBalance(vuaData, true);
 
   el.innerHTML = `
     <div class="ov-card ov-card-dark">
       <div>
         <div class="ov-card-label">↘ Tốp nộp</div>
-        <div class="ov-card-name">${topNop?topNop[0]:'—'}</div>
-        <div class="ov-card-val">${topNop&&topNop[1]!==0?(topNop[1]>0?'+':'')+topNop[1].toLocaleString('vi-VN'):'0'}<span class="ov-card-unit">đ</span></div>
+        <div class="ov-card-name">${topNopName}</div>
+        <div style="margin-top:.4rem">
+          ${topNopData.tien!==0?`<div class="ov-card-val" style="font-size:1.5rem">${topNopData.tien>0?'+':''}${(topNopData.tien/1000).toFixed(0)}<span class="ov-card-unit">k tiền</span></div>`:''}
+          ${topNopData.nuoc!==0?`<div style="font-size:1rem;font-family:'Space Grotesk',sans-serif;font-weight:600;color:${topNopData.nuoc<0?'var(--danger)':'#60A5FA'};margin-top:2px">${topNopData.nuoc>0?'+':''}${topNopData.nuoc}<span class="ov-card-unit">chai nước</span></div>`:''}
+          ${topNopData.tien===0&&topNopData.nuoc===0?`<div class="ov-card-val">—</div>`:''}
+        </div>
       </div>
       <div class="ov-card-bg">↘</div>
     </div>
     <div class="ov-card ov-card-purple">
       <div>
-        <div class="ov-card-label">👥 Cặp đôi bú</div>
+        <div class="ov-card-label">🤝 Cặp lùa chuyên nghiệp</div>
         <div class="ov-card-name">${topPair?topPair[0]:'—'}</div>
         <div class="ov-card-val">${topPair?'+'+topPair[1]:'0'}<span class="ov-card-unit">thắng</span></div>
       </div>
-      <div class="ov-card-bg">👥</div>
+      <div class="ov-card-bg">🤝</div>
     </div>
     <div class="ov-card ov-card-green">
       <div>
         <div class="ov-card-label">↗ Vua lùa kèo</div>
-        <div class="ov-card-name">${vuaKeo?vuaKeo[0]:'—'}</div>
-        <div class="ov-card-val">${vuaKeo&&vuaKeo[1]!==0?(vuaKeo[1]>0?'+':'')+vuaKeo[1].toFixed(0):'0'}<span class="ov-card-unit">điểm kèo</span></div>
+        <div class="ov-card-name">${vuaName}</div>
+        <div style="margin-top:.4rem">
+          ${vuaData.tien!==0?`<div class="ov-card-val" style="font-size:1.5rem">${vuaData.tien>0?'+':''}${(vuaData.tien/1000).toFixed(0)}<span class="ov-card-unit">k tiền</span></div>`:''}
+          ${vuaData.nuoc!==0?`<div style="font-size:1rem;font-family:'Space Grotesk',sans-serif;font-weight:600;color:#fff;margin-top:2px">${vuaData.nuoc>0?'+':''}${vuaData.nuoc}<span class="ov-card-unit">chai nước</span></div>`:''}
+          ${vuaData.tien===0&&vuaData.nuoc===0?`<div class="ov-card-val">—</div>`:''}
+        </div>
       </div>
       <div class="ov-card-bg">↗</div>
     </div>`;
@@ -1554,6 +1620,8 @@ function init(){
   document.getElementById('matchTo').value=today();
   document.getElementById('finTo').value=today();
   document.getElementById('finFrom').value=ago(30);
+  document.getElementById('ovFrom').value='';
+  document.getElementById('ovTo').value=today();
   renderRanking();renderPlayers();
   // Wait for Firebase module to load then subscribe
   setTimeout(()=>subscribeFirebase(), 800);
