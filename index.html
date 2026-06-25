@@ -277,8 +277,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
   </div>
   <div style="display:flex;align-items:center;gap:.6rem">
-    <span id="syncDot" title="Trạng thái đồng bộ" style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s"></span>
-    <button id="uploadBtn" onclick="manualSync()" title="Đẩy dữ liệu local lên Firebase" style="background:rgba(255,255,255,.07);border:1px solid var(--border);color:var(--muted);border-radius:var(--rs);padding:.38rem .7rem;font-size:.75rem;cursor:pointer;transition:all .2s;white-space:nowrap">☁️ Sync</button>
+    <span id="syncDot" onclick="manualSync()" title="Nhấn để đồng bộ lên Firebase" style="width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s;cursor:pointer"></span>
     <button class="btn-log" onclick="openModal('matchModal')">+ Ghi trận</button>
   </div>
 </nav>
@@ -697,6 +696,7 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
+  if(id!=='profile') sessionStorage.setItem('sp_page', id);
   const map={ranking:'tổng',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',profile:''};
   if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   if(id==='ranking')renderRanking();
@@ -773,7 +773,7 @@ function renderPlayers(){
   document.getElementById('playerD').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Kèo</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map(p=>{const lv=getLevel(p.score);return`<div class="card-item">
     <div class="card-item-row">
-      <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer">${av(p.name,p.color,'av-lg')}<div>
+      <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer"><div>
         <div class="bold" style="text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)">${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
         <div class="small tm"><span class="pill ${lv.pill}" style="font-size:.62rem">${lv.icon} ${lv.label}</span> · ${fmtD(p.joined)}</div>
       </div></div>
@@ -1139,19 +1139,41 @@ function renderMatches(){
   document.getElementById('matchD').innerHTML=`<table><thead><tr><th>Ngày</th><th>Loại</th><th>Bên A</th><th style="text-align:center">Tỷ số</th><th>Bên B</th><th>Kèo</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map(m=>{
     const wA=m.winner==='A';
-    const wName=(wA?m.a:m.b).join(' & ');
-    return`<div class="card-item">
-      <div class="card-item-row">
-        <div style="min-width:0">
-          <div class="bold ell" style="font-size:.85rem">${m.a.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)">${n}</span>`).join(' & ')} <span class="tm" style="font-weight:400">vs</span> ${m.b.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)">${n}</span>`).join(' & ')}</div>
-          <div class="card-meta"><span>${fmtD(m.date)}</span><span class="pill p-gray" style="font-size:.62rem">${m.type==='singles'?'Đơn':'Đôi'}</span>${m.elo?`<span class="tm">±${m.elo} ELO</span>`:''}</div>
+    return`<div class="card-item" style="padding:.9rem">
+      <!-- Header: date + type + delete -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem">
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <span class="small tm">${fmtD(m.date)}</span>
+          <span class="pill p-gray" style="font-size:.62rem">${m.type==='singles'?'Đơn':'Đôi'}</span>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 3px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>
-          <button class="btn btn-danger btn-xs" style="margin-top:5px" onclick="delMatch(${m.id})">🗑</button>
-        </div>
+        <button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button>
       </div>
-      ${m.keo&&m.keo!=='none'?`<div class="small" style="margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border);color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: '+m.keoNuoc+' chai':'💰 Tiền: '+(m.keoTien/1000).toFixed(0)+'k'}</div>`:''}
+      <!-- Team A -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.35rem">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:.88rem;font-weight:600;line-height:1.4;color:${wA?'var(--text)':'var(--muted)'}">
+            ${m.a.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer">${n}</span>`).join('<span style="color:var(--muted);margin:0 3px">&</span>')}
+          </div>
+        </div>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;color:${wA?'var(--lime)':'var(--muted)'};flex-shrink:0">${m.scoreA}</span>
+      </div>
+      <!-- VS divider -->
+      <div style="display:flex;align-items:center;gap:.4rem;margin:.25rem 0">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:.6rem;color:var(--muted);letter-spacing:.5px">VS</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <!-- Team B -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.35rem">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:.88rem;font-weight:600;line-height:1.4;color:${!wA?'var(--text)':'var(--muted)'}">
+            ${m.b.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer">${n}</span>`).join('<span style="color:var(--muted);margin:0 3px">&</span>')}
+          </div>
+        </div>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;color:${!wA?'var(--lime)':'var(--muted)'};flex-shrink:0">${m.scoreB}</span>
+      </div>
+      <!-- Kèo -->
+      ${m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':'💰 Kèo: <strong style="color:var(--text)">'+(m.keoTien/1000).toFixed(0)+'k</strong>'}</div>`:''}
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
@@ -1661,13 +1683,11 @@ function renderProfile(name){
 
 // Manual one-time sync: push localStorage → Firebase
 function manualSync(){
-  const btn = document.getElementById('uploadBtn');
   const dot = document.getElementById('syncDot');
   if(!window._fbSet){
     notify('⚠️ Firebase chưa kết nối. Hãy mở app từ GitHub Pages.');
     return;
   }
-  if(btn) btn.textContent='☁️ Đang sync...';
   if(dot) dot.style.background='var(--warn)';
   Promise.all([
     window._fbSet('players',  players),
@@ -1676,11 +1696,9 @@ function manualSync(){
     window._fbSet('fines',    fines),
   ]).then(()=>{
     if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}
-    if(btn) btn.textContent='☁️ Sync';
-    notify('✅ Đã đẩy dữ liệu lên Firebase thành công!');
+    notify('✅ Đã đồng bộ lên Firebase!');
   }).catch(err=>{
     if(dot) dot.style.background='var(--danger)';
-    if(btn) btn.textContent='☁️ Sync';
     notify('❌ Lỗi: '+err.message);
   });
 }
@@ -1691,6 +1709,9 @@ function init(){
   document.getElementById('finTo').value=today();
   document.getElementById('finFrom').value=ago(30);
   buildRankDropdown();
+  // Restore last visited page
+  const lastPage = sessionStorage.getItem('sp_page');
+  if(lastPage && lastPage !== 'ranking') showPage(lastPage);
   document.getElementById('ovTo').value=today();
   renderRanking();renderPlayers();
   // Wait for Firebase module to load then subscribe
