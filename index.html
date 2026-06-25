@@ -180,6 +180,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .tm{color:var(--muted)}.tl{color:var(--lime)}.td{color:var(--danger)}.ts{color:var(--success)}.tw{color:var(--warn)}
 .bold{font-weight:600}.small{font-size:.73rem}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* OVERVIEW STAT CARDS */
+.ov-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-bottom:1.25rem}
+@media(max-width:600px){.ov-cards{grid-template-columns:1fr;gap:.6rem}}
+.ov-card{border-radius:var(--r);padding:1.1rem 1.25rem;position:relative;overflow:hidden;min-height:110px;display:flex;flex-direction:column;justify-content:space-between}
+.ov-card-dark{background:#151f2e;border:1px solid var(--border)}
+.ov-card-purple{background:linear-gradient(135deg,#6B3FA0 0%,#9B59B6 100%)}
+.ov-card-green{background:linear-gradient(135deg,#1a7a4a 0%,#27ae60 100%)}
+.ov-card-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem}
+.ov-card-dark .ov-card-label{color:var(--muted)}
+.ov-card-purple .ov-card-label,.ov-card-green .ov-card-label{color:rgba(255,255,255,.75)}
+.ov-card-name{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:.15rem}
+.ov-card-purple .ov-card-name,.ov-card-green .ov-card-name{color:#fff}
+.ov-card-val{font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:700;line-height:1}
+.ov-card-dark .ov-card-val{color:var(--danger)}
+.ov-card-purple .ov-card-val,.ov-card-green .ov-card-val{color:#fff}
+.ov-card-unit{font-size:.75rem;font-weight:400;margin-left:.3rem;opacity:.8}
+.ov-card-bg{position:absolute;right:-10px;bottom:-10px;font-size:4rem;opacity:.08;line-height:1}
 /* PROFILE PAGE */
 .profile-hero{display:flex;align-items:center;gap:1.25rem;padding:1.25rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:1rem}
 .profile-av{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;flex-shrink:0;font-family:'Space Grotesk',sans-serif}
@@ -284,7 +301,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- PAGE: RANKING -->
 <div class="page active" id="page-ranking">
-  <div class="sec-title">Bảng xếp hạng</div>
+  <div class="sec-title">Tổng quan</div>
+  <div class="ov-cards" id="ovCards"></div>
   <div class="panel">
     <div class="panel-hd">Lọc thời gian
       <div class="right">
@@ -762,7 +780,74 @@ function setRankPeriod(p){
   document.getElementById('rankFrom').value=p==='all'?'':p==='week'?ago(7):ago(30);
   document.getElementById('rankTo').value=today();renderRanking();
 }
+function renderOverviewCards(){
+  const el = document.getElementById('ovCards');
+  if(!el) return;
+  if(!players.length){ el.innerHTML=''; return; }
+
+  // Tốp nộp: player with most negative kèo tiền balance
+  const tienBalance = {};
+  players.filter(p=>p.visible).forEach(p=>{ tienBalance[p.name]=0; });
+  matches.forEach(m=>{
+    if(m.keo!=='tien') return;
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    wt.forEach(n=>{ if(tienBalance[n]!==undefined) tienBalance[n]+=(m.keoTien||0); });
+    lt.forEach(n=>{ if(tienBalance[n]!==undefined) tienBalance[n]-=(m.keoTien||0); });
+  });
+  const topNop = Object.entries(tienBalance).sort((a,b)=>a[1]-b[1])[0];
+
+  // Cặp đôi bú: doubles pair with most wins together
+  const pairWins = {};
+  matches.filter(m=>m.type==='doubles').forEach(m=>{
+    const wt=m.winner==='A'?m.a:m.b;
+    if(wt.length===2){
+      const key=[...wt].sort().join(' & ');
+      pairWins[key]=(pairWins[key]||0)+1;
+    }
+  });
+  const topPair = Object.entries(pairWins).sort((a,b)=>b[1]-a[1])[0];
+
+  // Vua lùa kèo: player with highest positive kèo balance (nước + tiền combined)
+  const totalBalance = {};
+  players.filter(p=>p.visible).forEach(p=>{ totalBalance[p.name]=0; });
+  matches.forEach(m=>{
+    if(!m.keo||m.keo==='none') return;
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    const val = m.keo==='tien'?(m.keoTien||0)/1000 : (m.keoNuoc||1)*5; // nuoc=5k equiv
+    wt.forEach(n=>{ if(totalBalance[n]!==undefined) totalBalance[n]+=val; });
+    lt.forEach(n=>{ if(totalBalance[n]!==undefined) totalBalance[n]-=val; });
+  });
+  const vuaKeo = Object.entries(totalBalance).sort((a,b)=>b[1]-a[1])[0];
+
+  el.innerHTML = `
+    <div class="ov-card ov-card-dark">
+      <div>
+        <div class="ov-card-label">↘ Tốp nộp</div>
+        <div class="ov-card-name">${topNop?topNop[0]:'—'}</div>
+        <div class="ov-card-val">${topNop&&topNop[1]!==0?(topNop[1]>0?'+':'')+topNop[1].toLocaleString('vi-VN'):'0'}<span class="ov-card-unit">đ</span></div>
+      </div>
+      <div class="ov-card-bg">↘</div>
+    </div>
+    <div class="ov-card ov-card-purple">
+      <div>
+        <div class="ov-card-label">👥 Cặp đôi bú</div>
+        <div class="ov-card-name">${topPair?topPair[0]:'—'}</div>
+        <div class="ov-card-val">${topPair?'+'+topPair[1]:'0'}<span class="ov-card-unit">thắng</span></div>
+      </div>
+      <div class="ov-card-bg">👥</div>
+    </div>
+    <div class="ov-card ov-card-green">
+      <div>
+        <div class="ov-card-label">↗ Vua lùa kèo</div>
+        <div class="ov-card-name">${vuaKeo?vuaKeo[0]:'—'}</div>
+        <div class="ov-card-val">${vuaKeo&&vuaKeo[1]!==0?(vuaKeo[1]>0?'+':'')+vuaKeo[1].toFixed(0):'0'}<span class="ov-card-unit">điểm kèo</span></div>
+      </div>
+      <div class="ov-card-bg">↗</div>
+    </div>`;
+}
+
 function renderRanking(){
+  renderOverviewCards();
   const from=document.getElementById('rankFrom').value;
   const to=document.getElementById('rankTo').value;
   const vis=players.filter(p=>p.visible);
@@ -927,7 +1012,6 @@ function renderMatches(){
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 3px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>
-          <div class="small ts" style="margin-top:2px">🏆 ${wName}</div>
           <button class="btn btn-danger btn-xs" style="margin-top:5px" onclick="delMatch(${m.id})">🗑</button>
         </div>
       </div>
@@ -1171,11 +1255,39 @@ function renderProfile(name){
   const singles = myMatches.filter(m=>m.type==='singles').length;
   const doubles = myMatches.filter(m=>m.type==='doubles').length;
 
+  // Kèo stats
+  const keoMatches = myMatches.filter(m=>m.keo&&m.keo!=='none');
+  const keoNuocTotal = myMatches.reduce((s,m)=>{
+    if(m.keo!=='nuoc') return s;
+    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    return s + (isWin ? (m.keoNuoc||1) : -(m.keoNuoc||1));
+  },0);
+  const keoTienTotal = myMatches.reduce((s,m)=>{
+    if(m.keo!=='tien') return s;
+    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    return s + (isWin ? (m.keoTien||0) : -(m.keoTien||0));
+  },0);
+
   document.getElementById('profileStats').innerHTML = `
     <div class="sc"><div class="val">${myMatches.length}</div><div class="lbl">Tổng trận</div></div>
     <div class="sc"><div class="val ts">${wins}</div><div class="lbl">Thắng</div></div>
     <div class="sc"><div class="val td">${losses}</div><div class="lbl">Thua</div></div>
-    <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>`;
+    <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>
+    ${keoMatches.length?`
+    <div class="sc" style="grid-column:span 2">
+      <div class="lbl" style="margin-bottom:.4rem">💧 Kèo nước</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;color:${keoNuocTotal>=0?'var(--success)':'var(--danger)'}">
+        ${keoNuocTotal>=0?'+':''}${keoNuocTotal} chai
+      </div>
+      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='nuoc').length} trận có kèo nước</div>
+    </div>
+    <div class="sc" style="grid-column:span 2">
+      <div class="lbl" style="margin-bottom:.4rem">💰 Kèo tiền</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;color:${keoTienTotal>=0?'var(--success)':'var(--danger)'}">
+        ${keoTienTotal>=0?'+':''}${(keoTienTotal/1000).toFixed(0)}k
+      </div>
+      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='tien').length} trận có kèo tiền</div>
+    </div>`:''}`;
 
   // ── % Win rolling chart (cumulative win rate after each match) ──
   const sorted = [...myMatches];
