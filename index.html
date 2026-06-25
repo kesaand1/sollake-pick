@@ -1413,17 +1413,19 @@ function renderProfile(name){
   const singles = myMatches.filter(m=>m.type==='singles').length;
   const doubles = myMatches.filter(m=>m.type==='doubles').length;
 
-  // Kèo stats
+  // Kèo stats — chia đôi nếu đôi, nguyên nếu đơn
   const keoMatches = myMatches.filter(m=>m.keo&&m.keo!=='none');
   const keoNuocTotal = myMatches.reduce((s,m)=>{
     if(m.keo!=='nuoc') return s;
     const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    return s + (isWin ? (m.keoNuoc||1) : -(m.keoNuoc||1));
+    const share = (m.keoNuoc||1) / (m.type==='doubles' ? 2 : 1);
+    return s + (isWin ? share : -share);
   },0);
   const keoTienTotal = myMatches.reduce((s,m)=>{
     if(m.keo!=='tien') return s;
     const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    return s + (isWin ? (m.keoTien||0) : -(m.keoTien||0));
+    const share = (m.keoTien||0) / (m.type==='doubles' ? 2 : 1);
+    return s + (isWin ? share : -share);
   },0);
 
   document.getElementById('profileStats').innerHTML = `
