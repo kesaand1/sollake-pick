@@ -180,6 +180,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .tm{color:var(--muted)}.tl{color:var(--lime)}.td{color:var(--danger)}.ts{color:var(--success)}.tw{color:var(--warn)}
 .bold{font-weight:600}.small{font-size:.73rem}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* MONTH PICKER */
+.month-picker-wrap{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.85rem}
+.month-nav-btn{background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);font-size:1rem;transition:background .2s;flex-shrink:0}
+.month-nav-btn:hover{background:rgba(255,255,255,.15)}
+.month-display{display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:50px;padding:.38rem .9rem;cursor:pointer;font-size:.9rem;font-weight:600;color:var(--text);transition:background .2s;white-space:nowrap}
+.month-display:hover{background:rgba(255,255,255,.1)}
+.month-display .cal-icon{font-size:.9rem;opacity:.7}
+.month-mode-btns{display:flex;gap:.3rem}
 /* OVERVIEW STAT CARDS */
 .ov-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-bottom:1.25rem}
 @media(max-width:600px){.ov-cards{grid-template-columns:1fr;gap:.6rem}}
@@ -262,7 +270,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <nav class="topnav">
   <div class="logo">Sollake <span>Pick</span></div>
   <div class="nav-tabs">
-    <button class="tab-btn active" onclick="showPage('ranking')">🏆 Xếp hạng</button>
+    <button class="tab-btn active" onclick="showPage('ranking')">🏆 Tổng quan</button>
     <button class="tab-btn" onclick="showPage('matches')">Lịch sử</button>
     <button class="tab-btn" onclick="showPage('pairing')">🎯 Ghép đôi</button>
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
@@ -279,7 +287,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <nav class="botnav">
   <div class="botnav-inner">
     <button class="bot-tab active" onclick="showPage('ranking');botActive(this)">
-      <span class="bicon">🏆</span><span class="blabel">Xếp hạng</span>
+      <span class="bicon">🏆</span><span class="blabel">Tổng quan</span>
     </button>
     <button class="bot-tab" onclick="showPage('matches');botActive(this)">
       <span class="bicon">📋</span><span class="blabel">Lịch sử</span>
@@ -302,34 +310,24 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- PAGE: RANKING -->
 <div class="page active" id="page-ranking">
   <div class="sec-title">Tổng quan</div>
-  <div class="panel" style="margin-bottom:.85rem;padding:.85rem 1.1rem">
-    <div class="panel-hd" style="margin-bottom:.6rem">Thống kê theo thời gian
-      <div class="right period-btns">
-        <button class="btn btn-ghost btn-sm" onclick="setOvPeriod('week')">7 ngày</button>
-        <button class="btn btn-ghost btn-sm" onclick="setOvPeriod('month')">30 ngày</button>
-        <button class="btn btn-ghost btn-sm" onclick="setOvPeriod('all')">Tất cả</button>
+  <div class="panel" style="margin-bottom:.85rem;padding:.75rem 1.1rem">
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);white-space:nowrap">📅 Thời gian</label>
+      <select class="finput" id="rankPeriodSelect" onchange="onRankPeriodSelect()" style="flex:1;min-width:160px;max-width:260px">
+      </select>
+      <div id="rankCustomRange" style="display:none;gap:.4rem;align-items:center;flex-wrap:wrap">
+        <input type="date" class="finput" id="rankFrom" style="min-width:130px" onchange="renderAll()"/>
+        <span style="color:var(--muted);font-size:.8rem">→</span>
+        <input type="date" class="finput" id="rankTo" style="min-width:130px" onchange="renderAll()"/>
       </div>
-    </div>
-    <div class="filter-row" style="margin-bottom:0">
-      <label>Từ</label>
-      <input type="date" class="finput" id="ovFrom" onchange="renderOverviewCards()"/>
-      <label>Đến</label>
-      <input type="date" class="finput" id="ovTo" onchange="renderOverviewCards()"/>
     </div>
   </div>
+  <!-- hidden inputs kept for backward compat -->
+  <input type="hidden" id="ovFrom"/>
+  <input type="hidden" id="ovTo"/>
   <div class="ov-cards" id="ovCards"></div>
   <div class="panel">
-    <div class="panel-hd">Lọc thời gian
-      <div class="right">
-        <button class="btn btn-ghost btn-sm" onclick="setRankPeriod('week')">7 ngày</button>
-        <button class="btn btn-ghost btn-sm" onclick="setRankPeriod('month')">30 ngày</button>
-        <button class="btn btn-ghost btn-sm" onclick="setRankPeriod('all')">Tất cả</button>
-      </div>
-    </div>
-    <div class="filter-row">
-      <label>Từ</label><input type="date" class="finput" id="rankFrom" onchange="renderRanking()"/>
-      <label>Đến</label><input type="date" class="finput" id="rankTo" onchange="renderRanking()"/>
-    </div>
+    <div class="panel-hd">Xếp hạng thành viên</div>
     <div class="desk tbl-wrap" id="rankD"></div>
     <div class="mob" id="rankM"></div>
   </div>
@@ -655,7 +653,7 @@ let fines=ld('sp2_fines',[
   {id:2,player:'Lê Đức Thành',reason:'Bỏ buổi không báo',amount:100000,date:'2025-06-18',paid:true},
 ]);
 
-const saveAll=()=>{sv('sp2_players',players);sv('sp2_matches',matches);sv('sp2_finances',finances);sv('sp2_fines',fines);pushToFirebase();};
+const saveAll=()=>{sv('sp2_players',players);sv('sp2_matches',matches);sv('sp2_finances',finances);sv('sp2_fines',fines);pushToFirebase();buildRankDropdown();};
 let nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
 let nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
 let nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
@@ -699,7 +697,7 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const map={ranking:'xếp',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',profile:''};
+  const map={ranking:'tổng',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',profile:''};
   if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   if(id==='ranking')renderRanking();
   if(id==='matches')renderMatches();
@@ -791,23 +789,91 @@ function renderPlayers(){
 }
 
 // Ranking
-function setRankPeriod(p){
-  document.getElementById('rankFrom').value=p==='all'?'':p==='week'?ago(7):ago(30);
-  document.getElementById('rankTo').value=today();renderRanking();
+function buildRankDropdown(){
+  const sel = document.getElementById('rankPeriodSelect');
+  if(!sel) return;
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth()+1;
+  const pad = n=>String(n).padStart(2,'0');
+
+  // Collect all months with match data
+  const monthSet = new Set();
+  matches.forEach(m=>{
+    const [y,mo] = m.date.split('-');
+    monthSet.add(`${y}-${mo}`);
+  });
+  // Always include current month
+  monthSet.add(`${curY}-${pad(curM)}`);
+
+  // Sort descending (newest first), exclude future months
+  const sorted = [...monthSet]
+    .filter(k=>{
+      const [y,m]=k.split('-');
+      return parseInt(y)<curY || (parseInt(y)===curY && parseInt(m)<=curM);
+    })
+    .sort((a,b)=>b.localeCompare(a));
+
+  const prevVal = sel.value;
+  sel.innerHTML = '<option value="all">Toàn bộ thời gian</option>' +
+    sorted.map(k=>{
+      const [y,m]=k.split('-');
+      return `<option value="month:${k}">Tháng ${m}/${y}</option>`;
+    }).join('');
+
+  // Restore selection or default to current month
+  const curKey = `month:${curY}-${pad(curM)}`;
+  if(prevVal && [...sel.options].some(o=>o.value===prevVal)){
+    sel.value = prevVal;
+  } else {
+    sel.value = curKey;
+  }
 }
-function setOvPeriod(p){
-  document.getElementById('ovFrom').value = p==='all'?'':p==='week'?ago(7):ago(30);
-  document.getElementById('ovTo').value = today();
+
+function getPeriodRange(preset){
+  const pad=n=>String(n).padStart(2,'0');
+  const lastOfMonth=(yr,mo)=>new Date(yr,mo,0).getDate();
+  if(preset==='all') return {from:'', to:''};
+  if(preset==='custom') return {
+    from: document.getElementById('rankFrom').value||'',
+    to:   document.getElementById('rankTo').value||today()
+  };
+  // month:YYYY-MM
+  if(preset && preset.startsWith('month:')){
+    const [,ym]=preset.split(':');
+    const [y,m]=ym.split('-');
+    return {from:`${y}-${m}-01`, to:`${y}-${m}-${pad(lastOfMonth(parseInt(y),parseInt(m)))}`};
+  }
+  return {from:'', to:''};
+}
+
+function onRankPeriodSelect(){
+  const val=document.getElementById('rankPeriodSelect').value;
+  const cr=document.getElementById('rankCustomRange');
+  cr.style.display = val==='custom' ? 'flex' : 'none';
+  renderAll();
+}
+
+function renderAll(){
   renderOverviewCards();
+  renderRanking();
 }
+
+function getRankDateRange(){
+  const preset=document.getElementById('rankPeriodSelect')?.value||'this_month';
+  return getPeriodRange(preset);
+}
+
+function setRankPeriod(p){ /* legacy no-op */ }
+function setRankMode(m){  /* legacy no-op */ }
+function updateMonthLabel(){ /* legacy no-op */ }
 
 function renderOverviewCards(){
   const el = document.getElementById('ovCards');
   if(!el) return;
   if(!players.length){ el.innerHTML=''; return; }
 
-  const from = (document.getElementById('ovFrom')||{}).value||'';
-  const to   = (document.getElementById('ovTo')||{}).value||'';
+  const {from,to} = getRankDateRange();
   const vis  = players.filter(p=>p.visible);
   const filtered = matches.filter(m=>inR(m.date,from,to));
 
@@ -879,7 +945,7 @@ function renderOverviewCards(){
     let html='';
     if(tien!==0){
       const col=colorOverride||(tien>0?'var(--success)':'var(--danger)');
-      html+=`<div class="ov-card-val" style="font-size:1.5rem;color:${col}">${tien>0?'+':''}${(tien/1000).toFixed(0)}k<span class="ov-card-unit" style="color:${col}"> tiền</span></div>`;
+      html+=`<div class="ov-card-val" style="font-size:1.5rem;color:${col}">${tien>0?'+':''}${(tien/1000).toFixed(0)}k</div>`;
     }
     if(nuoc!==0){
       const col=colorOverride||(nuoc>0?'#60A5FA':'var(--danger)');
@@ -919,8 +985,7 @@ function renderOverviewCards(){
 
 function renderRanking(){
   renderOverviewCards();
-  const from=document.getElementById('rankFrom').value;
-  const to=document.getElementById('rankTo').value;
+  const {from,to}=getRankDateRange();
   const vis=players.filter(p=>p.visible);
 
   // Stats + trend per player
@@ -1625,7 +1690,7 @@ function init(){
   document.getElementById('matchTo').value=today();
   document.getElementById('finTo').value=today();
   document.getElementById('finFrom').value=ago(30);
-  document.getElementById('ovFrom').value='';
+  buildRankDropdown();
   document.getElementById('ovTo').value=today();
   renderRanking();renderPlayers();
   // Wait for Firebase module to load then subscribe
