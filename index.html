@@ -246,7 +246,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="logo">Sollake <span>Pick</span></div>
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="showPage('ranking')">🏆 Xếp hạng</button>
-    <button class="tab-btn" onclick="showPage('matches')">Trận đấu</button>
+    <button class="tab-btn" onclick="showPage('matches')">Lịch sử</button>
     <button class="tab-btn" onclick="showPage('pairing')">🎯 Ghép đôi</button>
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
@@ -265,21 +265,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span class="bicon">🏆</span><span class="blabel">Xếp hạng</span>
     </button>
     <button class="bot-tab" onclick="showPage('matches');botActive(this)">
-      <span class="bicon" style="font-size:1rem;display:flex;align-items:center;justify-content:center">
-          <svg width="26" height="20" viewBox="0 0 26 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- outer court -->
-            <rect x="1" y="1" width="24" height="18" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            <!-- center line vertical -->
-            <line x1="13" y1="1" x2="13" y2="19" stroke="currentColor" stroke-width="1.2"/>
-            <!-- kitchen/NVZ lines -->
-            <line x1="1" y1="6" x2="13" y2="6" stroke="currentColor" stroke-width="1"/>
-            <line x1="13" y1="6" x2="25" y2="6" stroke="currentColor" stroke-width="1"/>
-            <line x1="1" y1="14" x2="13" y2="14" stroke="currentColor" stroke-width="1"/>
-            <line x1="13" y1="14" x2="25" y2="14" stroke="currentColor" stroke-width="1"/>
-            <!-- net -->
-            <line x1="1" y1="10" x2="25" y2="10" stroke="currentColor" stroke-width="2"/>
-          </svg>
-        </span><span class="blabel">Trận đấu</span>
+      <span class="bicon">📋</span><span class="blabel">Lịch sử</span>
     </button>
     <button class="bot-tab add-btn" onclick="openModal('matchModal')">
       <span class="bicon">＋</span><span class="blabel">Ghi trận</span>
@@ -402,7 +388,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- PAGE: MATCHES -->
 <div class="page" id="page-matches">
-  <div class="sec-title">Lịch sử trận đấu</div>
+  <div class="sec-title">Lịch sử thi đấu</div>
   <div class="panel">
     <div class="panel-hd">Lọc thời gian
       <div class="right">
@@ -659,7 +645,7 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const map={ranking:'xếp',matches:'trận',pairing:'ghép',players:'thành',finance:'thu',profile:''};
+  const map={ranking:'xếp',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',profile:''};
   if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   if(id==='ranking')renderRanking();
   if(id==='matches')renderMatches();
