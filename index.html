@@ -881,12 +881,12 @@ function renderMatches(){
       <td>${m.a.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
       <td style="text-align:center"><div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 4px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>${m.elo?`<div class="small tm">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''}</td>
       <td>${m.b.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
-      <td><span class="pill p-lime">${(wA?m.a:m.b).join(' & ')} thắng</span></td>
+
       <td class="tm small">${m.note||'—'}</td>
       <td><button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button></td>
     </tr>`;
   }).join('');
-  document.getElementById('matchD').innerHTML=`<table><thead><tr><th>Ngày</th><th>Loại</th><th>Bên A</th><th style="text-align:center">Tỷ số</th><th>Bên B</th><th>Kết quả</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('matchD').innerHTML=`<table><thead><tr><th>Ngày</th><th>Loại</th><th>Bên A</th><th style="text-align:center">Tỷ số</th><th>Bên B</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map(m=>{
     const wA=m.winner==='A';
     const wName=(wA?m.a:m.b).join(' & ');
