@@ -472,7 +472,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- MODAL: LOG MATCH -->
 <div class="modal-bg" id="matchModal">
   <div class="modal">
-    <div class="modal-title">🏓 Ghi trận mới</div>
+    <div class="modal-title">Ghi trận mới</div>
     <div class="fgroup"><label>Ngày thi đấu</label><input class="finput" id="mDate" type="date"/></div>
     <div class="fgroup"><label>Loại trận</label>
       <select class="finput" id="mType" onchange="updateMF()">
@@ -493,7 +493,28 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="fgroup"><label>Điểm bên B</label><input class="finput" id="mScoreB" type="number" min="0" value="8"/></div>
       </div>
     </div>
-    <div class="fgroup"><label>Ghi chú</label><input class="finput" id="mNote" placeholder="Trận chung kết, vòng loại..."/></div>
+    <div class="fgroup">
+      <label>Kèo</label>
+      <select class="finput" id="mKeo" onchange="updateKeoUI()">
+        <option value="none">Không kèo</option>
+        <option value="nuoc">Nước</option>
+        <option value="tien">Tiền</option>
+      </select>
+    </div>
+    <div id="keoNuocWrap" style="display:none" class="fgroup">
+      <label>Số chai nước</label>
+      <input class="finput" id="mNuoc" type="number" min="1" value="1" placeholder="Số chai nước..."/>
+    </div>
+    <div id="keoTienWrap" style="display:none" class="fgroup">
+      <label>Số tiền</label>
+      <select class="finput" id="mTien">
+        <option value="10000">10.000đ</option>
+        <option value="20000">20.000đ</option>
+        <option value="30000">30.000đ</option>
+        <option value="40000">40.000đ</option>
+        <option value="50000">50.000đ</option>
+      </select>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('matchModal')">Hủy</button>
       <button class="btn btn-lime" onclick="logMatch()">Lưu trận đấu</button>
@@ -658,7 +679,7 @@ function botActive(el){document.querySelectorAll('.bot-tab').forEach(b=>b.classL
 // Modals
 function openModal(id){
   document.getElementById(id).classList.add('open');
-  if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();}
+  if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();}
   if(id==='finModal'){popFinSel();document.getElementById('finDate').value=today();}
   if(id==='fineModal'){popFineSel();document.getElementById('fineDate').value=today();}
 }
@@ -718,7 +739,7 @@ function renderPlayers(){
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑</button>
     </div></td>
   </tr>`}).join('');
-  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Kèo</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map(p=>{const lv=getLevel(p.score);return`<div class="card-item">
     <div class="card-item-row">
       <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer">${av(p.name,p.color,'av-lg')}<div>
@@ -835,6 +856,12 @@ function updateMF(){
   document.getElementById('mA2w').style.display=d;document.getElementById('mB2w').style.display=d;
 }
 function calcElo(ws,ls){return parseFloat((0.1*(1-1/(1+Math.pow(10,(ls-ws)/4)))).toFixed(2))}
+function updateKeoUI(){
+  const val = document.getElementById('mKeo').value;
+  document.getElementById('keoNuocWrap').style.display = val==='nuoc' ? '' : 'none';
+  document.getElementById('keoTienWrap').style.display = val==='tien' ? '' : 'none';
+}
+
 function logMatch(){
   const date=document.getElementById('mDate').value;
   const type=document.getElementById('mType').value;
@@ -842,7 +869,9 @@ function logMatch(){
   const b1=document.getElementById('mB1').value,b2=document.getElementById('mB2').value;
   const sA=parseInt(document.getElementById('mScoreA').value)||0;
   const sB=parseInt(document.getElementById('mScoreB').value)||0;
-  const note=document.getElementById('mNote').value.trim();
+  const keo=document.getElementById('mKeo').value;
+  const keoNuoc=keo==='nuoc'?parseInt(document.getElementById('mNuoc').value)||1:null;
+  const keoTien=keo==='tien'?parseInt(document.getElementById('mTien').value)||0:null;
   if(!date)return alert('Chọn ngày thi đấu');
   if(!a1||!b1)return alert('Vui lòng chọn đủ người chơi cho cả 2 bên');
   if(type==='doubles'&&(!a2||!b2))return alert('Trận đôi cần chọn đủ 4 người chơi');
@@ -857,7 +886,7 @@ function logMatch(){
   const delta=calcElo(avgW,avgL);
   wt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.min(8,p.score+delta).toFixed(2));});
   lt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.max(2,p.score-delta).toFixed(2));});
-  matches.push({id:nM++,date,type,a:tA,b:tB,scoreA:sA,scoreB:sB,note,winner,elo:delta});
+  matches.push({id:nM++,date,type,a:tA,b:tB,scoreA:sA,scoreB:sB,keo,keoNuoc,keoTien,winner,elo:delta});
   saveAll();closeModal('matchModal');renderMatches();renderRanking();renderPlayers();
   notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
 }
@@ -882,11 +911,11 @@ function renderMatches(){
       <td style="text-align:center"><div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 4px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>${m.elo?`<div class="small tm">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''}</td>
       <td>${m.b.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
 
-      <td class="tm small">${m.note||'—'}</td>
+      <td>${m.keo==='nuoc'?`<span class='pill p-gray'>💧 ${m.keoNuoc} chai</span>`:m.keo==='tien'?`<span class='pill p-yellow'>💰 ${(m.keoTien/1000).toFixed(0)}k</span>`:'<span class="tm">—</span>'}</td>
       <td><button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button></td>
     </tr>`;
   }).join('');
-  document.getElementById('matchD').innerHTML=`<table><thead><tr><th>Ngày</th><th>Loại</th><th>Bên A</th><th style="text-align:center">Tỷ số</th><th>Bên B</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('matchD').innerHTML=`<table><thead><tr><th>Ngày</th><th>Loại</th><th>Bên A</th><th style="text-align:center">Tỷ số</th><th>Bên B</th><th>Kèo</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map(m=>{
     const wA=m.winner==='A';
     const wName=(wA?m.a:m.b).join(' & ');
@@ -902,7 +931,7 @@ function renderMatches(){
           <button class="btn btn-danger btn-xs" style="margin-top:5px" onclick="delMatch(${m.id})">🗑</button>
         </div>
       </div>
-      ${m.note?`<div class="small tm" style="margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border)">📝 ${m.note}</div>`:''}
+      ${m.keo&&m.keo!=='none'?`<div class="small" style="margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border);color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: '+m.keoNuoc+' chai':'💰 Tiền: '+(m.keoTien/1000).toFixed(0)+'k'}</div>`:''}
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
