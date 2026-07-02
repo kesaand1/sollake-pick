@@ -23,9 +23,53 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
-// ── Expose to global scope so the rest of the app can call them ──
+// Expose _fbSet for push operations
 window._fbSet = (path, data) => set(ref(db, path), data);
-window._fbOn  = (path, cb)   => onValue(ref(db, path), snap => cb(snap.val()));
+
+// Subscribe directly in module (avoids async timing issue)
+function dot(col){ const d=document.getElementById('syncDot'); if(d) d.style.background=col; }
+
+onValue(ref(db,'players'), snap=>{
+  const val=snap.val();
+  if(!val||!Array.isArray(val)) return;
+  players=val;
+  try{localStorage.setItem('sp2_players',JSON.stringify(val));}catch{}
+  nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
+  if(typeof buildRankDropdown==='function') buildRankDropdown();
+  if(typeof renderPlayers==='function') renderPlayers();
+  if(typeof renderRanking==='function') renderRanking();
+  dot('var(--success)'); setTimeout(()=>dot('var(--muted)'),2500);
+});
+
+onValue(ref(db,'matches'), snap=>{
+  const val=snap.val();
+  if(!val||!Array.isArray(val)) return;
+  matches=val;
+  try{localStorage.setItem('sp2_matches',JSON.stringify(val));}catch{}
+  nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
+  if(typeof buildRankDropdown==='function') buildRankDropdown();
+  if(typeof renderMatches==='function') renderMatches();
+  if(typeof renderRanking==='function') renderRanking();
+});
+
+onValue(ref(db,'finances'), snap=>{
+  const val=snap.val();
+  if(!val||!Array.isArray(val)) return;
+  finances=val;
+  try{localStorage.setItem('sp2_finances',JSON.stringify(val));}catch{}
+  nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
+  if(typeof renderFinance==='function') renderFinance();
+});
+
+onValue(ref(db,'fines'), snap=>{
+  const val=snap.val();
+  if(!val||!Array.isArray(val)) return;
+  fines=val;
+  try{localStorage.setItem('sp2_fines',JSON.stringify(val));}catch{}
+  nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
+  if(typeof renderFines==='function') renderFines();
+  if(typeof renderDebt==='function') renderDebt();
+});
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
@@ -643,16 +687,7 @@ function pushToFirebase(){
   }).catch(()=>{if(dot)dot.style.background='var(--danger)';});
 }
 
-// Subscribe once; merge Firebase data & re-render
-function subscribeFirebase(){
-  const dot=document.getElementById('syncDot');
-  if(dot) dot.style.background='var(--warn)';
-  if(!window._fbOn) return;
-  window._fbOn('players',  val=>{ if(val&&Array.isArray(val)){players=val;sv('sp2_players',val);nP=players.length?Math.max(...players.map(p=>p.id))+1:1;renderPlayers();renderRanking();const dot=document.getElementById('syncDot');if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}}});
-  window._fbOn('matches',  val=>{ if(val&&Array.isArray(val)){matches=val;sv('sp2_matches',val);nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;renderMatches();}});
-  window._fbOn('finances', val=>{ if(val&&Array.isArray(val)){finances=val;sv('sp2_finances',val);nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;}});
-  window._fbOn('fines',    val=>{ if(val&&Array.isArray(val)){fines=val;sv('sp2_fines',val);nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;}});
-}
+
 
 let players=ld('sp2_players',[
   {id:1,name:'Trần Minh Khoa',score:4.52,note:'Đội trưởng',color:'c0',visible:true,joined:'2024-01-10'},
@@ -1544,8 +1579,7 @@ Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu.`;
     const text = data.content?.[0]?.text || 'Không thể phân tích. Vui lòng thử lại.';
     resultEl.innerHTML = text
       .replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--lime)">$1</strong>')
-      .split('
-').filter(Boolean).map(l=>`<p style="margin-bottom:.4rem">${l}</p>`).join('');
+      .split('\n').filter(Boolean).map(l=>`<p style="margin-bottom:.4rem">${l}</p>`).join('');
   } catch(e) {
     resultEl.innerHTML = '<span style="color:var(--danger)">❌ Lỗi kết nối. Vui lòng thử lại.</span>';
   }
@@ -1904,8 +1938,7 @@ function init(){
   if(lastPage && lastPage !== 'ranking') showPage(lastPage);
   document.getElementById('ovTo').value=today();
   renderRanking();renderPlayers();
-  // Wait for Firebase module to load then subscribe
-  setTimeout(()=>subscribeFirebase(), 800);
+
 }
 init();
 </script>
