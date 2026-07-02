@@ -475,8 +475,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div id="fineList"></div>
     </div>
   </div>
-  <div class="panel">
-    <div class="panel-hd">📋 Công nợ thành viên</div>
+  <div class="panel" style="margin-top:.5rem">
+    <div class="panel-hd">📋 Thống kê nộp phạt theo thành viên</div>
     <div class="tbl-wrap" id="debtTbl"></div>
   </div>
 </div>
@@ -575,7 +575,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="modal">
     <div class="modal-title">⚠️ Ghi phạt thành viên</div>
     <div class="fgroup"><label>Thành viên bị phạt</label><select class="finput" id="finePlayer"></select></div>
-    <div class="fgroup"><label>Lý do phạt</label><input class="finput" id="fineReason" placeholder="Đến trễ, bỏ buổi..."/></div>
+    <div class="fgroup">
+      <label>Lý do phạt</label>
+      <select class="finput" id="fineReason" onchange="toggleFineOther()">
+        <option value="Ra muộn">Ra muộn</option>
+        <option value="Hẹn mà ko ra">Hẹn mà ko ra</option>
+        <option value="other">Lý do khác...</option>
+      </select>
+    </div>
+    <div class="fgroup" id="fineOtherWrap" style="display:none">
+      <label>Nhập lý do khác</label>
+      <input class="finput" id="fineReasonOther" placeholder="Nhập lý do..."/>
+    </div>
     <div class="fgroup"><label>Số tiền phạt (VNĐ)</label><input class="finput" id="fineAmt" type="number" placeholder="50000"/></div>
     <div class="fgroup"><label>Ngày</label><input class="finput" id="fineDate" type="date"/></div>
     <div class="modal-footer">
@@ -662,9 +673,10 @@ let nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
 const fmt=n=>n.toLocaleString('vi-VN')+'đ';
 function getLevel(score){
   const s=parseFloat(score);
-  if(s>=5.0)return{label:'Tuyển thủ',pill:'p-lime',icon:'⚡'};
-  if(s>=4.0)return{label:'Nâng cao',pill:'p-green',icon:'🔥'};
-  if(s>=3.0)return{label:'Trung bình',pill:'p-yellow',icon:'📈'};
+  if(s>=5.0)return{label:'VĐV Quốc gia',pill:'p-lime',icon:'🏅'};
+  if(s>=4.0)return{label:'Tuyển thủ',pill:'p-green',icon:'⚡'};
+  if(s>=3.0)return{label:'Nâng cao',pill:'p-yellow',icon:'🔥'};
+  if(s>=2.5)return{label:'Trung bình',pill:'p-gray',icon:'📈'};
   return{label:'Người mới',pill:'p-gray',icon:'🌱'};
 }
 function updateLevelPreview(){
@@ -712,7 +724,7 @@ function openModal(id){
   document.getElementById(id).classList.add('open');
   if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();}
   if(id==='finModal'){popFinSel();document.getElementById('finDate').value=today();}
-  if(id==='fineModal'){popFineSel();document.getElementById('fineDate').value=today();}
+  if(id==='fineModal'){popFineSel();document.getElementById('fineDate').value=today();document.getElementById('fineReason').value='Ra muộn';document.getElementById('fineOtherWrap').style.display='none';if(document.getElementById('fineReasonOther'))document.getElementById('fineReasonOther').value='';}
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open')}));
@@ -877,75 +889,102 @@ function renderOverviewCards(){
   const vis  = players.filter(p=>p.visible);
   const filtered = matches.filter(m=>inR(m.date,from,to));
 
-  // Helper: chia đôi giá trị kèo đôi cho mỗi người trong đội
+  // Helper: chia đôi giá trị kèo đôi
   function keoVal(m, n, type){
     const teamSize = m.type==='doubles' ? 2 : 1;
     const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
-    const isWin = wt.includes(n);
-    const isLose = lt.includes(n);
-    if(!isWin && !isLose) return 0;
-    const raw = type==='tien' ? (m.keoTien||0) : (m.keoNuoc||1);
-    const share = raw / teamSize;
-    return isWin ? share : -share;
+    const isWin=wt.includes(n), isLose=lt.includes(n);
+    if(!isWin&&!isLose) return 0;
+    const raw = type==='tien'?(m.keoTien||0):(m.keoNuoc||1);
+    return isWin ? raw/teamSize : -raw/teamSize;
   }
 
-  // ── Tốp nộp + Vua lùa kèo ──
-  const keoHasData = filtered.some(m=>m.keo&&m.keo!=='none');
+  // ── Tốp nộp: kèo + phạt ──
   const bal = {};
-  vis.forEach(p=>{ bal[p.name]={tien:0,nuoc:0}; });
+  vis.forEach(p=>{ bal[p.name]={tien:0,nuoc:0,phat:0}; });
 
-  if(keoHasData){
-    filtered.forEach(m=>{
-      if(!m.keo||m.keo==='none') return;
-      const allPlayers=[...m.a,...m.b];
-      allPlayers.forEach(n=>{
-        if(!bal[n]) return;
-        if(m.keo==='tien') bal[n].tien += keoVal(m,n,'tien');
-        if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
-      });
+  filtered.forEach(m=>{
+    if(!m.keo||m.keo==='none') return;
+    [...m.a,...m.b].forEach(n=>{
+      if(!bal[n]) return;
+      if(m.keo==='tien') bal[n].tien += keoVal(m,n,'tien');
+      if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
     });
-  }
+  });
 
-  // Round to avoid float issues
+  // Add paid fines as negative (money paid out)
+  fines.filter(f=>f.paid&&inR(f.date,from,to)).forEach(f=>{
+    if(bal[f.player]!==undefined) bal[f.player].phat -= f.amount;
+  });
+
   Object.keys(bal).forEach(n=>{
     bal[n].tien = Math.round(bal[n].tien);
     bal[n].nuoc = parseFloat(bal[n].nuoc.toFixed(1));
+    bal[n].phat = Math.round(bal[n].phat);
   });
 
-  // Only include players who actually participated in kèo matches
-  const keoPlayers = keoHasData
-    ? Object.entries(bal).filter(([n])=>
-        filtered.some(m=>m.keo&&m.keo!=='none'&&[...m.a,...m.b].includes(n))
-      )
-    : [];
+  function lossScore(d){ return d.tien + d.nuoc*10000 + d.phat; }
 
-  const topNopEntry = keoPlayers.length
-    ? keoPlayers.sort((a,b)=>(a[1].tien+a[1].nuoc*10000)-(b[1].tien+b[1].nuoc*10000))[0]
-    : null;
-  const vuaEntry = keoPlayers.length
+  const allBal = Object.entries(bal).filter(([n])=>
+    filtered.some(m=>[...m.a,...m.b].includes(n)) ||
+    fines.some(f=>f.player===n&&f.paid&&inR(f.date,from,to))
+  );
+
+  // Top nộp: all players sharing the minimum loss score
+  const topNopEntries = (() => {
+    if(!allBal.length) return [];
+    const sorted = [...allBal].sort((a,b)=>lossScore(a[1])-lossScore(b[1]));
+    const minScore = lossScore(sorted[0][1]);
+    if(minScore >= 0) return [];
+    return sorted.filter(e=>lossScore(e[1])===minScore);
+  })();
+
+  // ── Phong độ đang lên ──
+  const phongDo = {};
+  vis.forEach(p=>{ phongDo[p.name]={wins:0,delta:0}; });
+  filtered.forEach(m=>{
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    const delta=parseFloat(m.elo||0.04);
+    wt.forEach(n=>{ if(phongDo[n]){phongDo[n].wins++;phongDo[n].delta=parseFloat((phongDo[n].delta+delta).toFixed(2));} });
+    lt.forEach(n=>{ if(phongDo[n]) phongDo[n].delta=parseFloat((phongDo[n].delta-delta).toFixed(2)); });
+  });
+  const topPhong = Object.entries(phongDo)
+    .filter(([,v])=>v.wins>0||v.delta!==0)
+    .sort((a,b)=>(b[1].wins*10+b[1].delta)-(a[1].wins*10+a[1].delta))[0]||null;
+
+  // ── Vua lùa kèo ──
+  const keoHasData = filtered.some(m=>m.keo&&m.keo!=='none');
+  const vuaBal = {};
+  vis.forEach(p=>{ vuaBal[p.name]={tien:0,nuoc:0}; });
+  filtered.forEach(m=>{
+    if(!m.keo||m.keo==='none') return;
+    [...m.a,...m.b].forEach(n=>{
+      if(!vuaBal[n]) return;
+      if(m.keo==='tien') vuaBal[n].tien += keoVal(m,n,'tien');
+      if(m.keo==='nuoc') vuaBal[n].nuoc += keoVal(m,n,'nuoc');
+    });
+  });
+  Object.keys(vuaBal).forEach(n=>{
+    vuaBal[n].tien=Math.round(vuaBal[n].tien);
+    vuaBal[n].nuoc=parseFloat(vuaBal[n].nuoc.toFixed(1));
+  });
+  const keoPlayers=keoHasData
+    ? Object.entries(vuaBal).filter(([n])=>filtered.some(m=>m.keo&&m.keo!=='none'&&[...m.a,...m.b].includes(n)))
+    : [];
+  const vuaEntry=keoPlayers.length
     ? [...keoPlayers].sort((a,b)=>(b[1].tien+b[1].nuoc*10000)-(a[1].tien+a[1].nuoc*10000))[0]
     : null;
 
-  // ── Cặp lùa chuyên nghiệp ──
-  const pairWins = {};
-  filtered.filter(m=>m.type==='doubles').forEach(m=>{
-    const wt=m.winner==='A'?m.a:m.b;
-    if(wt.length===2){
-      const key=[...wt].sort().join(' & ');
-      pairWins[key]=(pairWins[key]||0)+1;
-    }
-  });
-  const topPair = Object.entries(pairWins).sort((a,b)=>b[1]-a[1])[0]||null;
-
-  // Helper: render balance lines
+  // Helper render balance lines
   function balLines(data, colorOverride){
-    if(!data) return '<div class="ov-card-val" style="font-size:1rem;opacity:.5">Chưa có kèo</div>';
-    const {tien,nuoc}=data;
-    if(tien===0&&nuoc===0) return '<div class="ov-card-val" style="font-size:1rem;opacity:.5">Chưa có kèo</div>';
+    if(!data) return '<div style="font-size:.82rem;opacity:.5">Chưa có dữ liệu</div>';
+    const {tien,nuoc,phat=0}=data;
+    const totalTien = tien+(phat||0);
+    if(totalTien===0&&nuoc===0) return '<div style="font-size:.82rem;opacity:.5">Chưa có dữ liệu</div>';
     let html='';
-    if(tien!==0){
-      const col=colorOverride||(tien>0?'var(--success)':'var(--danger)');
-      html+=`<div class="ov-card-val" style="font-size:1.5rem;color:${col}">${tien>0?'+':''}${(tien/1000).toFixed(0)}k</div>`;
+    if(totalTien!==0){
+      const col=colorOverride||(totalTien>0?'var(--success)':'var(--danger)');
+      html+=`<div class="ov-card-val" style="font-size:1.5rem;color:${col}">${totalTien>0?'+':''}${(totalTien/1000).toFixed(0)}k</div>`;
     }
     if(nuoc!==0){
       const col=colorOverride||(nuoc>0?'#60A5FA':'var(--danger)');
@@ -958,20 +997,23 @@ function renderOverviewCards(){
     <div class="ov-card ov-card-dark">
       <div>
         <div class="ov-card-label">↘ Tốp nộp</div>
-        <div class="ov-card-name">${topNopEntry?topNopEntry[0]:'—'}</div>
-        <div style="margin-top:.4rem">${balLines(topNopEntry?topNopEntry[1]:null)}</div>
+        ${topNopEntries.length===0
+          ? `<div class="ov-card-name">—</div><div style="margin-top:.3rem;font-size:.8rem;opacity:.5">Chưa có dữ liệu</div>`
+          : `<div class="ov-card-name" style="font-size:${topNopEntries.length>1?'.82rem':'1rem'};line-height:1.4">${topNopEntries.map(e=>e[0]).join(' & ')}</div>
+             <div style="margin-top:.4rem">${balLines(topNopEntries[0][1])}</div>`}
       </div>
       <div class="ov-card-bg">↘</div>
     </div>
     <div class="ov-card ov-card-purple">
       <div>
-        <div class="ov-card-label">🤝 Cặp lùa chuyên nghiệp</div>
-        <div class="ov-card-name">${topPair?topPair[0]:'—'}</div>
-        ${topPair
-          ? `<div class="ov-card-val">+${topPair[1]}<span class="ov-card-unit">thắng</span></div>`
-          : `<div class="ov-card-val" style="font-size:1rem;opacity:.5">Chưa có trận đôi</div>`}
+        <div class="ov-card-label">📈 Phong độ đang lên</div>
+        <div class="ov-card-name">${topPhong?topPhong[0]:'—'}</div>
+        ${topPhong
+          ? `<div class="ov-card-val">+${topPhong[1].wins}<span class="ov-card-unit">thắng</span></div>
+             <div style="font-size:.8rem;color:${topPhong[1].delta>=0?'var(--success)':'var(--danger)'};margin-top:2px">${topPhong[1].delta>=0?'+':''}${topPhong[1].delta.toFixed(2)} điểm</div>`
+          : `<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>`}
       </div>
-      <div class="ov-card-bg">🤝</div>
+      <div class="ov-card-bg">📈</div>
     </div>
     <div class="ov-card ov-card-green">
       <div>
@@ -982,744 +1024,4 @@ function renderOverviewCards(){
       <div class="ov-card-bg">↗</div>
     </div>`;
 }
-
-function renderRanking(){
-  renderOverviewCards();
-  const {from,to}=getRankDateRange();
-  const vis=players.filter(p=>p.visible);
-
-  // Stats + trend per player
-  const st={};
-  vis.forEach(p=>{st[p.name]={wins:0,losses:0,played:0,trend:0}});
-
-  matches.filter(m=>inR(m.date,from,to)).forEach(m=>{
-    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
-    const delta=parseFloat(m.elo||0.04);
-    wt.forEach(n=>{if(st[n]){st[n].wins++;st[n].played++;st[n].trend=parseFloat((st[n].trend+delta).toFixed(2));}});
-    lt.forEach(n=>{if(st[n]){st[n].losses++;st[n].played++;st[n].trend=parseFloat((st[n].trend-delta).toFixed(2));}});
-  });
-
-  const sorted=[...vis].sort((a,b)=>b.score-a.score);
-  if(!sorted.length){
-    const e=empty('🏆','Chưa có dữ liệu xếp hạng');
-    document.getElementById('rankD').innerHTML=e;document.getElementById('rankM').innerHTML=e;return;
-  }
-
-  function trendHtml(trend){
-    if(trend===0) return `<span style="color:var(--muted);font-size:.8rem">—</span>`;
-    const up = trend > 0;
-    const arrow = up ? '▲' : '▼';
-    const col = up ? 'var(--success)' : 'var(--danger)';
-    return `<span style="color:${col};font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.85rem;white-space:nowrap">${arrow} ${up?'+':''}${trend.toFixed(2)}</span>`;
-  }
-
-  const rows=sorted.map((p,i)=>{
-    const s=st[p.name]||{wins:0,losses:0,played:0,trend:0};
-    const wr=s.played>0?Math.round(s.wins/s.played*100):0;
-    const rc=i===0?'r1':i===1?'r2':i===2?'r3':'';
-    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
-    return`<tr>
-      <td><span class="rnum ${rc}">${medal}</span></td>
-      <td>${avW(p.name,p.color)}</td>
-      <td><span style="font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</span></td>
-      <td>${s.played}</td><td class="ts">${s.wins}</td><td class="td">${s.losses}</td>
-      <td><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
-      <td>${trendHtml(s.trend)}</td>
-      <td><span class="pill ${getLevel(p.score).pill}">${getLevel(p.score).icon} ${getLevel(p.score).label}</span></td>
-    </tr>`;
-  }).join('');
-  document.getElementById('rankD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Đã đấu</th><th>Thắng</th><th>Thua</th><th>Tỷ lệ</th><th>Phong độ</th><th>Trình độ</th></tr></thead><tbody>${rows}</tbody></table>`;
-
-  const cards=sorted.map((p,i)=>{
-    const s=st[p.name]||{wins:0,losses:0,played:0,trend:0};
-    const wr=s.played>0?Math.round(s.wins/s.played*100):0;
-    const rc=i===0?'r1':i===1?'r2':i===2?'r3':'';
-    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-    const trend=s.trend;
-    const trendUp=trend>0, trendZero=trend===0;
-    const trendStr=trendZero?'—':`${trendUp?'▲':'▼'} ${trendUp?'+':''}${trend.toFixed(2)}`;
-    const trendCol=trendZero?'var(--muted)':trendUp?'var(--success)':'var(--danger)';
-    return`<div class="card-item">
-      <div class="card-item-row">
-        <div class="av-wrap">
-          <span class="rnum ${rc}" style="min-width:26px;text-align:center">${medal||('#'+(i+1))}</span>
-          ${av(p.name,p.color,'av-lg')}
-          <div><div class="bold">${p.name}</div><div class="small tm">${getLevel(p.score).icon} ${getLevel(p.score).label}</div></div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</div>
-          <div style="font-size:.78rem;font-weight:700;color:${trendCol}">${trendStr}</div>
-        </div>
-      </div>
-      <div class="card-meta mt1">
-        <span>⚔️ ${s.played} trận</span>
-        <span class="ts">✅ ${s.wins}W</span>
-        <span class="td">❌ ${s.losses}L</span>
-        <span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span>
-      </div>
-    </div>`;
-  }).join('');
-  document.getElementById('rankM').innerHTML=`<div class="card-list">${cards}</div>`;
-}
-
-// Matches
-function setMatchPeriod(p){
-  document.getElementById('matchFrom').value=p==='all'?'':p==='week'?ago(7):ago(30);
-  document.getElementById('matchTo').value=today();renderMatches();
-}
-function popMatchSel(){
-  const vis=players.filter(p=>p.visible);
-  const blank='<option value="">-- Chọn người chơi --</option>';
-  ['mA1','mA2','mB1','mB2'].forEach(id=>{document.getElementById(id).innerHTML=blank+vis.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');document.getElementById(id).value='';});
-}
-function updateMF(){
-  const d=document.getElementById('mType').value==='doubles'?'':'none';
-  document.getElementById('mA2w').style.display=d;document.getElementById('mB2w').style.display=d;
-}
-function calcElo(ws,ls){return parseFloat((0.1*(1-1/(1+Math.pow(10,(ls-ws)/4)))).toFixed(2))}
-function updateKeoUI(){
-  const val = document.getElementById('mKeo').value;
-  document.getElementById('keoNuocWrap').style.display = val==='nuoc' ? '' : 'none';
-  document.getElementById('keoTienWrap').style.display = val==='tien' ? '' : 'none';
-}
-
-function logMatch(){
-  const date=document.getElementById('mDate').value;
-  const type=document.getElementById('mType').value;
-  const a1=document.getElementById('mA1').value,a2=document.getElementById('mA2').value;
-  const b1=document.getElementById('mB1').value,b2=document.getElementById('mB2').value;
-  const sA=parseInt(document.getElementById('mScoreA').value)||0;
-  const sB=parseInt(document.getElementById('mScoreB').value)||0;
-  const keo=document.getElementById('mKeo').value;
-  const keoNuoc=keo==='nuoc'?parseInt(document.getElementById('mNuoc').value)||1:null;
-  const keoTien=keo==='tien'?parseInt(document.getElementById('mTien').value)||0:null;
-  if(!date)return alert('Chọn ngày thi đấu');
-  if(!a1||!b1)return alert('Vui lòng chọn đủ người chơi cho cả 2 bên');
-  if(type==='doubles'&&(!a2||!b2))return alert('Trận đôi cần chọn đủ 4 người chơi');
-  if(sA===sB)return alert('Không thể hòa! Nhập điểm khác nhau');
-  const tA=type==='singles'?[a1]:[a1,a2];
-  const tB=type==='singles'?[b1]:[b1,b2];
-  if(new Set([...tA,...tB]).size!==tA.length+tB.length)return alert('Có người chơi bị trùng lặp!');
-  const winner=sA>sB?'A':'B';
-  const wt=winner==='A'?tA:tB,lt=winner==='A'?tB:tA;
-  const avgW=wt.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/wt.length;
-  const avgL=lt.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/lt.length;
-  const delta=calcElo(avgW,avgL);
-  wt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.min(8,p.score+delta).toFixed(2));});
-  lt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.max(2,p.score-delta).toFixed(2));});
-  matches.push({id:nM++,date,type,a:tA,b:tB,scoreA:sA,scoreB:sB,keo,keoNuoc,keoTien,winner,elo:delta});
-  saveAll();closeModal('matchModal');renderMatches();renderRanking();renderPlayers();
-  notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
-}
-function delMatch(id){
-  if(!confirm('Xóa trận? Điểm ELO không hoàn lại.'))return;
-  matches=matches.filter(m=>m.id!==id);saveAll();renderMatches();notify('🗑 Đã xóa trận');
-}
-function renderMatches(){
-  const from=document.getElementById('matchFrom').value;
-  const to=document.getElementById('matchTo').value;
-  const list=matches.filter(m=>inR(m.date,from,to)).sort((a,b)=>b.date.localeCompare(a.date));
-  if(!list.length){
-    const e=empty('🏓','Chưa có trận nào trong khoảng thời gian này');
-    document.getElementById('matchD').innerHTML=e;document.getElementById('matchM').innerHTML=e;return;
-  }
-  const rows=list.map(m=>{
-    const wA=m.winner==='A';
-    return`<tr>
-      <td class="tm small">${fmtD(m.date)}</td>
-      <td><span class="pill p-gray">${m.type==='singles'?'Đơn':'Đôi'}</span></td>
-      <td>${m.a.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
-      <td style="text-align:center"><div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 4px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>${m.elo?`<div class="small tm">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''}</td>
-      <td>${m.b.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
-
-      <td>${m.keo==='nuoc'?`<span class='pill p-gray'>💧 ${m.keoNuoc} chai</span>`:m.keo==='tien'?`<span class='pill p-yellow'>💰 ${(m.keoTien/1000).toFixed(0)}k</span>`:'<span class="tm">—</span>'}</td>
-      <td><button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button></td>
-    </tr>`;
-  }).join('');
-  document.getElementById('matchD').innerHTML=`<table><thead><tr><th>Ngày</th><th>Loại</th><th>Bên A</th><th style="text-align:center">Tỷ số</th><th>Bên B</th><th>Kèo</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
-  const cards=list.map(m=>{
-    const wA=m.winner==='A';
-    return`<div class="card-item" style="padding:.9rem">
-      <!-- Header: date + type + delete -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem">
-        <div style="display:flex;align-items:center;gap:.4rem">
-          <span class="small tm">${fmtD(m.date)}</span>
-          <span class="pill p-gray" style="font-size:.62rem">${m.type==='singles'?'Đơn':'Đôi'}</span>
-        </div>
-        <button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button>
-      </div>
-      <!-- Team A -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.35rem">
-        <div style="min-width:0;flex:1">
-          <div style="font-size:.88rem;font-weight:600;line-height:1.4;color:${wA?'var(--text)':'var(--muted)'}">
-            ${m.a.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer">${n}</span>`).join('<span style="color:var(--muted);margin:0 3px">&</span>')}
-          </div>
-        </div>
-        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;color:${wA?'var(--lime)':'var(--muted)'};flex-shrink:0">${m.scoreA}</span>
-      </div>
-      <!-- VS divider -->
-      <div style="display:flex;align-items:center;gap:.4rem;margin:.25rem 0">
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-        <span style="font-size:.6rem;color:var(--muted);letter-spacing:.5px">VS</span>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-      </div>
-      <!-- Team B -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.35rem">
-        <div style="min-width:0;flex:1">
-          <div style="font-size:.88rem;font-weight:600;line-height:1.4;color:${!wA?'var(--text)':'var(--muted)'}">
-            ${m.b.map(n=>`<span onclick="openProfile('${n}')" style="cursor:pointer">${n}</span>`).join('<span style="color:var(--muted);margin:0 3px">&</span>')}
-          </div>
-        </div>
-        <span style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;color:${!wA?'var(--lime)':'var(--muted)'};flex-shrink:0">${m.scoreB}</span>
-      </div>
-      <!-- Kèo -->
-      ${m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':'💰 Kèo: <strong style="color:var(--text)">'+(m.keoTien/1000).toFixed(0)+'k</strong>'}</div>`:''}
-    </div>`;
-  }).join('');
-  document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
-}
-
-// Finance
-function popFinSel(){
-  document.getElementById('finPlayer').innerHTML=`<option value="">-- Quỹ chung --</option>`+
-    players.filter(p=>p.visible).map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
-}
-function popFineSel(){
-  document.getElementById('finePlayer').innerHTML=players.filter(p=>p.visible).map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
-}
-function setFinPeriod(p){
-  document.getElementById('finFrom').value=p==='all'?'':ago(30);
-  document.getElementById('finTo').value=today();renderFinance();
-}
-function addFinance(){
-  const type=document.getElementById('finType').value;
-  const desc=document.getElementById('finDesc').value.trim();
-  const amount=parseInt(document.getElementById('finAmt').value)||0;
-  const player=document.getElementById('finPlayer').value;
-  const date=document.getElementById('finDate').value;
-  if(!desc||!amount||!date)return alert('Vui lòng điền đầy đủ');
-  finances.push({id:nF++,type,desc,player,amount,date});
-  saveAll();closeModal('finModal');renderFinance();renderDebt();
-  notify(`✅ Đã ghi ${type==='thu'?'thu':'chi'}: ${fmt(amount)}`);
-}
-function addFine(){
-  const player=document.getElementById('finePlayer').value;
-  const reason=document.getElementById('fineReason').value.trim();
-  const amount=parseInt(document.getElementById('fineAmt').value)||0;
-  const date=document.getElementById('fineDate').value;
-  if(!player||!reason||!amount||!date)return alert('Vui lòng điền đầy đủ');
-  fines.push({id:nFi++,player,reason,amount,date,paid:false});
-  saveAll();closeModal('fineModal');renderFines();renderDebt();
-  notify(`⚠️ Phạt ${player}: ${fmt(amount)}`);
-}
-function delFinance(id){
-  if(!confirm('Xóa giao dịch?'))return;
-  finances=finances.filter(f=>f.id!==id);saveAll();renderFinance();renderDebt();notify('🗑 Đã xóa');
-}
-function payFine(id){
-  const fine=fines.find(f=>f.id===id);if(!fine||fine.paid)return;
-  pendingFineId=id;
-  document.getElementById('payFineContent').innerHTML=`<p style="line-height:1.8">Xác nhận <strong>${fine.player}</strong> đã nộp phạt<br/><strong style="color:var(--lime);font-size:1.2rem">${fmt(fine.amount)}</strong></p><p class="tm small" style="margin-top:.4rem">Lý do: ${fine.reason}</p>`;
-  openModal('payFineModal');
-}
-function confirmPayFine(){
-  if(pendingFineId===null)return;
-  const fine=fines.find(f=>f.id===pendingFineId);
-  if(fine){fine.paid=true;saveAll();renderFines();renderDebt();}
-  closeModal('payFineModal');pendingFineId=null;notify('✅ Đã xác nhận nộp phạt');
-}
-function delFine(id){
-  if(!confirm('Xóa khoản phạt?'))return;
-  fines=fines.filter(f=>f.id!==id);saveAll();renderFines();renderDebt();notify('🗑 Đã xóa khoản phạt');
-}
-function renderFinance(){
-  const from=document.getElementById('finFrom').value;
-  const to=document.getElementById('finTo').value;
-  const list=finances.filter(f=>inR(f.date,from,to)).sort((a,b)=>b.date.localeCompare(a.date));
-  const thu=list.filter(f=>f.type==='thu').reduce((s,f)=>s+f.amount,0);
-  const chi=list.filter(f=>f.type==='chi').reduce((s,f)=>s+f.amount,0);
-  const bal=thu-chi;
-  document.getElementById('finSum').innerHTML=`
-    <div class="sc"><div class="val ts">${fmt(thu)}</div><div class="lbl">Tổng thu</div></div>
-    <div class="sc"><div class="val td">${fmt(chi)}</div><div class="lbl">Tổng chi</div></div>
-    <div class="sc"><div class="val ${bal>=0?'tl':'td'}">${fmt(Math.abs(bal))}</div><div class="lbl">${bal>=0?'Quỹ hiện có':'Âm quỹ'}</div></div>
-    <div class="sc"><div class="val">${list.length}</div><div class="lbl">Giao dịch</div></div>`;
-  if(!list.length){document.getElementById('finList').innerHTML=empty('💰','Chưa có giao dịch nào');return;}
-  document.getElementById('finList').innerHTML=list.map(f=>`<div class="fin-row">
-    <div class="fleft"><div class="bold ell">${f.desc}</div><div class="small tm">${f.player||'Quỹ chung'} · ${fmtD(f.date)}</div></div>
-    <div class="fright">
-      <span class="bold ${f.type==='thu'?'ts':'td'}">${f.type==='thu'?'+':'-'}${fmt(f.amount)}</span>
-      <button class="btn btn-danger btn-xs" onclick="delFinance(${f.id})">🗑</button>
-    </div>
-  </div>`).join('');
-}
-function renderFines(){
-  const list=[...fines].sort((a,b)=>b.date.localeCompare(a.date));
-  if(!list.length){document.getElementById('fineList').innerHTML=empty('⚠️','Chưa có khoản phạt nào');return;}
-  document.getElementById('fineList').innerHTML=list.map(f=>`<div class="fin-row">
-    <div class="fleft">
-      <div style="display:flex;align-items:center;gap:.4rem">
-        ${av(f.player,gpc(f.player))}
-        <div><div class="bold">${f.player}</div><div class="small tm ell">${f.reason} · ${fmtD(f.date)}</div></div>
-      </div>
-    </div>
-    <div class="fright">
-      <span class="bold td">${fmt(f.amount)}</span>
-      <span class="pill ${f.paid?'p-green':'p-red'}">${f.paid?'Đã nộp':'Chưa nộp'}</span>
-      ${!f.paid?`<button class="btn btn-ghost btn-xs" onclick="payFine(${f.id})">✅</button>`:''}
-      <button class="btn btn-danger btn-xs" onclick="delFine(${f.id})">🗑</button>
-    </div>
-  </div>`).join('');
-}
-function renderDebt(){
-  const dm={};
-  players.filter(p=>p.visible).forEach(p=>{dm[p.name]={debt:0,paid:0}});
-  fines.forEach(f=>{if(!dm[f.player])dm[f.player]={debt:0,paid:0};if(!f.paid)dm[f.player].debt+=f.amount;else dm[f.player].paid+=f.amount;});
-  const entries=Object.entries(dm).filter(([,v])=>v.debt>0||v.paid>0);
-  if(!entries.length){document.getElementById('debtTbl').innerHTML=empty('✅','Không có công nợ');return;}
-  const rows=entries.map(([name,d])=>`<tr>
-    <td>${avW(name,gpc(name))}</td>
-    <td class="td bold">${d.debt>0?fmt(d.debt):'—'}</td>
-    <td class="ts">${d.paid>0?fmt(d.paid):'—'}</td>
-    <td><span class="pill ${d.debt>0?'p-red':'p-green'}">${d.debt>0?'Còn nợ':'Sạch nợ'}</span></td>
-  </tr>`).join('');
-  document.getElementById('debtTbl').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Còn nợ</th><th>Đã nộp</th><th>Trạng thái</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-// ═══════════════════════════════════════════
-// PAIRING
-// ═══════════════════════════════════════════
-function populatePairingSelects(){
-  const vis=players.filter(p=>p.visible);
-  const blank='<option value="">-- Chọn người chơi --</option>';
-  const opts=vis.map(p=>`<option value="${p.name}">${p.name} (${p.score.toFixed(2)})</option>`).join('');
-  ['pairA1','pairA2','pairB1','pairB2'].forEach(id=>{document.getElementById(id).innerHTML=blank+opts;document.getElementById(id).value='';});
-  document.getElementById('pairingResult').innerHTML='';
-}
-
-function calcKeo(diff){
-  if(diff<=0.50)return{text:'⚖️ Ngang kèo',quả:0,pill:'p-yellow'};
-  const qua=Math.min(5,Math.ceil((diff-0.50)/0.30));
-  return{text:`Chấp ${qua} quả`,quả:qua,pill:qua>=4?'p-green':'p-lime'};
-}
-
-function calcPairing(){
-  const a1n=document.getElementById('pairA1').value;
-  const a2n=document.getElementById('pairA2').value;
-  const b1n=document.getElementById('pairB1').value;
-  const b2n=document.getElementById('pairB2').value;
-  const el=document.getElementById('pairingResult');
-
-  // Not all selected yet
-  if(!a1n||!a2n||!b1n||!b2n){
-    el.innerHTML='';
-    return;
-  }
-
-  // Check duplicates
-  const all=[a1n,a2n,b1n,b2n];
-  if(new Set(all).size<4){
-    el.innerHTML=`<div style="color:var(--danger);font-size:.82rem;padding:.75rem;background:rgba(248,113,113,.08);border-radius:var(--rs);border:1px solid rgba(248,113,113,.2)">⚠️ Mỗi người chơi chỉ được chọn một lần. Vui lòng chọn 4 người khác nhau.</div>`;
-    return;
-  }
-
-  const a1=gp(a1n),a2=gp(a2n),b1=gp(b1n),b2=gp(b2n);
-  if(!a1||!a2||!b1||!b2)return;
-
-  const sumA=parseFloat((a1.score+a2.score).toFixed(2));
-  const sumB=parseFloat((b1.score+b2.score).toFixed(2));
-  const diff=parseFloat(Math.abs(sumA-sumB).toFixed(2));
-  const stronger=sumA>=sumB?'A':'B';
-  const keo=calcKeo(diff);
-
-  const strongerLabel=stronger==='A'?'Cặp A':'Cặp B';
-  const weakerLabel=stronger==='A'?'Cặp B':'Cặp A';
-  const strongerColor=stronger==='A'?'var(--lime)':'#60A5FA';
-
-  let keoDesc='';
-  if(keo.quả===0){
-    keoDesc='Hai cặp có lực chơi tương đương nhau';
-  } else {
-    keoDesc=`<strong style="color:${strongerColor}">${strongerLabel}</strong> chấp <strong style="color:${strongerColor}">${weakerLabel}</strong> ${keo.quả} quả`;
-  }
-
-  el.innerHTML=`
-  <div class="pair-result">
-    <div class="pair-vs">
-      <div class="pair-team" style="border-color:rgba(181,240,51,0.3);background:rgba(181,240,51,0.05)">
-        <div class="pair-team-label" style="color:var(--lime)">⚡ Cặp A</div>
-        <div class="pair-score" style="color:var(--lime)">${sumA.toFixed(2)}</div>
-        <div class="pair-names">${a1n}<br/>${a2n}</div>
-      </div>
-      <div style="font-size:1.1rem;font-weight:700;color:var(--muted)">VS</div>
-      <div class="pair-team" style="border-color:rgba(96,165,250,0.3);background:rgba(96,165,250,0.05)">
-        <div class="pair-team-label" style="color:#60A5FA">🔵 Cặp B</div>
-        <div class="pair-score" style="color:#60A5FA">${sumB.toFixed(2)}</div>
-        <div class="pair-names">${b1n}<br/>${b2n}</div>
-      </div>
-    </div>
-    <div class="keo-box">
-      <div class="keo-label">Chênh lệch tổng điểm: <strong style="color:var(--text)">${diff.toFixed(2)}</strong></div>
-      <div class="keo-value"><span class="pill ${keo.pill}" style="font-size:1rem;padding:.4rem 1.1rem">${keo.text}</span></div>
-      <div style="font-size:.82rem;color:var(--muted);margin-top:.5rem;line-height:1.7">${keoDesc}</div>
-    </div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════
-// PROFILE
-// ═══════════════════════════════════════════
-let prevPage = 'ranking';
-let eloChart = null;
-let wlChart  = null;
-
-function openProfile(name){
-  const p = gp(name);
-  if(!p) return;
-  prevPage = document.querySelector('.page.active')?.id?.replace('page-','') || 'ranking';
-  showPage('profile');
-  renderProfile(name);
-}
-
-function goBack(){
-  showPage(prevPage);
-}
-
-function renderProfile(name){
-  const p = gp(name);
-  if(!p) return;
-  const lv = getLevel(p.score);
-
-  // Hero
-  document.getElementById('profileAv').className = 'profile-av ' + p.color;
-  document.getElementById('profileAv').textContent = ini(name);
-  document.getElementById('profileName').textContent = name;
-  document.getElementById('profileScore').textContent = p.score.toFixed(2);
-  document.getElementById('profileMeta').innerHTML =
-    `<span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span>` +
-    `<span>Tham gia: ${fmtD(p.joined)}</span>` +
-    (p.note ? `<span>📝 ${p.note}</span>` : '');
-
-  // Compute match stats for this player
-  const myMatches = matches
-    .filter(m => m.a.includes(name) || m.b.includes(name))
-    .sort((a,b) => a.date.localeCompare(b.date));
-
-  const wins   = myMatches.filter(m => (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
-  const losses = myMatches.length - wins;
-  const wr     = myMatches.length > 0 ? Math.round(wins/myMatches.length*100) : 0;
-
-  // Singles vs doubles
-  const singles = myMatches.filter(m=>m.type==='singles').length;
-  const doubles = myMatches.filter(m=>m.type==='doubles').length;
-
-  // Kèo stats — chia đôi nếu đôi, nguyên nếu đơn
-  const keoMatches = myMatches.filter(m=>m.keo&&m.keo!=='none');
-  const keoNuocTotal = myMatches.reduce((s,m)=>{
-    if(m.keo!=='nuoc') return s;
-    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const share = (m.keoNuoc||1) / (m.type==='doubles' ? 2 : 1);
-    return s + (isWin ? share : -share);
-  },0);
-  const keoTienTotal = myMatches.reduce((s,m)=>{
-    if(m.keo!=='tien') return s;
-    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const share = (m.keoTien||0) / (m.type==='doubles' ? 2 : 1);
-    return s + (isWin ? share : -share);
-  },0);
-
-  document.getElementById('profileStats').innerHTML = `
-    <div class="sc"><div class="val">${myMatches.length}</div><div class="lbl">Tổng trận</div></div>
-    <div class="sc"><div class="val ts">${wins}</div><div class="lbl">Thắng</div></div>
-    <div class="sc"><div class="val td">${losses}</div><div class="lbl">Thua</div></div>
-    <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>
-    ${keoMatches.length?`
-    <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem">💧 Kèo nước</div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;color:${keoNuocTotal>=0?'var(--success)':'var(--danger)'}">
-        ${keoNuocTotal>=0?'+':''}${keoNuocTotal} chai
-      </div>
-      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='nuoc').length} trận có kèo nước</div>
-    </div>
-    <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem">💰 Kèo tiền</div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;color:${keoTienTotal>=0?'var(--success)':'var(--danger)'}">
-        ${keoTienTotal>=0?'+':''}${(keoTienTotal/1000).toFixed(0)}k
-      </div>
-      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='tien').length} trận có kèo tiền</div>
-    </div>`:''}`;
-
-  // ── % Win rolling chart (cumulative win rate after each match) ──
-  const sorted = [...myMatches];
-  const wrLabels = [];
-  const wrData   = [];
-  const wrWins   = [];
-  const wrLoss   = [];
-  let cumulW = 0, cumulTotal = 0;
-  for(const m of sorted){
-    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    cumulTotal++;
-    if(isWin) cumulW++;
-    wrLabels.push(fmtD(m.date) + ' #' + cumulTotal);
-    const pct = Math.round(cumulW / cumulTotal * 100);
-    wrData.push(pct);
-    wrWins.push(cumulW);
-    wrLoss.push(cumulTotal - cumulW);
-  }
-
-  if(eloChart){ eloChart.destroy(); eloChart=null; }
-  const ctxElo = document.getElementById('chartElo').getContext('2d');
-  if(wrData.length === 0){
-    ctxElo.canvas.parentElement.innerHTML = '<div class="empty" style="height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div class="ei">📈</div><p>Chưa có trận nào</p></div>';
-  } else {
-    eloChart = new Chart(ctxElo, {
-      type: 'line',
-      data: {
-        labels: wrLabels,
-        datasets: [
-          {
-            label: '% Thắng tích lũy',
-            data: wrData,
-            borderColor: '#B5F033',
-            backgroundColor: 'rgba(181,240,51,0.10)',
-            borderWidth: 2.5,
-            pointRadius: wrData.length > 20 ? 2 : 4,
-            pointBackgroundColor: wrData.map(v => v >= 50 ? '#4ADE80' : '#F87171'),
-            fill: true,
-            tension: 0.3,
-            yAxisID: 'y',
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor:'rgba(18,32,50,0.95)',
-            titleColor:'#B5F033',
-            bodyColor:'#E2EDF8',
-            borderColor:'rgba(255,255,255,0.1)',
-            borderWidth:1,
-            callbacks: {
-              label: ctx => {
-                const i = ctx.dataIndex;
-                return [`Tỷ lệ thắng: ${ctx.parsed.y}%`, `Thắng: ${wrWins[i]}  |  Thua: ${wrLoss[i]}`];
-              }
-            }
-          }
-        },
-        scales: {
-          x:{ ticks:{color:'#7A9BB8',font:{size:10},maxRotation:45,maxTicksLimit:10}, grid:{color:'rgba(255,255,255,0.04)'} },
-          y:{
-            ticks:{color:'#7A9BB8',font:{size:10},callback:v=>v+'%'},
-            grid:{color:'rgba(255,255,255,0.04)'},
-            min:0, max:100,
-            border:{ dash:[4,4] }
-          }
-        }
-      }
-    });
-  }
-
-  // ── Win/Loss bar chart by month ──
-  const monthMap = {};
-  for(const m of myMatches){
-    const [y,mo] = m.date.split('-');
-    const key = `${y}/${mo}`;
-    if(!monthMap[key]) monthMap[key]={w:0,l:0};
-    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    if(isWin) monthMap[key].w++; else monthMap[key].l++;
-  }
-  const mLabels = Object.keys(monthMap).sort();
-  const mWins   = mLabels.map(k=>monthMap[k].w);
-  const mLoss   = mLabels.map(k=>monthMap[k].l);
-
-  if(wlChart){ wlChart.destroy(); wlChart=null; }
-  const ctxWL = document.getElementById('chartWL').getContext('2d');
-  wlChart = new Chart(ctxWL, {
-    type: 'bar',
-    data: {
-      labels: mLabels.length ? mLabels : ['Chưa có dữ liệu'],
-      datasets: [
-        { label:'Thắng', data: mWins, backgroundColor:'rgba(74,222,128,0.7)', borderRadius:4 },
-        { label:'Thua',  data: mLoss, backgroundColor:'rgba(248,113,113,0.55)', borderRadius:4 },
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend:{ labels:{color:'#7A9BB8', font:{size:11}, boxWidth:12} },
-        tooltip:{
-          backgroundColor:'rgba(18,32,50,0.95)',
-          titleColor:'#E2EDF8',
-          bodyColor:'#E2EDF8',
-          borderColor:'rgba(255,255,255,0.1)',
-          borderWidth:1,
-        }
-      },
-      scales: {
-        x:{ ticks:{color:'#7A9BB8',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
-        y:{ ticks:{color:'#7A9BB8',font:{size:10},stepSize:1}, grid:{color:'rgba(255,255,255,0.04)'}, beginAtZero:true }
-      }
-    }
-  });
-
-  // ── Streak dots (last 20 matches) ──
-  const recent = [...myMatches].reverse().slice(0, 20);
-  const streakDots = recent.map(m => {
-    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    return `<div class="streak-dot ${isWin?'streak-w':'streak-l'}" title="${fmtD(m.date)}">${isWin?'W':'L'}</div>`;
-  }).join('');
-  document.getElementById('profileStreak').innerHTML = streakDots || '<span class="tm small">Chưa có trận nào</span>';
-  document.getElementById('streakCount').textContent = recent.length ? `(${recent.length} trận gần nhất)` : '';
-
-  // ── Recent match list ──
-  const recentAll = [...myMatches].reverse().slice(0, 8);
-  if(!recentAll.length){
-    document.getElementById('profileMatchList').innerHTML = '<div class="empty"><div class="ei">🏓</div><p>Chưa có trận nào</p></div>';
-    return;
-  }
-  document.getElementById('profileMatchList').innerHTML = recentAll.map(m => {
-    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const myTeam  = m.a.includes(name) ? m.a : m.b;
-    const oppTeam = m.a.includes(name) ? m.b : m.a;
-    const teammate = m.type==='doubles' ? myTeam.find(n2=>n2!==name) : null;
-    const scoreW = m.winner==='A'?m.scoreA:m.scoreB;
-    const scoreL = m.winner==='A'?m.scoreB:m.scoreA;
-    const myScore = isWin ? scoreW : scoreL;
-    const oppScore = isWin ? scoreL : scoreW;
-    return `<div class="fin-row" style="margin-bottom:.4rem">
-      <div class="fleft">
-        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-          <span class="pill ${isWin?'p-green':'p-red'}" style="flex-shrink:0">${isWin?'Thắng':'Thua'}</span>
-          <span class="small" style="color:var(--text)">vs ${oppTeam.join(' & ')}${teammate?` <span class="tm">(cùng ${teammate})</span>`:''}</span>
-        </div>
-        <div class="small tm" style="margin-top:3px">${fmtD(m.date)} · ${m.type==='singles'?'Đơn':'Đôi'}${m.elo?` · ${isWin?'+':'-'}${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>
-      </div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.9rem;flex-shrink:0;text-align:right">
-        <span style="color:${isWin?'var(--lime)':'var(--muted)'}">${myScore}</span>
-        <span style="color:var(--muted);margin:0 3px">:</span>
-        <span style="color:${!isWin?'var(--lime)':'var(--muted)'}">${oppScore}</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  // ── Bảng 1: Lịch sử đối đầu ──
-  const oppMap = {};
-  for(const m of myMatches){
-    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const oppTeam = m.a.includes(name) ? m.b : m.a;
-    oppTeam.forEach(opp => {
-      if(!oppMap[opp]) oppMap[opp]={w:0,l:0,matches:[]};
-      if(isWin) oppMap[opp].w++; else oppMap[opp].l++;
-      oppMap[opp].matches.push(m);
-    });
-  }
-  const oppEntries = Object.entries(oppMap).sort((a,b)=>(b[1].w+b[1].l)-(a[1].w+a[1].l));
-  if(!oppEntries.length){
-    document.getElementById('vsOpponentTable').innerHTML = '<div class="empty" style="padding:1.5rem"><div class="ei">⚔️</div><p>Chưa có dữ liệu</p></div>';
-  } else {
-    const oppRows = oppEntries.map(([opp, st]) => {
-      const total = st.w + st.l;
-      const wr = Math.round(st.w/total*100);
-      const opc = gpc(opp);
-      return `<tr>
-        <td><div class="av-wrap">${av(opp,opc)}<span class="aname" style="cursor:pointer;text-underline-offset:3px;text-decoration:underline;text-decoration-color:rgba(255,255,255,.2)" onclick="openProfile('${opp}')">${opp}</span></div></td>
-        <td style="text-align:center">${total}</td>
-        <td style="text-align:center" class="ts bold">${st.w}</td>
-        <td style="text-align:center" class="td">${st.l}</td>
-        <td style="text-align:center"><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
-        <td style="text-align:center">
-          <div style="display:flex;gap:3px;justify-content:center">
-            ${st.matches.slice(-5).reverse().map(m=>{const w=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));return`<div class="streak-dot ${w?'streak-w':'streak-l'}" title="${fmtD(m.date)}">${w?'W':'L'}</div>`;}).join('')}
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-    document.getElementById('vsOpponentTable').innerHTML = `<div class="tbl-wrap"><table style="min-width:380px">
-      <thead><tr><th>Đối thủ</th><th style="text-align:center">Trận</th><th style="text-align:center">Thắng</th><th style="text-align:center">Thua</th><th style="text-align:center">Tỷ lệ</th><th style="text-align:center">5 trận gần</th></tr></thead>
-      <tbody>${oppRows}</tbody></table></div>`;
-  }
-
-  // ── Bảng 2: Lịch sử đánh cùng ──
-  const partnerMap = {};
-  for(const m of myMatches){
-    if(m.type !== 'doubles') continue;
-    const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    const myTeam = m.a.includes(name) ? m.a : m.b;
-    const partner = myTeam.find(n2=>n2!==name);
-    if(!partner) continue;
-    if(!partnerMap[partner]) partnerMap[partner]={w:0,l:0,matches:[]};
-    if(isWin) partnerMap[partner].w++; else partnerMap[partner].l++;
-    partnerMap[partner].matches.push(m);
-  }
-  const partEntries = Object.entries(partnerMap).sort((a,b)=>(b[1].w+b[1].l)-(a[1].w+a[1].l));
-  if(!partEntries.length){
-    document.getElementById('vsPartnerTable').innerHTML = '<div class="empty" style="padding:1.5rem"><div class="ei">🤝</div><p>Chưa có trận đôi nào</p></div>';
-  } else {
-    const partRows = partEntries.map(([partner, st]) => {
-      const total = st.w + st.l;
-      const wr = Math.round(st.w/total*100);
-      const pc = gpc(partner);
-      return `<tr>
-        <td><div class="av-wrap">${av(partner,pc)}<span class="aname" style="cursor:pointer;text-underline-offset:3px;text-decoration:underline;text-decoration-color:rgba(255,255,255,.2)" onclick="openProfile('${partner}')">${partner}</span></div></td>
-        <td style="text-align:center">${total}</td>
-        <td style="text-align:center" class="ts bold">${st.w}</td>
-        <td style="text-align:center" class="td">${st.l}</td>
-        <td style="text-align:center"><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
-        <td style="text-align:center">
-          <div style="display:flex;gap:3px;justify-content:center">
-            ${st.matches.slice(-5).reverse().map(m=>{const w=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));return`<div class="streak-dot ${w?'streak-w':'streak-l'}" title="${fmtD(m.date)}">${w?'W':'L'}</div>`;}).join('')}
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-    document.getElementById('vsPartnerTable').innerHTML = `<div class="tbl-wrap"><table style="min-width:380px">
-      <thead><tr><th>Đồng đội</th><th style="text-align:center">Trận</th><th style="text-align:center">Thắng</th><th style="text-align:center">Thua</th><th style="text-align:center">Tỷ lệ</th><th style="text-align:center">5 trận gần</th></tr></thead>
-      <tbody>${partRows}</tbody></table></div>`;
-  }
-}
-
-// Manual one-time sync: push localStorage → Firebase
-function manualSync(){
-  const dot = document.getElementById('syncDot');
-  if(!window._fbSet){
-    notify('⚠️ Firebase chưa kết nối. Hãy mở app từ GitHub Pages.');
-    return;
-  }
-  if(dot) dot.style.background='var(--warn)';
-  Promise.all([
-    window._fbSet('players',  players),
-    window._fbSet('matches',  matches),
-    window._fbSet('finances', finances),
-    window._fbSet('fines',    fines),
-  ]).then(()=>{
-    if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}
-    notify('✅ Đã đồng bộ lên Firebase!');
-  }).catch(err=>{
-    if(dot) dot.style.background='var(--danger)';
-    notify('❌ Lỗi: '+err.message);
-  });
-}
-
-function init(){
-  document.getElementById('rankTo').value=today();
-  document.getElementById('matchTo').value=today();
-  document.getElementById('finTo').value=today();
-  document.getElementById('finFrom').value=ago(30);
-  buildRankDropdown();
-  // Restore last visited page
-  const lastPage = sessionStorage.getItem('sp_page');
-  if(lastPage && lastPage !== 'ranking') showPage(lastPage);
-  document.getElementById('ovTo').value=today();
-  renderRanking();renderPlayers();
-  // Wait for Firebase module to load then subscribe
-  setTimeout(()=>subscribeFirebase(), 800);
-}
-init();
-</script>
-</body>
-</html>
+>
