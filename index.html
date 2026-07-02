@@ -635,10 +635,10 @@ function subscribeFirebase(){
   const dot=document.getElementById('syncDot');
   if(dot) dot.style.background='var(--warn)';
   if(!window._fbOn) return;
-  window._fbOn('players',  val=>{ if(val&&Array.isArray(val)){players=val;sv('sp2_players',val);nP=players.length?Math.max(...players.map(p=>p.id))+1:1;renderPlayers();renderRanking();const dot=document.getElementById('syncDot');if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}}});
-  window._fbOn('matches',  val=>{ if(val&&Array.isArray(val)){matches=val;sv('sp2_matches',val);nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;renderMatches();}});
+  window._fbOn('players',  val=>{ if(val&&Array.isArray(val)){players=val;sv('sp2_players',val);nP=players.length?Math.max(...players.map(p=>p.id))+1:1;buildRankDropdown();renderPlayers();renderRanking();const dot=document.getElementById('syncDot');if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}}});
+  window._fbOn('matches',  val=>{ if(val&&Array.isArray(val)){matches=val;sv('sp2_matches',val);nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;buildRankDropdown();renderMatches();renderRanking();}});
   window._fbOn('finances', val=>{ if(val&&Array.isArray(val)){finances=val;sv('sp2_finances',val);nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;}});
-  window._fbOn('fines',    val=>{ if(val&&Array.isArray(val)){fines=val;sv('sp2_fines',val);nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;}});
+  window._fbOn('fines',    val=>{ if(val&&Array.isArray(val)){fines=val;sv('sp2_fines',val);nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;renderFines&&renderFines();renderDebt&&renderDebt();}});
 }
 
 let players=ld('sp2_players',[
@@ -872,7 +872,8 @@ function renderAll(){
 }
 
 function getRankDateRange(){
-  const preset=document.getElementById('rankPeriodSelect')?.value||'this_month';
+  const sel=document.getElementById('rankPeriodSelect');
+  const preset=(sel&&sel.value)||'all';
   return getPeriodRange(preset);
 }
 
@@ -1024,4 +1025,22 @@ function renderOverviewCards(){
       <div class="ov-card-bg">↗</div>
     </div>`;
 }
->
+function setOvPeriod(p){
+  document.getElementById('ovFrom').value = p==='all'?'':p==='week'?ago(7):ago(30);
+  document.getElementById('ovTo').value = today();
+  renderOverviewCards();
+}
+
+function init(){
+  buildRankDropdown();
+  renderPlayers();
+  // Restore last visited page
+  const lastPage = sessionStorage.getItem('sp_page');
+  if(lastPage && lastPage !== 'ranking') showPage(lastPage);
+  // Wait for Firebase module to load then subscribe
+  setTimeout(()=>subscribeFirebase(), 800);
+}
+init();
+</script>
+</body>
+</html>
