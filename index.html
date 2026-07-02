@@ -400,6 +400,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
     <div id="pairingResult"></div>
+    <!-- AI Analysis -->
+    <div id="aiKeoWrap" style="display:none;margin-top:1rem">
+      <button class="btn btn-lime" id="aiKeoBtn" onclick="askAiKeo()" style="width:100%;justify-content:center;gap:.5rem;padding:.65rem">
+        ✨ Phân tích kèo bằng AI
+      </button>
+      <div id="aiKeoResult" style="display:none;margin-top:.85rem;background:rgba(181,240,51,.04);border:1px solid rgba(181,240,51,.15);border-radius:var(--rs);padding:1rem;font-size:.85rem;line-height:1.75;color:var(--text)"></div>
+    </div>
   </div>
   <div class="panel mt1">
     <div class="panel-hd">📊 Bảng tính kèo nhanh</div>
@@ -1392,6 +1399,8 @@ function calcPairing(){
   // Not all selected yet
   if(!a1n||!a2n||!b1n||!b2n){
     el.innerHTML='';
+    const w=document.getElementById('aiKeoWrap');
+    if(w) w.style.display='none';
     return;
   }
 
@@ -1422,6 +1431,11 @@ function calcPairing(){
     keoDesc=`<strong style="color:${strongerColor}">${strongerLabel}</strong> chấp <strong style="color:${strongerColor}">${weakerLabel}</strong> ${keo.quả} quả`;
   }
 
+  document.getElementById('aiKeoWrap').style.display='block';
+  document.getElementById('aiKeoResult').style.display='none';
+  document.getElementById('aiKeoBtn').disabled=false;
+  document.getElementById('aiKeoBtn').textContent='✨ Phân tích kèo bằng AI';
+
   el.innerHTML=`
   <div class="pair-result">
     <div class="pair-vs">
@@ -1443,6 +1457,101 @@ function calcPairing(){
       <div style="font-size:.82rem;color:var(--muted);margin-top:.5rem;line-height:1.7">${keoDesc}</div>
     </div>
   </div>`;
+}
+
+// ═══════════════════════════════════════════
+// AI KEO ANALYSIS
+// ═══════════════════════════════════════════
+async function askAiKeo(){
+  const a1n=document.getElementById('pairA1').value;
+  const a2n=document.getElementById('pairA2').value;
+  const b1n=document.getElementById('pairB1').value;
+  const b2n=document.getElementById('pairB2').value;
+  const a1=gp(a1n),a2=gp(a2n),b1=gp(b1n),b2=gp(b2n);
+  if(!a1||!a2||!b1||!b2) return;
+
+  const btn=document.getElementById('aiKeoBtn');
+  const resultEl=document.getElementById('aiKeoResult');
+  btn.disabled=true;
+  btn.textContent='⏳ Đang phân tích...';
+  resultEl.style.display='block';
+  resultEl.innerHTML='<span style="color:var(--muted)">AI đang phân tích lịch sử và điểm số...</span>';
+
+  // Build head-to-head history
+  const teamA=[a1n,a2n], teamB=[b1n,b2n];
+  const allNames=[a1n,a2n,b1n,b2n];
+
+  // Match history between these 4 players
+  const relevantMatches = matches.filter(m=>{
+    const players=[...m.a,...m.b];
+    return allNames.every(n=>players.includes(n))||
+           allNames.some(n=>players.includes(n));
+  }).slice(-20);
+
+  // Win rates last 5 matches per player
+  function recentWinRate(name){
+    const recent=matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-5);
+    if(!recent.length) return null;
+    const wins=recent.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
+    return Math.round(wins/recent.length*100);
+  }
+
+  // Head to head: teamA vs teamB directly
+  const h2h = matches.filter(m=>{
+    const mA=m.a.sort().join(','), mB=m.b.sort().join(',');
+    const tA=teamA.sort().join(','), tB=teamB.sort().join(',');
+    return (mA===tA&&mB===tB)||(mA===tB&&mB===tA);
+  });
+  const h2hA=h2h.filter(m=>(m.winner==='A'&&m.a.sort().join(',')===teamA.sort().join(','))||(m.winner==='B'&&m.b.sort().join(',')===teamA.sort().join(','))).length;
+  const h2hB=h2h.length-h2hA;
+
+  const playerStats = [a1n,a2n,b1n,b2n].map(n=>{
+    const p=gp(n);
+    const allM=matches.filter(m=>[...m.a,...m.b].includes(n));
+    const wins=allM.filter(m=>(m.winner==='A'&&m.a.includes(n))||(m.winner==='B'&&m.b.includes(n))).length;
+    const wr=allM.length?Math.round(wins/allM.length*100):0;
+    const rwr=recentWinRate(n);
+    return `${n}: điểm ${p.score.toFixed(2)}, tổng ${allM.length} trận, thắng ${wr}%${rwr!==null?`, phong độ gần đây ${rwr}%`:''}`;
+  }).join('
+');
+
+  const prompt = `Bạn là chuyên gia phân tích kèo pickleball. Hãy phân tích và đưa ra dự đoán kèo chấp cho trận đấu đôi sau:
+
+CẶP A: ${a1n} (${a1.score.toFixed(2)} điểm) & ${a2n} (${a2.score.toFixed(2)} điểm) — Tổng: ${(a1.score+a2.score).toFixed(2)}
+CẶP B: ${b1n} (${b1.score.toFixed(2)} điểm) & ${b2n} (${b2.score.toFixed(2)} điểm) — Tổng: ${(b1.score+b2.score).toFixed(2)}
+
+THỐNG KÊ TỪNG NGƯỜI:
+${playerStats}
+
+ĐỐI ĐẦU TRỰC TIẾP (cùng cặp này): ${h2h.length} trận — Cặp A thắng ${h2hA}, Cặp B thắng ${h2hB}
+
+Hãy phân tích ngắn gọn (3-4 câu) và đưa ra:
+1. Kèo chấp cụ thể (ngang kèo / cặp X chấp Y quả)
+2. Lý do dựa trên điểm số + lịch sử đối đầu + phong độ
+Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:400,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'Không thể phân tích. Vui lòng thử lại.';
+    resultEl.innerHTML = text
+      .replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--lime)">$1</strong>')
+      .split('
+').filter(Boolean).map(l=>`<p style="margin-bottom:.4rem">${l}</p>`).join('');
+  } catch(e) {
+    resultEl.innerHTML = '<span style="color:var(--danger)">❌ Lỗi kết nối. Vui lòng thử lại.</span>';
+  }
+
+  btn.disabled=false;
+  btn.textContent='✨ Phân tích lại';
 }
 
 // ═══════════════════════════════════════════
