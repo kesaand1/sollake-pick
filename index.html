@@ -870,6 +870,8 @@ function buildRankDropdown(){
   } else {
     sel.value = curKey;
   }
+  // Trigger render after dropdown is populated
+  renderRanking();
 }
 
 function getPeriodRange(preset){
@@ -902,7 +904,8 @@ function renderAll(){
 }
 
 function getRankDateRange(){
-  const preset=document.getElementById('rankPeriodSelect')?.value||'this_month';
+  const sel=document.getElementById('rankPeriodSelect');
+  const preset=(sel&&sel.value&&sel.value!=='')?sel.value:'all';
   return getPeriodRange(preset);
 }
 
