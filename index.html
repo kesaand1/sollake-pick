@@ -1510,80 +1510,60 @@ async function askAiKeo(){
   btn.disabled=true;
   btn.textContent='⏳ Đang phân tích...';
   resultEl.style.display='block';
-  resultEl.innerHTML='<span style="color:var(--muted)">AI đang phân tích lịch sử và điểm số...</span>';
+  resultEl.innerHTML='<span style="color:var(--muted)">AI đang phân tích...</span>';
 
-  // Build head-to-head history
-  const teamA=[a1n,a2n], teamB=[b1n,b2n];
   const allNames=[a1n,a2n,b1n,b2n];
+  const teamA=[a1n,a2n], teamB=[b1n,b2n];
 
-  // Match history between these 4 players
-  const relevantMatches = matches.filter(m=>{
-    const players=[...m.a,...m.b];
-    return allNames.every(n=>players.includes(n))||
-           allNames.some(n=>players.includes(n));
-  }).slice(-20);
-
-  // Win rates last 5 matches per player
   function recentWinRate(name){
     const recent=matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-5);
     if(!recent.length) return null;
-    const wins=recent.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
-    return Math.round(wins/recent.length*100);
+    const w=recent.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
+    return Math.round(w/recent.length*100);
   }
 
-  // Head to head: teamA vs teamB directly
-  const h2h = matches.filter(m=>{
-    const mA=m.a.sort().join(','), mB=m.b.sort().join(',');
-    const tA=teamA.sort().join(','), tB=teamB.sort().join(',');
-    return (mA===tA&&mB===tB)||(mA===tB&&mB===tA);
+  const h2h=matches.filter(m=>{
+    const sA=[...m.a].sort().join(','),sB=[...m.b].sort().join(',');
+    const tA=[...teamA].sort().join(','),tB=[...teamB].sort().join(',');
+    return (sA===tA&&sB===tB)||(sA===tB&&sB===tA);
   });
-  const h2hA=h2h.filter(m=>(m.winner==='A'&&m.a.sort().join(',')===teamA.sort().join(','))||(m.winner==='B'&&m.b.sort().join(',')===teamA.sort().join(','))).length;
+  const h2hA=h2h.filter(m=>{
+    const wt=m.winner==='A'?m.a:m.b;
+    return teamA.every(n=>wt.includes(n));
+  }).length;
   const h2hB=h2h.length-h2hA;
 
-  const playerStats = [a1n,a2n,b1n,b2n].map(n=>{
+  const stats=allNames.map(n=>{
     const p=gp(n);
     const allM=matches.filter(m=>[...m.a,...m.b].includes(n));
-    const wins=allM.filter(m=>(m.winner==='A'&&m.a.includes(n))||(m.winner==='B'&&m.b.includes(n))).length;
-    const wr=allM.length?Math.round(wins/allM.length*100):0;
+    const w=allM.filter(m=>(m.winner==='A'&&m.a.includes(n))||(m.winner==='B'&&m.b.includes(n))).length;
+    const wr=allM.length?Math.round(w/allM.length*100):0;
     const rwr=recentWinRate(n);
-    return `${n}: điểm ${p.score.toFixed(2)}, tổng ${allM.length} trận, thắng ${wr}%${rwr!==null?`, phong độ gần đây ${rwr}%`:''}`;
-  }).join('
-');
+    return n+': '+p.score.toFixed(2)+' điểm, '+allM.length+' trận, thắng '+wr+'%'+(rwr!==null?', phong độ '+rwr+'%':'');
+  }).join('; ');
 
-  const prompt = `Bạn là chuyên gia phân tích kèo pickleball. Hãy phân tích và đưa ra dự đoán kèo chấp cho trận đấu đôi sau:
+  const sumA=(a1.score+a2.score).toFixed(2);
+  const sumB=(b1.score+b2.score).toFixed(2);
 
-CẶP A: ${a1n} (${a1.score.toFixed(2)} điểm) & ${a2n} (${a2.score.toFixed(2)} điểm) — Tổng: ${(a1.score+a2.score).toFixed(2)}
-CẶP B: ${b1n} (${b1.score.toFixed(2)} điểm) & ${b2n} (${b2.score.toFixed(2)} điểm) — Tổng: ${(b1.score+b2.score).toFixed(2)}
+  const prompt='Bạn là chuyên gia phân tích kèo pickleball. Phân tích trận đôi sau và đưa ra kèo chấp:'
+    +' Cap A: '+a1n+'('+a1.score.toFixed(2)+') & '+a2n+'('+a2.score.toFixed(2)+') tong='+sumA
+    +' vs Cap B: '+b1n+'('+b1.score.toFixed(2)+') & '+b2n+'('+b2.score.toFixed(2)+') tong='+sumB
+    +'. Thong ke: '+stats
+    +'. Doi dau truc tiep: '+h2h.length+' tran, Cap A thang '+h2hA+', Cap B thang '+h2hB+'.'
+    +' Hay phan tich ngan gon (3-4 cau) va dua ra: 1. Keo chap cu the (ngang keo / cap X chap Y qua) 2. Ly do. Tra loi bang tieng Viet.';
 
-THỐNG KÊ TỪNG NGƯỜI:
-${playerStats}
-
-ĐỐI ĐẦU TRỰC TIẾP (cùng cặp này): ${h2h.length} trận — Cặp A thắng ${h2hA}, Cặp B thắng ${h2hB}
-
-Hãy phân tích ngắn gọn (3-4 câu) và đưa ra:
-1. Kèo chấp cụ thể (ngang kèo / cặp X chấp Y quả)
-2. Lý do dựa trên điểm số + lịch sử đối đầu + phong độ
-Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu.`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model:'claude-sonnet-4-6',
-        max_tokens:400,
-        messages:[{role:'user',content:prompt}]
-      })
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt}]})
     });
-    const data = await res.json();
-    const text = data.content?.[0]?.text || 'Không thể phân tích. Vui lòng thử lại.';
-    resultEl.innerHTML = text
-      .replace(/\*\*(.*?)\*\*/g,'<strong style="color:var(--lime)">$1</strong>')
-      .split('\n').filter(Boolean).map(l=>`<p style="margin-bottom:.4rem">${l}</p>`).join('');
-  } catch(e) {
-    resultEl.innerHTML = '<span style="color:var(--danger)">❌ Lỗi kết nối. Vui lòng thử lại.</span>';
+    const data=await res.json();
+    const text=data.content?.[0]?.text||'Không thể phân tích. Thử lại.';
+    resultEl.innerHTML=text.split('\n').filter(Boolean).map(function(l){return '<p style="margin-bottom:.4rem">'+l+'</p>';}).join('');
+  }catch(e){
+    resultEl.innerHTML='<span style="color:var(--danger)">❌ Lỗi kết nối. Thử lại.</span>';
   }
-
   btn.disabled=false;
   btn.textContent='✨ Phân tích lại';
 }
