@@ -901,101 +901,124 @@ function renderOverviewCards(){
   const vis  = players.filter(p=>p.visible);
   const filtered = matches.filter(m=>inR(m.date,from,to));
 
-  // Helper: chia đôi giá trị kèo đôi cho mỗi người trong đội
+  // Helper: chia đôi kèo đôi
   function keoVal(m, n, type){
     const teamSize = m.type==='doubles' ? 2 : 1;
     const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
-    const isWin = wt.includes(n);
-    const isLose = lt.includes(n);
-    if(!isWin && !isLose) return 0;
-    const raw = type==='tien' ? (m.keoTien||0) : (m.keoNuoc||1);
-    const share = raw / teamSize;
-    return isWin ? share : -share;
+    const isWin=wt.includes(n), isLose=lt.includes(n);
+    if(!isWin&&!isLose) return 0;
+    const raw = type==='tien'?(m.keoTien||0):(m.keoNuoc||1);
+    return isWin ? raw/teamSize : -raw/teamSize;
   }
 
-  // ── Tốp nộp + Vua lùa kèo ──
-  const keoHasData = filtered.some(m=>m.keo&&m.keo!=='none');
+  // ── Tốp nộp: kèo thua + tiền phạt đã nộp ──
   const bal = {};
-  vis.forEach(p=>{ bal[p.name]={tien:0,nuoc:0}; });
+  vis.forEach(p=>{ bal[p.name]={tien:0,nuoc:0,phat:0}; });
 
-  if(keoHasData){
-    filtered.forEach(m=>{
-      if(!m.keo||m.keo==='none') return;
-      const allPlayers=[...m.a,...m.b];
-      allPlayers.forEach(n=>{
-        if(!bal[n]) return;
-        if(m.keo==='tien') bal[n].tien += keoVal(m,n,'tien');
-        if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
-      });
+  // Kèo
+  filtered.forEach(m=>{
+    if(!m.keo||m.keo==='none') return;
+    [...m.a,...m.b].forEach(n=>{
+      if(!bal[n]) return;
+      if(m.keo==='tien') bal[n].tien += keoVal(m,n,'tien');
+      if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
     });
-  }
+  });
+  // Phạt đã nộp (âm = đã chi ra)
+  fines.filter(f=>f.paid&&inR(f.date,from,to)).forEach(f=>{
+    if(bal[f.player]!==undefined) bal[f.player].phat -= f.amount;
+  });
 
-  // Round to avoid float issues
+  // Round
   Object.keys(bal).forEach(n=>{
     bal[n].tien = Math.round(bal[n].tien);
     bal[n].nuoc = parseFloat(bal[n].nuoc.toFixed(1));
+    bal[n].phat = Math.round(bal[n].phat);
   });
 
-  // Only include players who actually participated in kèo matches
-  const keoPlayers = keoHasData
-    ? Object.entries(bal).filter(([n])=>
-        filtered.some(m=>m.keo&&m.keo!=='none'&&[...m.a,...m.b].includes(n))
-      )
-    : [];
+  // Tổng điểm âm = tốp nộp (kèo thua + phạt)
+  function lossScore(d){ return d.tien + d.nuoc*10000 + d.phat; }
 
-  const topNopEntry = keoPlayers.length
-    ? keoPlayers.sort((a,b)=>(a[1].tien+a[1].nuoc*10000)-(b[1].tien+b[1].nuoc*10000))[0]
-    : null;
+  const allBal = Object.entries(bal).filter(([n])=>
+    filtered.some(m=>[...m.a,...m.b].includes(n)) ||
+    fines.some(f=>f.player===n&&f.paid&&inR(f.date,from,to))
+  );
+
+  // Tìm TẤT CẢ người có cùng điểm âm thấp nhất
+  const topNopList = (() => {
+    if(!allBal.length) return [];
+    const sorted = [...allBal].sort((a,b)=>lossScore(a[1])-lossScore(b[1]));
+    const minScore = lossScore(sorted[0][1]);
+    if(minScore >= 0) return [];
+    return sorted.filter(e=>lossScore(e[1])===minScore);
+  })();
+
+  // ── Phong độ đang lên ──
+  const phong = {};
+  vis.forEach(p=>{ phong[p.name]={wins:0,delta:0}; });
+  filtered.forEach(m=>{
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    const delta=parseFloat(m.elo||0.04);
+    wt.forEach(n=>{ if(phong[n]){phong[n].wins++;phong[n].delta=parseFloat((phong[n].delta+delta).toFixed(2));} });
+    lt.forEach(n=>{ if(phong[n]) phong[n].delta=parseFloat((phong[n].delta-delta).toFixed(2)); });
+  });
+  const topPhong = Object.entries(phong)
+    .filter(([,v])=>v.wins>0||v.delta!==0)
+    .sort((a,b)=>(b[1].wins*10+b[1].delta)-(a[1].wins*10+a[1].delta))[0]||null;
+
+  // ── Vua lùa kèo ──
+  const keoHasData = filtered.some(m=>m.keo&&m.keo!=='none');
+  const keoPlayers = keoHasData
+    ? Object.entries(bal).filter(([n])=>filtered.some(m=>m.keo&&m.keo!=='none'&&[...m.a,...m.b].includes(n)))
+    : [];
   const vuaEntry = keoPlayers.length
     ? [...keoPlayers].sort((a,b)=>(b[1].tien+b[1].nuoc*10000)-(a[1].tien+a[1].nuoc*10000))[0]
     : null;
 
-  // ── Cặp lùa chuyên nghiệp ──
-  const pairWins = {};
-  filtered.filter(m=>m.type==='doubles').forEach(m=>{
-    const wt=m.winner==='A'?m.a:m.b;
-    if(wt.length===2){
-      const key=[...wt].sort().join(' & ');
-      pairWins[key]=(pairWins[key]||0)+1;
-    }
-  });
-  const topPair = Object.entries(pairWins).sort((a,b)=>b[1]-a[1])[0]||null;
-
-  // Helper: render balance lines
+  // Helper: render kèo balance
   function balLines(data, colorOverride){
-    if(!data) return '<div class="ov-card-val" style="font-size:1rem;opacity:.5">Chưa có kèo</div>';
-    const {tien,nuoc}=data;
-    if(tien===0&&nuoc===0) return '<div class="ov-card-val" style="font-size:1rem;opacity:.5">Chưa có kèo</div>';
+    if(!data) return '<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>';
+    const {tien,nuoc,phat=0}=data;
+    const totalTien=tien+(phat||0);
+    if(totalTien===0&&nuoc===0) return '<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>';
     let html='';
-    if(tien!==0){
-      const col=colorOverride||(tien>0?'var(--success)':'var(--danger)');
-      html+=`<div class="ov-card-val" style="font-size:1.5rem;color:${col}">${tien>0?'+':''}${(tien/1000).toFixed(0)}k</div>`;
+    if(totalTien!==0){
+      const col=colorOverride||(totalTien>0?'var(--success)':'var(--danger)');
+      html+=`<div class="ov-card-val" style="font-size:1.5rem;color:${col}">${totalTien>0?'+':''}${(totalTien/1000).toFixed(0)}k</div>`;
     }
     if(nuoc!==0){
       const col=colorOverride||(nuoc>0?'#60A5FA':'var(--danger)');
-      html+=`<div style="font-size:1rem;font-family:'Space Grotesk',sans-serif;font-weight:600;color:${col};margin-top:3px">${nuoc>0?'+':''}${nuoc}<span style="font-size:.75rem;font-weight:400;margin-left:3px">chai nước</span></div>`;
+      html+=`<div style="font-size:.9rem;font-family:'Space Grotesk',sans-serif;font-weight:600;color:${col};margin-top:3px">${nuoc>0?'+':''}${nuoc}<span style="font-size:.72rem;font-weight:400;margin-left:3px">chai nước</span></div>`;
     }
     return html;
   }
+
+  // Top nộp display
+  const topNopNames = topNopList.map(e=>e[0]).join(' - ');
+  const topNopData  = topNopList.length ? topNopList[0][1] : null;
 
   el.innerHTML = `
     <div class="ov-card ov-card-dark">
       <div>
         <div class="ov-card-label">↘ Tốp nộp</div>
-        <div class="ov-card-name">${topNopEntry?topNopEntry[0]:'—'}</div>
-        <div style="margin-top:.4rem">${balLines(topNopEntry?topNopEntry[1]:null)}</div>
+        ${topNopList.length===0
+          ? `<div class="ov-card-name">—</div><div style="font-size:.82rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>`
+          : `<div class="ov-card-name" style="font-size:${topNopList.length>1?'.82rem':'1rem'};line-height:1.5">${topNopNames}</div>
+             <div style="margin-top:.4rem">${balLines(topNopData)}</div>`
+        }
       </div>
       <div class="ov-card-bg">↘</div>
     </div>
     <div class="ov-card ov-card-purple">
       <div>
-        <div class="ov-card-label">🤝 Cặp lùa chuyên nghiệp</div>
-        <div class="ov-card-name">${topPair?topPair[0]:'—'}</div>
-        ${topPair
-          ? `<div class="ov-card-val">+${topPair[1]}<span class="ov-card-unit">thắng</span></div>`
-          : `<div class="ov-card-val" style="font-size:1rem;opacity:.5">Chưa có trận đôi</div>`}
+        <div class="ov-card-label">📈 Phong độ đang lên</div>
+        <div class="ov-card-name">${topPhong?topPhong[0]:'—'}</div>
+        ${topPhong
+          ? `<div class="ov-card-val">+${topPhong[1].wins}<span class="ov-card-unit">thắng</span></div>
+             <div style="font-size:.82rem;color:${topPhong[1].delta>=0?'var(--success)':'var(--danger)'};margin-top:2px">${topPhong[1].delta>=0?'+':''}${topPhong[1].delta.toFixed(2)} điểm</div>`
+          : `<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>`}
       </div>
-      <div class="ov-card-bg">🤝</div>
+      <div class="ov-card-bg">📈</div>
     </div>
     <div class="ov-card ov-card-green">
       <div>
