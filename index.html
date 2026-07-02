@@ -36,8 +36,7 @@ onValue(ref(db,'players'), snap=>{
   try{localStorage.setItem('sp2_players',JSON.stringify(val));}catch{}
   nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
   if(typeof buildRankDropdown==='function') buildRankDropdown();
-  if(typeof renderPlayers==='function') renderPlayers();
-  if(typeof renderRanking==='function') renderRanking();
+  else if(typeof renderPlayers==='function') renderPlayers();
   dot('var(--success)'); setTimeout(()=>dot('var(--muted)'),2500);
 });
 
@@ -49,7 +48,6 @@ onValue(ref(db,'matches'), snap=>{
   nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
   if(typeof buildRankDropdown==='function') buildRankDropdown();
   if(typeof renderMatches==='function') renderMatches();
-  if(typeof renderRanking==='function') renderRanking();
 });
 
 onValue(ref(db,'finances'), snap=>{
@@ -871,7 +869,8 @@ function buildRankDropdown(){
     sel.value = curKey;
   }
   // Trigger render after dropdown is populated
-  renderRanking();
+  if(typeof renderPlayers==='function') renderPlayers();
+  if(typeof renderRanking==='function') renderRanking();
 }
 
 function getPeriodRange(preset){
@@ -1049,8 +1048,6 @@ function renderOverviewCards(){
       </div>
       <div class="ov-card-bg">↗</div>
     </div>`;
-  // Auto-trigger AI analysis
-  setTimeout(askAiKeo, 100);
 }
 
 function renderRanking(){
