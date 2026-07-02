@@ -447,25 +447,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div id="pairingResult"></div>
 
   </div>
-  <div class="panel mt1">
-    <div class="panel-hd">📊 Bảng tính kèo nhanh</div>
-    <div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;line-height:1.7">
-      Dựa trên <strong style="color:var(--lime)">TeamScore</strong> (Base + Phong độ). Có điều chỉnh thêm khi đội yếu nhiều người trình thấp, hay thua đậm, hoặc lịch sử đối đầu bất lợi. Tối đa <strong style="color:var(--lime)">5 quả</strong>.
-    </div>
-    <div class="tbl-wrap">
-      <table style="min-width:300px">
-        <thead><tr><th>Chênh lệch tổng điểm</th><th>Dự đoán kèo</th></tr></thead>
-        <tbody>
-          <tr><td class="tm">&lt; 0.30</td><td><span class="pill p-yellow">⚖️ Ngang kèo</span></td></tr>
-          <tr><td class="tm">0.30 – 0.59</td><td><span class="pill p-lime">Chấp 1 quả</span></td></tr>
-          <tr><td class="tm">0.60 – 0.89</td><td><span class="pill p-lime">Chấp 2 quả</span></td></tr>
-          <tr><td class="tm">0.90 – 1.19</td><td><span class="pill p-lime">Chấp 3 quả</span></td></tr>
-          <tr><td class="tm">1.20 – 1.49</td><td><span class="pill p-lime">Chấp 4 quả</span></td></tr>
-          <tr><td class="tm">&gt; 1.50</td><td><span class="pill p-green">Chấp 5 quả (tối đa)</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 </div>
 
 <!-- PAGE: MATCHES -->
@@ -1455,11 +1436,12 @@ function calcPairing(){
     return parseFloat(((wr10-0.5)*0.6).toFixed(3));
   }
 
-  // ── STEP 3: EffectiveScore = 0.5*Base + 0.5*Form ──
+  // ── STEP 3: EffectiveScore = Base + FormAdjustment ──
+  // FormScore range: -0.30 to +0.30 (additive on top of Base)
   function effectiveScore(p){
     const base=p.score;
     const form=formScore(p.name);
-    return parseFloat((0.5*base+0.5*form).toFixed(3));
+    return parseFloat((base+form).toFixed(2));
   }
 
   const eff={};
@@ -1548,9 +1530,11 @@ function calcPairing(){
     const fCol=f>=0?'var(--success)':'var(--danger)';
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border)">'
       +'<span style="font-size:.82rem;font-weight:600;color:'+color+'">'+p.name+'</span>'
-      +'<span style="font-size:.75rem;color:var(--muted)">Base <strong style="color:var(--text)">'+p.score.toFixed(2)+'</strong>'
-      +' · Form <strong style="color:'+fCol+'">'+fStr+'</strong>'
-      +' → <strong style="color:var(--text)">'+e.toFixed(2)+'</strong></span>'
+      +'<span style="font-size:.75rem;color:var(--muted)">'
+      +'Điểm <strong style="color:var(--text)">'+p.score.toFixed(2)+'</strong>'
+      +' · Phong độ <strong style="color:'+fCol+'">'+fStr+'</strong>'
+      +' = Hiệu quả <strong style="color:var(--lime)">'+e.toFixed(2)+'</strong>'
+      +'</span>'
       +'</div>';
   }
 
