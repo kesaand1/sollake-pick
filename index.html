@@ -1273,11 +1273,14 @@ function renderFinance(){
   const from=document.getElementById('finFrom').value;
   const to=document.getElementById('finTo').value;
   const list=finances.filter(f=>inR(f.date,from,to)).sort((a,b)=>b.date.localeCompare(a.date));
-  const thu=list.filter(f=>f.type==='thu').reduce((s,f)=>s+f.amount,0);
+  const thuBase=list.filter(f=>f.type==='thu').reduce((s,f)=>s+f.amount,0);
   const chi=list.filter(f=>f.type==='chi').reduce((s,f)=>s+f.amount,0);
+  // Cộng tiền phạt đã nộp trong khoảng thời gian vào Tổng thu
+  const phatDaNop=fines.filter(f=>f.paid&&inR(f.date,from,to)).reduce((s,f)=>s+f.amount,0);
+  const thu=thuBase+phatDaNop;
   const bal=thu-chi;
   document.getElementById('finSum').innerHTML=`
-    <div class="sc"><div class="val ts">${fmt(thu)}</div><div class="lbl">Tổng thu</div></div>
+    <div class="sc"><div class="val ts">${fmt(thu)}</div><div class="lbl">Tổng thu${phatDaNop>0?` <span style="font-size:.65rem;opacity:.6">(+${fmt(phatDaNop)} phạt)</span>`:''}</div></div>
     <div class="sc"><div class="val td">${fmt(chi)}</div><div class="lbl">Tổng chi</div></div>
     <div class="sc"><div class="val ${bal>=0?'tl':'td'}">${fmt(Math.abs(bal))}</div><div class="lbl">${bal>=0?'Quỹ hiện có':'Âm quỹ'}</div></div>
     <div class="sc"><div class="val">${list.length}</div><div class="lbl">Giao dịch</div></div>`;
@@ -1321,9 +1324,7 @@ function renderDebt(){
     .filter(([,v])=>v.count>0)
     .sort((a,b)=>(b[1].paid+b[1].debt)-(a[1].paid+a[1].debt));
   if(!entries.length){document.getElementById('debtTbl').innerHTML=empty('✅','Chưa có dữ liệu phạt');return;}
-  const totalPaid=entries.reduce((s,[,d])=>s+d.paid,0);
-  const totalDebt=entries.reduce((s,[,d])=>s+d.debt,0);
-  const totalCount=entries.reduce((s,[,d])=>s+d.count,0);
+
   const rows=entries.map(([name,d])=>`<tr>
     <td>${avW(name,gpc(name))}</td>
     <td style="text-align:center">${d.count}</td>
@@ -1332,11 +1333,6 @@ function renderDebt(){
     <td style="text-align:center"><span class="pill ${d.debt>0?'p-red':'p-green'}">${d.debt>0?'Còn nợ':'Sạch nợ'}</span></td>
   </tr>`).join('');
   document.getElementById('debtTbl').innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.85rem">
-      <div class="sc"><div class="val ts">${fmt(totalPaid)}</div><div class="lbl">Tổng đã nộp</div></div>
-      <div class="sc"><div class="val td">${fmt(totalDebt)}</div><div class="lbl">Tổng còn nợ</div></div>
-      <div class="sc"><div class="val">${totalCount}</div><div class="lbl">Tổng lần phạt</div></div>
-    </div>
     <div class="tbl-wrap"><table style="min-width:380px"><thead><tr>
       <th>Thành viên</th>
       <th style="text-align:center">Số lần</th>
