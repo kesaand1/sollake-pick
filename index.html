@@ -224,6 +224,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .tm{color:var(--muted)}.tl{color:var(--lime)}.td{color:var(--danger)}.ts{color:var(--success)}.tw{color:var(--warn)}
 .bold{font-weight:600}.small{font-size:.73rem}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 /* LEVEL PILLS */
 .lv-moi{background:rgba(148,163,184,.15);color:#94A3B8;border:1px solid rgba(148,163,184,.25)}
 .lv-trungbinh{background:rgba(96,165,250,.15);color:#60A5FA;border:1px solid rgba(96,165,250,.3)}
@@ -446,10 +447,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div id="pairingResult"></div>
     <!-- AI Analysis -->
     <div id="aiKeoWrap" style="display:none;margin-top:1rem">
-      <button class="btn btn-lime" id="aiKeoBtn" onclick="askAiKeo()" style="width:100%;justify-content:center;gap:.5rem;padding:.65rem">
-        ✨ Phân tích kèo bằng AI
-      </button>
-      <div id="aiKeoResult" style="display:none;margin-top:.85rem;background:rgba(181,240,51,.04);border:1px solid rgba(181,240,51,.15);border-radius:var(--rs);padding:1rem;font-size:.85rem;line-height:1.75;color:var(--text)"></div>
+      <div id="aiKeoResult" style="background:rgba(181,240,51,.04);border:1px solid rgba(181,240,51,.15);border-radius:var(--rs);padding:1rem;font-size:.85rem;line-height:1.75;color:var(--text)">
+        <div style="color:var(--muted);display:flex;align-items:center;gap:.5rem">
+          <span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> AI đang phân tích kèo...
+        </div>
+      </div>
     </div>
   </div>
   <div class="panel mt1">
@@ -1070,6 +1072,8 @@ function renderOverviewCards(){
       </div>
       <div class="ov-card-bg">↗</div>
     </div>`;
+  // Auto-trigger AI analysis
+  setTimeout(askAiKeo, 100);
 }
 
 function renderRanking(){
@@ -1467,9 +1471,7 @@ function calcPairing(){
   }
 
   document.getElementById('aiKeoWrap').style.display='block';
-  document.getElementById('aiKeoResult').style.display='none';
-  document.getElementById('aiKeoBtn').disabled=false;
-  document.getElementById('aiKeoBtn').textContent='✨ Phân tích kèo bằng AI';
+  document.getElementById('aiKeoResult').innerHTML='<div style="color:var(--muted);display:flex;align-items:center;gap:.5rem"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> AI đang phân tích kèo...</div>';
 
   el.innerHTML=`
   <div class="pair-result">
@@ -1505,12 +1507,8 @@ async function askAiKeo(){
   const a1=gp(a1n),a2=gp(a2n),b1=gp(b1n),b2=gp(b2n);
   if(!a1||!a2||!b1||!b2) return;
 
-  const btn=document.getElementById('aiKeoBtn');
   const resultEl=document.getElementById('aiKeoResult');
-  btn.disabled=true;
-  btn.textContent='⏳ Đang phân tích...';
-  resultEl.style.display='block';
-  resultEl.innerHTML='<span style="color:var(--muted)">AI đang phân tích...</span>';
+  resultEl.innerHTML='<div style="color:var(--muted);display:flex;align-items:center;gap:.5rem"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> AI đang phân tích kèo...</div>';
 
   const allNames=[a1n,a2n,b1n,b2n];
   const teamA=[a1n,a2n], teamB=[b1n,b2n];
@@ -1564,8 +1562,7 @@ async function askAiKeo(){
   }catch(e){
     resultEl.innerHTML='<span style="color:var(--danger)">❌ Lỗi kết nối. Thử lại.</span>';
   }
-  btn.disabled=false;
-  btn.textContent='✨ Phân tích lại';
+
 }
 
 // ═══════════════════════════════════════════
