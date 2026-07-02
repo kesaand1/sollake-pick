@@ -482,7 +482,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
   </div>
   <div class="panel">
-    <div class="panel-hd">📋 Công nợ thành viên</div>
+    <div class="panel-hd">📋 Thống kê nộp phạt theo thành viên</div>
     <div class="tbl-wrap" id="debtTbl"></div>
   </div>
 </div>
@@ -581,7 +581,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="modal">
     <div class="modal-title">⚠️ Ghi phạt thành viên</div>
     <div class="fgroup"><label>Thành viên bị phạt</label><select class="finput" id="finePlayer"></select></div>
-    <div class="fgroup"><label>Lý do phạt</label><input class="finput" id="fineReason" placeholder="Đến trễ, bỏ buổi..."/></div>
+    <div class="fgroup">
+      <label>Lý do phạt</label>
+      <select class="finput" id="fineReason" onchange="toggleFineOther()">
+        <option value="Ra muộn">Ra muộn</option>
+        <option value="Hẹn mà ko ra">Hẹn mà ko ra</option>
+        <option value="other">Lý do khác...</option>
+      </select>
+    </div>
+    <div class="fgroup" id="fineOtherWrap" style="display:none">
+      <label>Nhập lý do khác</label>
+      <input class="finput" id="fineReasonOther" placeholder="Nhập lý do cụ thể..."/>
+    </div>
     <div class="fgroup"><label>Số tiền phạt (VNĐ)</label><input class="finput" id="fineAmt" type="number" placeholder="50000"/></div>
     <div class="fgroup"><label>Ngày</label><input class="finput" id="fineDate" type="date"/></div>
     <div class="modal-footer">
@@ -719,7 +730,13 @@ function openModal(id){
   document.getElementById(id).classList.add('open');
   if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();}
   if(id==='finModal'){popFinSel();document.getElementById('finDate').value=today();}
-  if(id==='fineModal'){popFineSel();document.getElementById('fineDate').value=today();}
+  if(id==='fineModal'){
+    popFineSel();
+    document.getElementById('fineDate').value=today();
+    document.getElementById('fineReason').value='Ra muộn';
+    document.getElementById('fineOtherWrap').style.display='none';
+    if(document.getElementById('fineReasonOther')) document.getElementById('fineReasonOther').value='';
+  }
 }
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open')}));
@@ -1209,9 +1226,17 @@ function addFinance(){
   saveAll();closeModal('finModal');renderFinance();renderDebt();
   notify(`✅ Đã ghi ${type==='thu'?'thu':'chi'}: ${fmt(amount)}`);
 }
+function toggleFineOther(){
+  const val = document.getElementById('fineReason').value;
+  document.getElementById('fineOtherWrap').style.display = val==='other' ? '' : 'none';
+}
+
 function addFine(){
   const player=document.getElementById('finePlayer').value;
-  const reason=document.getElementById('fineReason').value.trim();
+  const reasonSel=document.getElementById('fineReason').value;
+  const reason=reasonSel==='other'
+    ?(document.getElementById('fineReasonOther').value.trim()||'Lý do khác')
+    :reasonSel;
   const amount=parseInt(document.getElementById('fineAmt').value)||0;
   const date=document.getElementById('fineDate').value;
   if(!player||!reason||!amount||!date)return alert('Vui lòng điền đầy đủ');
@@ -1232,7 +1257,12 @@ function payFine(id){
 function confirmPayFine(){
   if(pendingFineId===null)return;
   const fine=fines.find(f=>f.id===pendingFineId);
-  if(fine){fine.paid=true;saveAll();renderFines();renderDebt();}
+  if(fine){
+    fine.paid=true;
+    // Cộng vào Tổng thu
+    finances.push({id:nF++,type:'thu',desc:'Nộp phạt: '+fine.reason,player:fine.player,amount:fine.amount,date:today()});
+    saveAll();renderFines();renderDebt();renderFinance();
+  }
   closeModal('payFineModal');pendingFineId=null;notify('✅ Đã xác nhận nộp phạt');
 }
 function delFine(id){
@@ -1280,17 +1310,40 @@ function renderFines(){
 }
 function renderDebt(){
   const dm={};
-  players.filter(p=>p.visible).forEach(p=>{dm[p.name]={debt:0,paid:0}});
-  fines.forEach(f=>{if(!dm[f.player])dm[f.player]={debt:0,paid:0};if(!f.paid)dm[f.player].debt+=f.amount;else dm[f.player].paid+=f.amount;});
-  const entries=Object.entries(dm).filter(([,v])=>v.debt>0||v.paid>0);
-  if(!entries.length){document.getElementById('debtTbl').innerHTML=empty('✅','Không có công nợ');return;}
+  players.filter(p=>p.visible).forEach(p=>{dm[p.name]={debt:0,paid:0,count:0}});
+  fines.forEach(f=>{
+    if(!dm[f.player]) dm[f.player]={debt:0,paid:0,count:0};
+    dm[f.player].count++;
+    if(!f.paid) dm[f.player].debt+=f.amount;
+    else dm[f.player].paid+=f.amount;
+  });
+  const entries=Object.entries(dm)
+    .filter(([,v])=>v.count>0)
+    .sort((a,b)=>(b[1].paid+b[1].debt)-(a[1].paid+a[1].debt));
+  if(!entries.length){document.getElementById('debtTbl').innerHTML=empty('✅','Chưa có dữ liệu phạt');return;}
+  const totalPaid=entries.reduce((s,[,d])=>s+d.paid,0);
+  const totalDebt=entries.reduce((s,[,d])=>s+d.debt,0);
+  const totalCount=entries.reduce((s,[,d])=>s+d.count,0);
   const rows=entries.map(([name,d])=>`<tr>
     <td>${avW(name,gpc(name))}</td>
-    <td class="td bold">${d.debt>0?fmt(d.debt):'—'}</td>
-    <td class="ts">${d.paid>0?fmt(d.paid):'—'}</td>
-    <td><span class="pill ${d.debt>0?'p-red':'p-green'}">${d.debt>0?'Còn nợ':'Sạch nợ'}</span></td>
+    <td style="text-align:center">${d.count}</td>
+    <td style="text-align:center" class="ts">${d.paid>0?fmt(d.paid):'—'}</td>
+    <td style="text-align:center" class="td bold">${d.debt>0?fmt(d.debt):'—'}</td>
+    <td style="text-align:center"><span class="pill ${d.debt>0?'p-red':'p-green'}">${d.debt>0?'Còn nợ':'Sạch nợ'}</span></td>
   </tr>`).join('');
-  document.getElementById('debtTbl').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Còn nợ</th><th>Đã nộp</th><th>Trạng thái</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('debtTbl').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.85rem">
+      <div class="sc"><div class="val ts">${fmt(totalPaid)}</div><div class="lbl">Tổng đã nộp</div></div>
+      <div class="sc"><div class="val td">${fmt(totalDebt)}</div><div class="lbl">Tổng còn nợ</div></div>
+      <div class="sc"><div class="val">${totalCount}</div><div class="lbl">Tổng lần phạt</div></div>
+    </div>
+    <div class="tbl-wrap"><table style="min-width:380px"><thead><tr>
+      <th>Thành viên</th>
+      <th style="text-align:center">Số lần</th>
+      <th style="text-align:center">Đã nộp</th>
+      <th style="text-align:center">Còn nợ</th>
+      <th style="text-align:center">Trạng thái</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // ═══════════════════════════════════════════
