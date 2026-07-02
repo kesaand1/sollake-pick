@@ -37,7 +37,7 @@ function wireFirebase(){
       window._players=val;
       if(typeof players!=='undefined'){
         players=val;
-        try{localStorage.setItem('sp2_players',JSON.stringify(val));}catch{}
+        try{localStorage.setItem('sp3_players',JSON.stringify(val));}catch{}
         nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
         if(typeof buildRankDropdown==='function') buildRankDropdown();
         if(typeof renderPlayers==='function') renderPlayers();
@@ -53,7 +53,7 @@ function wireFirebase(){
     if(val&&Array.isArray(val)){
       if(typeof matches!=='undefined'){
         matches=val;
-        try{localStorage.setItem('sp2_matches',JSON.stringify(val));}catch{}
+        try{localStorage.setItem('sp3_matches',JSON.stringify(val));}catch{}
         nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
         if(typeof buildRankDropdown==='function') buildRankDropdown();
         if(typeof renderMatches==='function') renderMatches();
@@ -67,7 +67,7 @@ function wireFirebase(){
     if(val&&Array.isArray(val)){
       if(typeof finances!=='undefined'){
         finances=val;
-        try{localStorage.setItem('sp2_finances',JSON.stringify(val));}catch{}
+        try{localStorage.setItem('sp3_finances',JSON.stringify(val));}catch{}
         nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
         if(typeof renderFinance==='function') renderFinance();
       }
@@ -79,7 +79,7 @@ function wireFirebase(){
     if(val&&Array.isArray(val)){
       if(typeof fines!=='undefined'){
         fines=val;
-        try{localStorage.setItem('sp2_fines',JSON.stringify(val));}catch{}
+        try{localStorage.setItem('sp3_fines',JSON.stringify(val));}catch{}
         nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
         if(typeof renderFines==='function') renderFines();
         if(typeof renderDebt==='function') renderDebt();
@@ -699,29 +699,29 @@ function pushToFirebase(){
 }
 
 // Subscribe once; merge Firebase data & re-render
-let players=ld('sp2_players',[
-  {id:1,name:'Trần Minh Khoa',score:4.52,note:'Đội trưởng',color:'c0',visible:true,joined:'2024-01-10'},
-  {id:2,name:'Nguyễn Thu Hà',score:4.10,note:'',color:'c1',visible:true,joined:'2024-02-05'},
-  {id:3,name:'Lê Đức Thành',score:3.75,note:'',color:'c2',visible:true,joined:'2024-03-12'},
-  {id:4,name:'Phạm Ngọc Anh',score:3.40,note:'',color:'c3',visible:true,joined:'2024-03-20'},
-  {id:5,name:'Hoàng Việt Long',score:2.80,note:'',color:'c4',visible:true,joined:'2024-05-01'},
+let players=ld('sp3_players',[
+  {id:1,name:'Trần Minh Khoa',score:4.52,note:'Đội trưởng',color:'c0',visible:true,joined:'2026-06-01'},
+  {id:2,name:'Nguyễn Thu Hà',score:4.10,note:'',color:'c1',visible:true,joined:'2026-06-01'},
+  {id:3,name:'Lê Đức Thành',score:3.75,note:'',color:'c2',visible:true,joined:'2026-06-01'},
+  {id:4,name:'Phạm Ngọc Anh',score:3.40,note:'',color:'c3',visible:true,joined:'2026-06-01'},
+  {id:5,name:'Hoàng Việt Long',score:2.80,note:'',color:'c4',visible:true,joined:'2026-06-01'},
 ]);
-let matches=ld('sp2_matches',[
-  {id:1,date:'2025-06-18',type:'singles',a:['Trần Minh Khoa'],b:['Nguyễn Thu Hà'],scoreA:11,scoreB:7,note:'',winner:'A',elo:16},
-  {id:2,date:'2025-06-20',type:'doubles',a:['Trần Minh Khoa','Lê Đức Thành'],b:['Nguyễn Thu Hà','Phạm Ngọc Anh'],scoreA:11,scoreB:9,note:'Trận hội',winner:'A',elo:12},
-  {id:3,date:'2025-06-22',type:'singles',a:['Nguyễn Thu Hà'],b:['Lê Đức Thành'],scoreA:8,scoreB:11,note:'',winner:'B',elo:14},
+let matches=ld('sp3_matches',[
+  {id:1,date:'2026-06-18',type:'singles',a:['Trần Minh Khoa'],b:['Nguyễn Thu Hà'],scoreA:11,scoreB:7,note:'',winner:'A',elo:0.16},
+  {id:2,date:'2026-06-20',type:'doubles',a:['Trần Minh Khoa','Lê Đức Thành'],b:['Nguyễn Thu Hà','Phạm Ngọc Anh'],scoreA:11,scoreB:9,note:'Trận hội',winner:'A',elo:0.12},
+  {id:3,date:'2026-06-22',type:'singles',a:['Nguyễn Thu Hà'],b:['Lê Đức Thành'],scoreA:8,scoreB:11,note:'',winner:'B',elo:0.14},
 ]);
-let finances=ld('sp2_finances',[
-  {id:1,type:'thu',desc:'Phí tháng 6',player:'Trần Minh Khoa',amount:200000,date:'2025-06-01'},
-  {id:2,type:'chi',desc:'Thuê sân 3 buổi',player:'',amount:450000,date:'2025-06-05'},
-  {id:3,type:'thu',desc:'Phí tháng 6',player:'Nguyễn Thu Hà',amount:200000,date:'2025-06-02'},
+let finances=ld('sp3_finances',[
+  {id:1,type:'thu',desc:'Phí tháng 6',player:'Trần Minh Khoa',amount:200000,date:'2026-06-01'},
+  {id:2,type:'chi',desc:'Thuê sân 3 buổi',player:'',amount:450000,date:'2026-06-05'},
+  {id:3,type:'thu',desc:'Phí tháng 6',player:'Nguyễn Thu Hà',amount:200000,date:'2026-06-02'},
 ]);
-let fines=ld('sp2_fines',[
-  {id:1,player:'Hoàng Việt Long',reason:'Đến trễ 30 phút',amount:50000,date:'2025-06-15',paid:false},
-  {id:2,player:'Lê Đức Thành',reason:'Bỏ buổi không báo',amount:100000,date:'2025-06-18',paid:true},
+let fines=ld('sp3_fines',[
+  {id:1,player:'Hoàng Việt Long',reason:'Đến trễ 30 phút',amount:50000,date:'2026-06-15',paid:false},
+  {id:2,player:'Lê Đức Thành',reason:'Bỏ buổi không báo',amount:100000,date:'2026-06-18',paid:true},
 ]);
 
-const saveAll=()=>{sv('sp2_players',players);sv('sp2_matches',matches);sv('sp2_finances',finances);sv('sp2_fines',fines);pushToFirebase();buildRankDropdown();};
+const saveAll=()=>{sv('sp3_players',players);sv('sp3_matches',matches);sv('sp3_finances',finances);sv('sp3_fines',fines);pushToFirebase();buildRankDropdown();};
 let nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
 let nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
 let nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
