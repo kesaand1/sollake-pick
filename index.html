@@ -445,30 +445,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
     <div id="pairingResult"></div>
-    <!-- AI Analysis -->
-    <div id="aiKeoWrap" style="display:none;margin-top:1rem">
-      <div id="aiKeoResult" style="background:rgba(181,240,51,.04);border:1px solid rgba(181,240,51,.15);border-radius:var(--rs);padding:1rem;font-size:.85rem;line-height:1.75;color:var(--text)">
-        <div style="color:var(--muted);display:flex;align-items:center;gap:.5rem">
-          <span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> AI đang phân tích kèo...
-        </div>
-      </div>
-    </div>
+
   </div>
   <div class="panel mt1">
     <div class="panel-hd">📊 Bảng tính kèo nhanh</div>
     <div style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;line-height:1.7">
-      Dựa trên <strong style="color:var(--text)">tổng điểm</strong> của mỗi cặp. Chênh lệch ≤ 0.5 điểm = ngang kèo. Mỗi <strong style="color:var(--lime)">0.3 điểm</strong> tiếp theo = chấp thêm 1 quả. Tối đa 5 quả.
+      Dựa trên <strong style="color:var(--lime)">TeamScore</strong> (Base + Phong độ). Có điều chỉnh thêm khi đội yếu nhiều người trình thấp, hay thua đậm, hoặc lịch sử đối đầu bất lợi. Tối đa <strong style="color:var(--lime)">5 quả</strong>.
     </div>
     <div class="tbl-wrap">
       <table style="min-width:300px">
         <thead><tr><th>Chênh lệch tổng điểm</th><th>Dự đoán kèo</th></tr></thead>
         <tbody>
-          <tr><td class="tm">0.00 – 0.50</td><td><span class="pill p-yellow">⚖️ Ngang kèo</span></td></tr>
-          <tr><td class="tm">0.51 – 0.80</td><td><span class="pill p-lime">Cặp mạnh chấp 1 quả</span></td></tr>
-          <tr><td class="tm">0.81 – 1.10</td><td><span class="pill p-lime">Cặp mạnh chấp 2 quả</span></td></tr>
-          <tr><td class="tm">1.11 – 1.40</td><td><span class="pill p-lime">Cặp mạnh chấp 3 quả</span></td></tr>
-          <tr><td class="tm">1.41 – 1.70</td><td><span class="pill p-lime">Cặp mạnh chấp 4 quả</span></td></tr>
-          <tr><td class="tm">&gt; 1.70</td><td><span class="pill p-green">Cặp mạnh chấp 5 quả (tối đa)</span></td></tr>
+          <tr><td class="tm">&lt; 0.30</td><td><span class="pill p-yellow">⚖️ Ngang kèo</span></td></tr>
+          <tr><td class="tm">0.30 – 0.59</td><td><span class="pill p-lime">Chấp 1 quả</span></td></tr>
+          <tr><td class="tm">0.60 – 0.89</td><td><span class="pill p-lime">Chấp 2 quả</span></td></tr>
+          <tr><td class="tm">0.90 – 1.19</td><td><span class="pill p-lime">Chấp 3 quả</span></td></tr>
+          <tr><td class="tm">1.20 – 1.49</td><td><span class="pill p-lime">Chấp 4 quả</span></td></tr>
+          <tr><td class="tm">&gt; 1.50</td><td><span class="pill p-green">Chấp 5 quả (tối đa)</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -1423,9 +1416,9 @@ function populatePairingSelects(){
 }
 
 function calcKeo(diff){
-  if(diff<=0.50)return{text:'⚖️ Ngang kèo',quả:0,pill:'p-yellow'};
-  const qua=Math.min(5,Math.ceil((diff-0.50)/0.30));
-  return{text:`Chấp ${qua} quả`,quả:qua,pill:qua>=4?'p-green':'p-lime'};
+  if(diff<0.3)return{text:'⚖️ Ngang kèo',qua:0,pill:'p-yellow'};
+  const qua=Math.min(5,Math.ceil((diff-0.3)/0.3));
+  return{text:'Chấp '+qua+' quả',qua:qua,pill:qua>=4?'p-green':'p-lime'};
 }
 
 function calcPairing(){
@@ -1435,135 +1428,165 @@ function calcPairing(){
   const b2n=document.getElementById('pairB2').value;
   const el=document.getElementById('pairingResult');
 
-  // Not all selected yet
   if(!a1n||!a2n||!b1n||!b2n){
     el.innerHTML='';
     const w=document.getElementById('aiKeoWrap');
     if(w) w.style.display='none';
     return;
   }
-
-  // Check duplicates
   const all=[a1n,a2n,b1n,b2n];
   if(new Set(all).size<4){
-    el.innerHTML=`<div style="color:var(--danger);font-size:.82rem;padding:.75rem;background:rgba(248,113,113,.08);border-radius:var(--rs);border:1px solid rgba(248,113,113,.2)">⚠️ Mỗi người chơi chỉ được chọn một lần. Vui lòng chọn 4 người khác nhau.</div>`;
+    el.innerHTML='<div style="color:var(--danger);font-size:.82rem;padding:.75rem;background:rgba(248,113,113,.08);border-radius:var(--rs);border:1px solid rgba(248,113,113,.2)">⚠️ Mỗi người chơi chỉ được chọn một lần.</div>';
     return;
   }
-
   const a1=gp(a1n),a2=gp(a2n),b1=gp(b1n),b2=gp(b2n);
   if(!a1||!a2||!b1||!b2)return;
 
-  const sumA=parseFloat((a1.score+a2.score).toFixed(2));
-  const sumB=parseFloat((b1.score+b2.score).toFixed(2));
-  const diff=parseFloat(Math.abs(sumA-sumB).toFixed(2));
-  const stronger=sumA>=sumB?'A':'B';
-  const keo=calcKeo(diff);
+  // ── STEP 1: Base Rating ──
+  // Already stored as player.score
 
-  const strongerLabel=stronger==='A'?'Cặp A':'Cặp B';
-  const weakerLabel=stronger==='A'?'Cặp B':'Cặp A';
-  const strongerColor=stronger==='A'?'var(--lime)':'#60A5FA';
-
-  let keoDesc='';
-  if(keo.quả===0){
-    keoDesc='Hai cặp có lực chơi tương đương nhau';
-  } else {
-    keoDesc=`<strong style="color:${strongerColor}">${strongerLabel}</strong> chấp <strong style="color:${strongerColor}">${weakerLabel}</strong> ${keo.quả} quả`;
+  // ── STEP 2: FormScore from last 10 matches ──
+  function formScore(name){
+    const recent=matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-10);
+    if(!recent.length) return 0;
+    const wins=recent.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
+    const wr10=wins/recent.length;
+    // FormScore = (WR10 - 0.5) * 0.6  → range -0.3 to +0.3
+    return parseFloat(((wr10-0.5)*0.6).toFixed(3));
   }
 
-  document.getElementById('aiKeoWrap').style.display='block';
-  document.getElementById('aiKeoResult').innerHTML='<div style="color:var(--muted);display:flex;align-items:center;gap:.5rem"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> AI đang phân tích kèo...</div>';
-
-  el.innerHTML=`
-  <div class="pair-result">
-    <div class="pair-vs">
-      <div class="pair-team" style="border-color:rgba(181,240,51,0.3);background:rgba(181,240,51,0.05)">
-        <div class="pair-team-label" style="color:var(--lime)">⚡ Cặp A</div>
-        <div class="pair-score" style="color:var(--lime)">${sumA.toFixed(2)}</div>
-        <div class="pair-names">${a1n}<br/>${a2n}</div>
-      </div>
-      <div style="font-size:1.1rem;font-weight:700;color:var(--muted)">VS</div>
-      <div class="pair-team" style="border-color:rgba(96,165,250,0.3);background:rgba(96,165,250,0.05)">
-        <div class="pair-team-label" style="color:#60A5FA">🔵 Cặp B</div>
-        <div class="pair-score" style="color:#60A5FA">${sumB.toFixed(2)}</div>
-        <div class="pair-names">${b1n}<br/>${b2n}</div>
-      </div>
-    </div>
-    <div class="keo-box">
-      <div class="keo-label">Chênh lệch tổng điểm: <strong style="color:var(--text)">${diff.toFixed(2)}</strong></div>
-      <div class="keo-value"><span class="pill ${keo.pill}" style="font-size:1rem;padding:.4rem 1.1rem">${keo.text}</span></div>
-      <div style="font-size:.82rem;color:var(--muted);margin-top:.5rem;line-height:1.7">${keoDesc}</div>
-    </div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════
-// AI KEO ANALYSIS
-// ═══════════════════════════════════════════
-async function askAiKeo(){
-  const a1n=document.getElementById('pairA1').value;
-  const a2n=document.getElementById('pairA2').value;
-  const b1n=document.getElementById('pairB1').value;
-  const b2n=document.getElementById('pairB2').value;
-  const a1=gp(a1n),a2=gp(a2n),b1=gp(b1n),b2=gp(b2n);
-  if(!a1||!a2||!b1||!b2) return;
-
-  const resultEl=document.getElementById('aiKeoResult');
-  resultEl.innerHTML='<div style="color:var(--muted);display:flex;align-items:center;gap:.5rem"><span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> AI đang phân tích kèo...</div>';
-
-  const allNames=[a1n,a2n,b1n,b2n];
-  const teamA=[a1n,a2n], teamB=[b1n,b2n];
-
-  function recentWinRate(name){
-    const recent=matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-5);
-    if(!recent.length) return null;
-    const w=recent.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
-    return Math.round(w/recent.length*100);
+  // ── STEP 3: EffectiveScore = 0.5*Base + 0.5*Form ──
+  function effectiveScore(p){
+    const base=p.score;
+    const form=formScore(p.name);
+    return parseFloat((0.5*base+0.5*form).toFixed(3));
   }
 
+  const eff={};
+  [a1,a2,b1,b2].forEach(p=>{ eff[p.name]=effectiveScore(p); });
+
+  // ── STEP 4: TeamScore ──
+  const teamScoreA=parseFloat((eff[a1n]+eff[a2n]).toFixed(3));
+  const teamScoreB=parseFloat((eff[b1n]+eff[b2n]).toFixed(3));
+  const diff=parseFloat(Math.abs(teamScoreA-teamScoreB).toFixed(3));
+  const stronger=teamScoreA>=teamScoreB?'A':'B';
+  const strongTeam=stronger==='A'?[a1,a2]:[b1,b2];
+  const weakTeam  =stronger==='A'?[b1,b2]:[a1,a2];
+
+  // Base handicap
+  let handicap=0;
+  if(diff>=0.3) handicap=Math.min(5,Math.ceil((diff-0.3)/0.3));
+
+  const adjustments=[];
+
+  // ── STEP 5A: Support (+1 if weak team has more low-rated players) ──
+  const LOW=2.6;
+  const strongLow=strongTeam.filter(p=>p.score<LOW).length;
+  const weakLow  =weakTeam.filter(p=>p.score<LOW).length;
+  if(weakLow>strongLow&&handicap<5){
+    handicap=Math.min(5,handicap+1);
+    adjustments.push('Đội yếu có nhiều người trình thấp hơn (+1 quả)');
+  }
+
+  // ── STEP 5B: Blowout Index ──
+  function blowoutIndex(name){
+    const recent=matches.filter(m=>[...m.a,...m.b].includes(name)&&m.scoreA>0&&m.scoreB>0).slice(-10);
+    if(!recent.length) return 0;
+    const losses=recent.filter(m=>!((m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))));
+    if(!losses.length) return 0;
+    // Blowout = losses where score diff >= 4
+    const blowouts=losses.filter(m=>Math.abs(m.scoreA-m.scoreB)>=4).length;
+    return blowouts/recent.length;
+  }
+  function wr10(name){
+    const recent=matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-10);
+    if(!recent.length) return 0.5;
+    const wins=recent.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
+    return wins/recent.length;
+  }
+  const weakBlowout=weakTeam.reduce((s,p)=>s+blowoutIndex(p.name),0)/2;
+  const weakWR=weakTeam.reduce((s,p)=>s+wr10(p.name),0)/2;
+  if(weakBlowout>0.35&&weakWR<0.45&&handicap<5){
+    handicap=Math.min(5,handicap+1);
+    adjustments.push('Đội yếu hay thua đậm (Blowout >35%) (+1 quả)');
+  }
+
+  // ── STEP 5C: Head-to-Head ──
   const h2h=matches.filter(m=>{
     const sA=[...m.a].sort().join(','),sB=[...m.b].sort().join(',');
-    const tA=[...teamA].sort().join(','),tB=[...teamB].sort().join(',');
-    return (sA===tA&&sB===tB)||(sA===tB&&sB===tA);
+    const tA=[...strongTeam.map(p=>p.name)].sort().join(',');
+    const tB=[...weakTeam.map(p=>p.name)].sort().join(',');
+    return(sA===tA&&sB===tB)||(sA===tB&&sB===tA);
   });
-  const h2hA=h2h.filter(m=>{
-    const wt=m.winner==='A'?m.a:m.b;
-    return teamA.every(n=>wt.includes(n));
-  }).length;
-  const h2hB=h2h.length-h2hA;
-
-  const stats=allNames.map(n=>{
-    const p=gp(n);
-    const allM=matches.filter(m=>[...m.a,...m.b].includes(n));
-    const w=allM.filter(m=>(m.winner==='A'&&m.a.includes(n))||(m.winner==='B'&&m.b.includes(n))).length;
-    const wr=allM.length?Math.round(w/allM.length*100):0;
-    const rwr=recentWinRate(n);
-    return n+': '+p.score.toFixed(2)+' điểm, '+allM.length+' trận, thắng '+wr+'%'+(rwr!==null?', phong độ '+rwr+'%':'');
-  }).join('; ');
-
-  const sumA=(a1.score+a2.score).toFixed(2);
-  const sumB=(b1.score+b2.score).toFixed(2);
-
-  const prompt='Bạn là chuyên gia phân tích kèo pickleball. Phân tích trận đôi sau và đưa ra kèo chấp:'
-    +' Cap A: '+a1n+'('+a1.score.toFixed(2)+') & '+a2n+'('+a2.score.toFixed(2)+') tong='+sumA
-    +' vs Cap B: '+b1n+'('+b1.score.toFixed(2)+') & '+b2n+'('+b2.score.toFixed(2)+') tong='+sumB
-    +'. Thong ke: '+stats
-    +'. Doi dau truc tiep: '+h2h.length+' tran, Cap A thang '+h2hA+', Cap B thang '+h2hB+'.'
-    +' Hay phan tich ngan gon (3-4 cau) va dua ra: 1. Keo chap cu the (ngang keo / cap X chap Y qua) 2. Ly do. Tra loi bang tieng Viet.';
-
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt}]})
-    });
-    const data=await res.json();
-    const text=data.content?.[0]?.text||'Không thể phân tích. Thử lại.';
-    resultEl.innerHTML=text.split('\n').filter(Boolean).map(function(l){return '<p style="margin-bottom:.4rem">'+l+'</p>';}).join('');
-  }catch(e){
-    resultEl.innerHTML='<span style="color:var(--danger)">❌ Lỗi kết nối. Thử lại.</span>';
+  if(h2h.length>=2){
+    const strongWins=h2h.filter(m=>{
+      const wt=m.winner==='A'?m.a:m.b;
+      return strongTeam.every(p=>wt.includes(p.name));
+    }).length;
+    const h2hWR=strongWins/h2h.length;
+    const weight=h2h.length>=5?1.0:h2h.length>=3?0.6:0.3;
+    if(h2hWR>=0.7&&weight>=0.3&&handicap<5){
+      handicap=Math.min(5,handicap+1);
+      adjustments.push('Lịch sử đối đầu trực tiếp nghiêng về đội mạnh (+1 quả)');
+    }
   }
 
+  // ── RENDER ──
+  const strongLabel=stronger==='A'?'Cặp A':'Cặp B';
+  const weakLabel  =stronger==='A'?'Cặp B':'Cặp A';
+  const strongColor=stronger==='A'?'var(--lime)':'#60A5FA';
+  const weakColor  =stronger==='A'?'#60A5FA':'var(--lime)';
+
+  const keoText=handicap===0?'⚖️ Ngang kèo':(strongLabel+' chấp '+handicap+' quả');
+  const keoPill=handicap===0?'p-yellow':handicap>=4?'p-green':'p-lime';
+
+  // Player detail rows
+  function playerRow(p,color){
+    const f=formScore(p.name);
+    const e=eff[p.name];
+    const fStr=(f>=0?'+':'')+f.toFixed(2);
+    const fCol=f>=0?'var(--success)':'var(--danger)';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border)">'
+      +'<span style="font-size:.82rem;font-weight:600;color:'+color+'">'+p.name+'</span>'
+      +'<span style="font-size:.75rem;color:var(--muted)">Base <strong style="color:var(--text)">'+p.score.toFixed(2)+'</strong>'
+      +' · Form <strong style="color:'+fCol+'">'+fStr+'</strong>'
+      +' → <strong style="color:var(--text)">'+e.toFixed(2)+'</strong></span>'
+      +'</div>';
+  }
+
+  const adjHtml=adjustments.length
+    ?'<div style="margin-top:.5rem;font-size:.75rem;color:var(--muted)">'+adjustments.map(a=>'⚡ '+a).join('<br/>')+'</div>'
+    :'';
+
+  el.innerHTML='<div class="pair-result">'
+    +'<div class="pair-vs">'
+    +'<div class="pair-team" style="border-color:rgba(181,240,51,0.3);background:rgba(181,240,51,0.05)">'
+    +'<div class="pair-team-label" style="color:var(--lime)">⚡ Cặp A</div>'
+    +'<div class="pair-score" style="color:var(--lime)">'+teamScoreA.toFixed(2)+'</div>'
+    +'<div class="pair-names">'+a1n+'<br/>'+a2n+'</div>'
+    +'</div>'
+    +'<div style="font-size:1.1rem;font-weight:700;color:var(--muted)">VS</div>'
+    +'<div class="pair-team" style="border-color:rgba(96,165,250,0.3);background:rgba(96,165,250,0.05)">'
+    +'<div class="pair-team-label" style="color:#60A5FA">🔵 Cặp B</div>'
+    +'<div class="pair-score" style="color:#60A5FA">'+teamScoreB.toFixed(2)+'</div>'
+    +'<div class="pair-names">'+b1n+'<br/>'+b2n+'</div>'
+    +'</div></div>'
+    +'<div class="keo-box">'
+    +'<div class="keo-label">Chênh lệch TeamScore: <strong style="color:var(--text)">'+diff.toFixed(2)+'</strong></div>'
+    +'<div class="keo-value"><span class="pill '+keoPill+'" style="font-size:1rem;padding:.4rem 1.1rem">'+keoText+'</span></div>'
+    +adjHtml
+    +'</div>'
+    +'<div style="margin-top:.75rem;padding:.75rem;background:rgba(255,255,255,.03);border-radius:var(--rs);border:1px solid var(--border)">'
+    +'<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">Chi tiết phong độ</div>'
+    +playerRow(a1,'var(--lime)')+playerRow(a2,'var(--lime)')
+    +playerRow(b1,'#60A5FA')+playerRow(b2,'#60A5FA')
+    +'</div>'
+    +'</div>';
+
+  document.getElementById('aiKeoWrap').style.display='none';
 }
+
+
 
 // ═══════════════════════════════════════════
 // PROFILE
