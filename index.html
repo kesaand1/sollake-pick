@@ -22,10 +22,78 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
-
-// ── Expose to global scope so the rest of the app can call them ──
 window._fbSet = (path, data) => set(ref(db, path), data);
-window._fbOn  = (path, cb)   => onValue(ref(db, path), snap => cb(snap.val()));
+
+// Subscribe & pipe data into app
+function wireFirebase(){
+  const dot = () => document.getElementById('syncDot');
+  const setDot = (col) => { const d=dot(); if(d) d.style.background=col; };
+
+  setDot('var(--warn)');
+
+  onValue(ref(db,'players'), snap=>{
+    const val=snap.val();
+    if(val&&Array.isArray(val)){
+      window._players=val;
+      if(typeof players!=='undefined'){
+        players=val;
+        try{localStorage.setItem('sp2_players',JSON.stringify(val));}catch{}
+        nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
+        if(typeof buildRankDropdown==='function') buildRankDropdown();
+        if(typeof renderPlayers==='function') renderPlayers();
+        if(typeof renderRanking==='function') renderRanking();
+        setDot('var(--success)');
+        setTimeout(()=>setDot('var(--muted)'),3000);
+      }
+    }
+  });
+
+  onValue(ref(db,'matches'), snap=>{
+    const val=snap.val();
+    if(val&&Array.isArray(val)){
+      if(typeof matches!=='undefined'){
+        matches=val;
+        try{localStorage.setItem('sp2_matches',JSON.stringify(val));}catch{}
+        nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
+        if(typeof buildRankDropdown==='function') buildRankDropdown();
+        if(typeof renderMatches==='function') renderMatches();
+        if(typeof renderRanking==='function') renderRanking();
+      }
+    }
+  });
+
+  onValue(ref(db,'finances'), snap=>{
+    const val=snap.val();
+    if(val&&Array.isArray(val)){
+      if(typeof finances!=='undefined'){
+        finances=val;
+        try{localStorage.setItem('sp2_finances',JSON.stringify(val));}catch{}
+        nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
+        if(typeof renderFinance==='function') renderFinance();
+      }
+    }
+  });
+
+  onValue(ref(db,'fines'), snap=>{
+    const val=snap.val();
+    if(val&&Array.isArray(val)){
+      if(typeof fines!=='undefined'){
+        fines=val;
+        try{localStorage.setItem('sp2_fines',JSON.stringify(val));}catch{}
+        nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
+        if(typeof renderFines==='function') renderFines();
+        if(typeof renderDebt==='function') renderDebt();
+      }
+    }
+  });
+}
+
+// Wire after main script has run
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', wireFirebase);
+} else {
+  wireFirebase();
+}
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
@@ -631,16 +699,6 @@ function pushToFirebase(){
 }
 
 // Subscribe once; merge Firebase data & re-render
-function subscribeFirebase(){
-  const dot=document.getElementById('syncDot');
-  if(dot) dot.style.background='var(--warn)';
-  if(!window._fbOn) return;
-  window._fbOn('players',  val=>{ if(val&&Array.isArray(val)){players=val;sv('sp2_players',val);nP=players.length?Math.max(...players.map(p=>p.id))+1:1;buildRankDropdown();renderPlayers();renderRanking();const dot=document.getElementById('syncDot');if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}}});
-  window._fbOn('matches',  val=>{ if(val&&Array.isArray(val)){matches=val;sv('sp2_matches',val);nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;buildRankDropdown();renderMatches();renderRanking();}});
-  window._fbOn('finances', val=>{ if(val&&Array.isArray(val)){finances=val;sv('sp2_finances',val);nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;}});
-  window._fbOn('fines',    val=>{ if(val&&Array.isArray(val)){fines=val;sv('sp2_fines',val);nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;renderFines&&renderFines();renderDebt&&renderDebt();}});
-}
-
 let players=ld('sp2_players',[
   {id:1,name:'Trần Minh Khoa',score:4.52,note:'Đội trưởng',color:'c0',visible:true,joined:'2024-01-10'},
   {id:2,name:'Nguyễn Thu Hà',score:4.10,note:'',color:'c1',visible:true,joined:'2024-02-05'},
@@ -1034,11 +1092,10 @@ function setOvPeriod(p){
 function init(){
   buildRankDropdown();
   renderPlayers();
+  renderRanking();
   // Restore last visited page
   const lastPage = sessionStorage.getItem('sp_page');
   if(lastPage && lastPage !== 'ranking') showPage(lastPage);
-  // Wait for Firebase module to load then subscribe
-  setTimeout(()=>subscribeFirebase(), 800);
 }
 init();
 </script>
