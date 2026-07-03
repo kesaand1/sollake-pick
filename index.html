@@ -413,6 +413,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="desk tbl-wrap" id="rankD"></div>
     <div class="mob" id="rankM"></div>
   </div>
+
+  <div class="panel" style="margin-top:1rem">
+    <div class="panel-hd">🤝 Thống kê cặp đôi — Tỷ lệ thắng</div>
+    <div class="desk tbl-wrap" id="pairsD"></div>
+    <div class="mob" id="pairsM"></div>
+  </div>
 </div>
 
 <!-- PAGE: PROFILE -->
@@ -463,7 +469,28 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="page" id="page-pairing">
   <div class="sec-title">Ghép đôi & Dự đoán kèo</div>
   <div class="panel">
-    <div class="panel-hd">Chọn 4 người chơi vào 2 cặp</div>
+    <div class="panel-hd">Loại ghép
+      <div class="right">
+        <button class="btn btn-ghost btn-sm" id="pairTypeDoubles" onclick="setPairType('doubles')">Đôi 2v2</button>
+        <button class="btn btn-lime btn-sm" id="pairTypeSingles" onclick="setPairType('singles')">Đơn 1v1</button>
+      </div>
+    </div>
+    <!-- Singles mode -->
+    <div id="pairSinglesWrap" style="display:none;margin-bottom:1rem">
+      <div class="g2">
+        <div style="border:1px solid var(--border);border-radius:var(--rs);padding:1rem;background:rgba(181,240,51,.04)">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--lime);margin-bottom:.75rem">⚡ Người A</div>
+          <div class="fgroup" style="margin-bottom:0"><label>Chọn người chơi</label><select class="finput" id="pairS1" onchange="calcPairingSingles()"></select></div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:var(--rs);padding:1rem;background:rgba(96,165,250,.04)">
+          <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#60A5FA;margin-bottom:.75rem">🔵 Người B</div>
+          <div class="fgroup" style="margin-bottom:0"><label>Chọn người chơi</label><select class="finput" id="pairS2" onchange="calcPairingSingles()"></select></div>
+        </div>
+      </div>
+      <div id="pairingSinglesResult" style="margin-top:1rem"></div>
+    </div>
+    <!-- Doubles mode -->
+    <div id="pairDoublesWrap" style="margin-bottom:1rem">
     <div class="g2" style="margin-bottom:1rem">
       <div style="border:1px solid var(--border);border-radius:var(--rs);padding:1rem;background:rgba(181,240,51,0.04)">
         <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--lime);margin-bottom:.75rem">⚡ Cặp A</div>
@@ -476,6 +503,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="fgroup" style="margin-bottom:0"><label>Người 2</label><select class="finput" id="pairB2" onchange="calcPairing()"></select></div>
       </div>
     </div>
+    </div><!-- end pairDoublesWrap -->
     <div id="pairingResult"></div>
 
   </div>
@@ -495,6 +523,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="filter-row">
       <label>Từ</label><input type="date" class="finput" id="matchFrom" onchange="renderMatches()"/>
       <label>Đến</label><input type="date" class="finput" id="matchTo" onchange="renderMatches()"/>
+    </div>
+    <div class="filter-row" style="margin-bottom:.85rem">
+      <label>Người chơi</label>
+      <select class="finput" id="matchPlayerFilter" onchange="renderMatches()" style="flex:1;max-width:220px">
+        <option value="">— Tất cả —</option>
+      </select>
     </div>
     <div class="desk tbl-wrap" id="matchD"></div>
     <div class="mob" id="matchM"></div>
@@ -767,8 +801,8 @@ function showPage(id){
   if(id!=='profile') sessionStorage.setItem('sp_page', id);
   const map={ranking:'tổng',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',profile:''};
   if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
-  if(id==='ranking')renderRanking();
-  if(id==='matches')renderMatches();
+  if(id==='ranking'){renderRanking();renderPairsStats();}
+  if(id==='matches'){populateMatchPlayerFilter();renderMatches();}
   if(id==='players')renderPlayers();
   if(id==='finance'){renderFinance();renderFines();renderDebt();}
   if(id==='pairing')populatePairingSelects();
@@ -863,6 +897,128 @@ function renderPlayers(){
 }
 
 // Ranking
+// ── Pairs Stats ──
+function renderPairsStats(){
+  const {from,to}=getRankDateRange();
+  const pairMap={};
+  matches.filter(m=>m.type==='doubles'&&inR(m.date,from,to)).forEach(m=>{
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    const wKey=[...wt].sort().join(' & ');
+    const lKey=[...lt].sort().join(' & ');
+    if(!pairMap[wKey]) pairMap[wKey]={w:0,l:0};
+    if(!pairMap[lKey]) pairMap[lKey]={w:0,l:0};
+    pairMap[wKey].w++;
+    pairMap[lKey].l++;
+  });
+  const entries=Object.entries(pairMap)
+    .map(([pair,s])=>({pair,w:s.w,l:s.l,total:s.w+s.l,wr:s.w+s.l>0?Math.round(s.w/(s.w+s.l)*100):0}))
+    .sort((a,b)=>b.wr-a.wr||b.total-a.total);
+  if(!entries.length){
+    const e=empty('🤝','Chưa có dữ liệu trận đôi trong khoảng thời gian này');
+    document.getElementById('pairsD').innerHTML=e;
+    document.getElementById('pairsM').innerHTML=e;
+    return;
+  }
+  // Desktop
+  const rows=entries.map((e,i)=>`<tr>
+    <td style="text-align:center"><span class="rnum ${i===0?'r1':i===1?'r2':i===2?'r3':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span></td>
+    <td class="bold">${e.pair}</td>
+    <td style="text-align:center">${e.total}</td>
+    <td style="text-align:center" class="ts">${e.w}</td>
+    <td style="text-align:center" class="td">${e.l}</td>
+    <td style="text-align:center"><span class="pill ${e.wr>=60?'p-green':e.wr>=40?'p-yellow':'p-red'}">${e.wr}%</span></td>
+  </tr>`).join('');
+  document.getElementById('pairsD').innerHTML=`<table><thead><tr>
+    <th style="text-align:center">#</th><th>Cặp đôi</th><th style="text-align:center">Trận</th><th style="text-align:center">Thắng</th><th style="text-align:center">Thua</th><th style="text-align:center">Tỷ lệ</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+  // Mobile
+  const cards=entries.map((e,i)=>`<div class="card-item">
+    <div class="card-item-row">
+      <div><div class="bold">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''+(i+1)+'. '}${e.pair}</div>
+      <div class="card-meta">${e.total} trận · <span class="ts">${e.w}W</span> · <span class="td">${e.l}L</span></div></div>
+      <span class="pill ${e.wr>=60?'p-green':e.wr>=40?'p-yellow':'p-red'}" style="font-size:.85rem;padding:.3rem .8rem">${e.wr}%</span>
+    </div>
+  </div>`).join('');
+  document.getElementById('pairsM').innerHTML=`<div class="card-list">${cards}</div>`;
+}
+
+// ── Pair Type toggle ──
+let currentPairType='doubles';
+function setPairType(type){
+  currentPairType=type;
+  document.getElementById('pairDoublesWrap').style.display=type==='doubles'?'':'none';
+  document.getElementById('pairSinglesWrap').style.display=type==='singles'?'':'none';
+  document.getElementById('pairTypeDoubles').className=type==='doubles'?'btn btn-lime btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('pairTypeSingles').className=type==='singles'?'btn btn-lime btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('pairingResult').innerHTML='';
+  document.getElementById('pairingSinglesResult').innerHTML='';
+}
+
+function populatePairingSinglesSelects(){
+  const vis=players.filter(p=>p.visible);
+  const blank='<option value="">-- Chọn người chơi --</option>';
+  const opts=vis.map(p=>`<option value="${p.name}">${p.name} (${p.score.toFixed(2)})</option>`).join('');
+  ['pairS1','pairS2'].forEach(id=>{
+    document.getElementById(id).innerHTML=blank+opts;
+    document.getElementById(id).value='';
+  });
+}
+
+function calcPairingSingles(){
+  const n1=document.getElementById('pairS1').value;
+  const n2=document.getElementById('pairS2').value;
+  const el=document.getElementById('pairingSinglesResult');
+  if(!n1||!n2){el.innerHTML='';return;}
+  if(n1===n2){el.innerHTML='<div style="color:var(--danger);font-size:.82rem;padding:.6rem;background:rgba(248,113,113,.08);border-radius:var(--rs);border:1px solid rgba(248,113,113,.2)">⚠️ Vui lòng chọn 2 người khác nhau.</div>';return;}
+  const p1=gp(n1),p2=gp(n2);
+  if(!p1||!p2)return;
+
+  function formScore(name){
+    const r=matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-10);
+    if(!r.length)return 0;
+    const w=r.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
+    return parseFloat(((w/r.length-0.5)*0.6).toFixed(3));
+  }
+  const eff1=parseFloat((p1.score+formScore(n1)).toFixed(2));
+  const eff2=parseFloat((p2.score+formScore(n2)).toFixed(2));
+  const diff=parseFloat(Math.abs(eff1-eff2).toFixed(2));
+  const stronger=eff1>=eff2?n1:n2;
+  const f1=formScore(n1),f2=formScore(n2);
+  const fc=c=>c>=0?'var(--success)':'var(--danger)';
+
+  let handicap=0;
+  if(diff>=0.3) handicap=Math.min(5,Math.ceil((diff-0.3)/0.3));
+
+  // H2H singles
+  const h2h=matches.filter(m=>m.type==='singles'&&[...m.a,...m.b].includes(n1)&&[...m.a,...m.b].includes(n2));
+  const p1wins=h2h.filter(m=>(m.winner==='A'&&m.a.includes(n1))||(m.winner==='B'&&m.b.includes(n1))).length;
+  if(h2h.length>=2&&p1wins/h2h.length>=0.7&&stronger===n1&&handicap<5) handicap=Math.min(5,handicap+1);
+  if(h2h.length>=2&&(h2h.length-p1wins)/h2h.length>=0.7&&stronger===n2&&handicap<5) handicap=Math.min(5,handicap+1);
+
+  const keoText=handicap===0?'⚖️ Ngang kèo':`${stronger} chấp ${handicap} quả`;
+  const keoPill=handicap===0?'p-yellow':handicap>=4?'p-green':'p-lime';
+
+  el.innerHTML=`<div class="pair-result">
+    <div class="pair-vs">
+      <div class="pair-team" style="border-color:rgba(181,240,51,.3);background:rgba(181,240,51,.05)">
+        <div class="pair-team-label" style="color:var(--lime)">⚡ ${n1}</div>
+        <div class="pair-score" style="color:var(--lime)">${eff1.toFixed(2)}</div>
+        <div class="pair-names" style="font-size:.72rem;margin-top:.3rem">Điểm ${p1.score.toFixed(2)} · PĐ <span style="color:${fc(f1)}">${f1>=0?'+':''}${f1.toFixed(2)}</span></div>
+      </div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--muted)">VS</div>
+      <div class="pair-team" style="border-color:rgba(96,165,250,.3);background:rgba(96,165,250,.05)">
+        <div class="pair-team-label" style="color:#60A5FA">🔵 ${n2}</div>
+        <div class="pair-score" style="color:#60A5FA">${eff2.toFixed(2)}</div>
+        <div class="pair-names" style="font-size:.72rem;margin-top:.3rem">Điểm ${p2.score.toFixed(2)} · PĐ <span style="color:${fc(f2)}">${f2>=0?'+':''}${f2.toFixed(2)}</span></div>
+      </div>
+    </div>
+    <div class="keo-box">
+      <div class="keo-label">Chênh lệch: <strong style="color:var(--text)">${diff.toFixed(2)}</strong>${h2h.length?` · H2H: ${p1wins}–${h2h.length-p1wins}`:''}</div>
+      <div class="keo-value"><span class="pill ${keoPill}" style="font-size:1rem;padding:.4rem 1.1rem">${keoText}</span></div>
+    </div>
+  </div>`;
+}
+
 function buildRankDropdown(){
   const sel = document.getElementById('rankPeriodSelect');
   if(!sel) return;
@@ -903,8 +1059,10 @@ function buildRankDropdown(){
     sel.value = curKey;
   }
   // Trigger render after dropdown is populated
+  if(typeof populateMatchPlayerFilter==='function') populateMatchPlayerFilter();
   if(typeof renderPlayers==='function') renderPlayers();
   if(typeof renderRanking==='function') renderRanking();
+  if(typeof renderPairsStats==='function') renderPairsStats();
 }
 
 function getPeriodRange(preset){
@@ -1219,7 +1377,8 @@ function delMatch(id){
 function renderMatches(){
   const from=document.getElementById('matchFrom').value;
   const to=document.getElementById('matchTo').value;
-  const list=matches.filter(m=>inR(m.date,from,to)).sort((a,b)=>b.date.localeCompare(a.date));
+  const playerF=(document.getElementById('matchPlayerFilter')||{}).value||'';
+  const list=matches.filter(m=>inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>b.date.localeCompare(a.date));
   if(!list.length){
     const e=empty('🏓','Chưa có trận nào trong khoảng thời gian này');
     document.getElementById('matchD').innerHTML=e;document.getElementById('matchM').innerHTML=e;return;
@@ -1422,12 +1581,20 @@ function renderDebt(){
 // ═══════════════════════════════════════════
 // PAIRING
 // ═══════════════════════════════════════════
+function populateMatchPlayerFilter(){
+  const sel=document.getElementById('matchPlayerFilter');
+  if(!sel)return;
+  sel.innerHTML='<option value="">— Tất cả —</option>'+
+    players.filter(p=>p.visible).map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+}
+
 function populatePairingSelects(){
   const vis=players.filter(p=>p.visible);
   const blank='<option value="">-- Chọn người chơi --</option>';
   const opts=vis.map(p=>`<option value="${p.name}">${p.name} (${p.score.toFixed(2)})</option>`).join('');
   ['pairA1','pairA2','pairB1','pairB2'].forEach(id=>{document.getElementById(id).innerHTML=blank+opts;document.getElementById(id).value='';});
   document.getElementById('pairingResult').innerHTML='';
+  populatePairingSinglesSelects();
 }
 
 function calcKeo(diff){
