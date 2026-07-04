@@ -2302,24 +2302,48 @@ function showTeamSuggestion(tc, ts){
     + content;
 }
 
-function confirmCreateTournament(){
-  const tc  = tCurrentTeams.length;
-  const ts  = tCurrentTeams[0].members.length;
-  // Generate round-robin schedule between teams
-  const teamNames=['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6'];
-  const pairs=[];
-  for(let i=0;i<tc;i++) for(let j=i+1;j<tc;j++) pairs.push([i,j]);
+function genTournamentMatches(teams){
+  // Build internal pairs for each team (combinations of 2)
+  function combos2(arr){
+    var res=[];
+    for(var i=0;i<arr.length;i++)
+      for(var j=i+1;j<arr.length;j++)
+        res.push([arr[i],arr[j]]);
+    return res;
+  }
+  var teamPairs=teams.map(function(t){return combos2(t.members);});
+  var matches=[];
+  var mid=1;
+  for(var ti=0;ti<teams.length;ti++){
+    for(var tj=ti+1;tj<teams.length;tj++){
+      var pi=teamPairs[ti], pj=teamPairs[tj];
+      var n=Math.max(pi.length,pj.length);
+      for(var k=0;k<n;k++){
+        var a=pi[k%pi.length];
+        var b=pj[k%pj.length];
+        matches.push({
+          id:mid++,
+          teamA:ti, teamB:tj,
+          pairA:[a[0],a[1]],
+          pairB:[b[0],b[1]],
+          scoreA:null, scoreB:null, done:false
+        });
+      }
+    }
+  }
+  return matches;
+}
 
-  const matches_t = pairs.map((p,idx)=>({
-    id:idx+1, teamA:p[0], teamB:p[1],
-    scoreA:null, scoreB:null, done:false
-  }));
+function confirmCreateTournament(){
+  const teamNames=['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6'];
+  const builtTeams=tCurrentTeams.map(function(t,i){return {id:i,name:teamNames[i],members:t.members};});
+  const matches_t=genTournamentMatches(builtTeams);
 
   const tournament = {
     id: nT++,
     name: tCurrentName,
     date: today(),
-    teams: tCurrentTeams.map((t,i)=>({id:i,name:teamNames[i],members:t.members})),
+    teams: builtTeams,
     matches: matches_t,
     status:'active'
   };
@@ -2328,7 +2352,7 @@ function confirmCreateTournament(){
   saveAll();
   closeModal('teamSuggestionModal');
   renderTournamentList();
-  notify('🏅 Đã tạo giải: '+tCurrentName);
+  notify('🏅 Đã tạo giải: '+tCurrentName+' ('+matches_t.length+' trận)');
   showPage('tournament');
 }
 
@@ -2441,7 +2465,7 @@ function renderTournamentInline(t){
       +(isDone?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓</span>':'')
       +'</div>'
       +'<div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem">'
-      +tA.members.join(' & ')+' <span style="color:var(--border)">|</span> '+tB.members.join(' & ')
+      +(m.pairA||tA.members).join(' & ')+' <span style="color:var(--border)">|</span> '+(m.pairB||tB.members).join(' & ')
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
       +'<div style="display:flex;align-items:center;gap:.35rem">'
@@ -2507,8 +2531,10 @@ function renderTournamentView(t){
   const matchHtml = t.matches.map(m=>{
     const tA=t.teams[m.teamA], tB=t.teams[m.teamB];
     const cA=teamColors(m.teamA), cB=teamColors(m.teamB);
-    const members_a=tA.members.join(' & ');
-    const members_b=tB.members.join(' & ');
+    const pAx=m.pairA||tA.members;
+    const pBx=m.pairB||tB.members;
+    const members_a=pAx.join(' & ');
+    const members_b=pBx.join(' & ');
     const isDone=m.done;
     return '<div class="match-card">'
       +'<div class="match-header"><span>#'+m.id+'</span>'
