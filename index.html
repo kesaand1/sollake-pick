@@ -2377,8 +2377,9 @@ function renderTournamentList(){
       +'<span style="font-size:.85rem;font-weight:700;color:var(--text)">'+t.name+'</span>'
       +statusPill
       +'</div>'
-      +'<div style="display:flex;align-items:center;gap:.75rem;flex-shrink:0">'
+      +'<div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">'
       +'<span class="small tm">'+done+'/'+total+' trận</span>'
+      +'<button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteTournament('+t.id+')" title="Xóa giải">🗑</button>'
       +'<span class="t-accordion-arrow" id="tacc_arrow_'+t.id+'" style="color:var(--muted);transition:transform .2s;'+(expanded?'transform:rotate(180deg)':'')+'">▼</span>'
       +'</div>'
       +'</div>'
@@ -2429,9 +2430,27 @@ function renderTournamentInline(t){
   });
   const sortedS=[...standings].sort(function(a,b){return b.pts-a.pts||b.w-a.w;});
 
-  const standHtml=sortedS.map(function(s,i){
+  const allDone=t.matches.length>0&&t.matches.every(function(m){return m.done;});
+  const medals=['🥇','🥈','🥉'];
+  const podiumColors=['var(--warn)','#C0C0C0','#CD7F32'];
+
+  // Podium banner if all matches done
+  const podiumHtml=allDone&&sortedS.length>=2?
+    '<div style="display:flex;gap:.5rem;margin-bottom:.85rem;flex-wrap:wrap">'
+    +sortedS.slice(0,Math.min(3,sortedS.length)).map(function(s,i){
+      return '<div style="flex:1;min-width:100px;background:rgba(255,255,255,.04);border:1px solid '+(i===0?'rgba(252,211,77,.3)':i===1?'rgba(192,192,192,.3)':'rgba(205,127,50,.3)')+';border-radius:var(--rs);padding:.7rem;text-align:center">'
+        +'<div style="font-size:1.5rem">'+medals[i]+'</div>'
+        +'<div style="font-size:.82rem;font-weight:700;color:'+s.color.text+';margin:.2rem 0">'+s.name+'</div>'
+        +'<div style="font-size:.7rem;color:var(--muted)">'+s.w+'T '+s.l+'B · '+s.pts+'đ</div>'
+        +'<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">'+s.members.join(', ')+'</div>'
+        +'</div>';
+    }).join('')
+    +'</div>'
+    :'';
+
+  const standHtml=podiumHtml+sortedS.map(function(s,i){
     return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:var(--rs);background:'+(i===0?'rgba(181,240,51,.08)':'rgba(255,255,255,.02)')+';margin-bottom:3px">'
-      +'<span style="font-weight:700;color:'+(i===0?'var(--lime)':'var(--muted)')+';min-width:20px">'+(i+1)+'</span>'
+      +'<span style="font-weight:700;color:'+(i===0?'var(--warn)':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--muted)')+';min-width:20px">'+(medals[i]||('#'+(i+1)))+'</span>'
       +'<span style="flex:1;font-size:.82rem;font-weight:600;color:'+s.color.text+'">'+s.name+'</span>'
       +'<span style="font-size:.75rem;color:var(--muted)">'+s.w+'T '+s.l+'B</span>'
       +'<span style="font-weight:700;color:var(--lime);min-width:24px;text-align:right">'+s.pts+'đ</span>'
@@ -2584,10 +2603,16 @@ function saveMatchResult(tId, mId){
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
   m.scoreA=sa; m.scoreB=sb; m.done=true;
+  // Auto-complete tournament if all matches done
+  if(t.status!=='done'&&t.matches.every(function(m){return m.done;})){
+    t.status='done';
+    notify('🏆 Giải đấu hoàn thành! '+t.name);
+  } else {
+    notify('✅ Đã lưu kết quả trận #'+mId);
+  }
   saveAll();
   renderTournamentInline(t);
   renderTournamentList();
-  notify('✅ Đã lưu kết quả trận #'+mId);
 }
 
 function endTournament(){
@@ -2598,6 +2623,15 @@ function endTournament(){
   saveAll();
   renderTournamentList();
   notify('🏁 Đã kết thúc giải: '+t.name);
+}
+
+function deleteTournament(id){
+  const t=tournaments.find(x=>x.id===id); if(!t) return;
+  if(!confirm('Xóa giải "'+t.name+'"? Không thể hoàn tác.')) return;
+  tournaments=tournaments.filter(x=>x.id!==id);
+  saveAll();
+  renderTournamentList();
+  notify('🗑 Đã xóa giải: '+t.name);
 }
 
 function init(){
