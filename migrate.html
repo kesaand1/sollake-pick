@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sollake — Migrate Data</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0B1929;color:#F1F5F9;font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.card{background:#111f33;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:2rem;width:100%;max-width:520px}
+h1{font-size:1.2rem;font-weight:700;color:#B5F033;margin-bottom:.4rem}
+.sub{font-size:.8rem;color:#64748B;margin-bottom:1.5rem;line-height:1.6}
+.fgroup{margin-bottom:1rem}
+label{display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#64748B;margin-bottom:.35rem}
+input,select{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:.55rem .75rem;color:#F1F5F9;font-size:.85rem;outline:none}
+input:focus,select:focus{border-color:#B5F033}
+.btn{display:block;width:100%;padding:.75rem;background:#B5F033;color:#0B1929;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;margin-top:1rem;transition:opacity .2s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:rgba(255,255,255,.07);color:#F1F5F9;border:1px solid rgba(255,255,255,.1);margin-top:.5rem}
+.log{margin-top:1.25rem;background:rgba(0,0,0,.3);border-radius:8px;padding:1rem;font-size:.78rem;font-family:monospace;line-height:1.8;max-height:280px;overflow-y:auto;display:none}
+.log.show{display:block}
+.ok{color:#4ADE80}
+.err{color:#F87171}
+.warn{color:#FCD34D}
+.info{color:#60A5FA}
+.step{background:rgba(255,255,255,.04);border-radius:8px;padding:.85rem;margin-bottom:.75rem;border-left:3px solid #B5F033}
+.step-num{font-size:.68rem;font-weight:700;text-transform:uppercase;color:#64748B;margin-bottom:.2rem}
+.step-title{font-size:.88rem;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔄 Migration Tool</h1>
+  <p class="sub">Công cụ di chuyển dữ liệu cũ từ root Firebase vào đúng path <code style="color:#B5F033">clubs/{club_id}/</code> cho hệ thống multi-tenant.</p>
+
+  <div class="step">
+    <div class="step-num">Bước 1</div>
+    <div class="step-title">Nhập thông tin CLB đích</div>
+  </div>
+
+  <div class="fgroup">
+    <label>Mã CLB (Club ID)</label>
+    <input id="clubId" placeholder="VD: sollake_pick" value="sollake_pick"/>
+    <div style="font-size:.72rem;color:#64748B;margin-top:.3rem">Dữ liệu sẽ được chép vào <code>clubs/[mã_này]/...</code></div>
+  </div>
+
+  <div class="fgroup">
+    <label>Tên CLB hiển thị</label>
+    <input id="clubName" placeholder="VD: Sollake Pick" value="Sollake Pick"/>
+  </div>
+
+  <div class="step" style="margin-top:1rem">
+    <div class="step-num">Bước 2</div>
+    <div class="step-title">Đăng nhập tài khoản Super Admin</div>
+  </div>
+
+  <div class="fgroup">
+    <label>Email</label>
+    <input id="email" type="email" placeholder="admin@example.com"/>
+  </div>
+  <div class="fgroup">
+    <label>Mật khẩu</label>
+    <input id="pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')startMigrate()"/>
+  </div>
+
+  <div id="errMsg" style="color:#F87171;font-size:.78rem;display:none;margin-top:.5rem"></div>
+
+  <button class="btn" id="migrateBtn" onclick="startMigrate()">🚀 Bắt đầu Migration</button>
+  <button class="btn btn-ghost" onclick="window.location.href='index.html'">← Quay lại app</button>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAF4GMR-pn-7MXbwtKIF9u-hp4azUqbF8E",
+  authDomain: "sollake-pick.firebaseapp.com",
+  databaseURL: "https://sollake-pick-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sollake-pick",
+  storageBucket: "sollake-pick.firebasestorage.app",
+  messagingSenderId: "223126852935",
+  appId: "1:223126852935:web:e2ccfca7e1f1b86f3f6862",
+};
+
+const app  = initializeApp(firebaseConfig);
+const db   = getDatabase(app);
+const auth = getAuth(app);
+
+const log = (msg, cls='') => {
+  const el = document.getElementById('log');
+  el.classList.add('show');
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+};
+
+window.startMigrate = async () => {
+  const clubId   = document.getElementById('clubId').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const clubName = document.getElementById('clubName').value.trim();
+  const email    = document.getElementById('email').value.trim();
+  const pass     = document.getElementById('pass').value;
+  const errEl    = document.getElementById('errMsg');
+  const btn      = document.getElementById('migrateBtn');
+
+  if(!clubId||!clubName||!email||!pass){
+    errEl.textContent='Vui lòng điền đầy đủ thông tin.';
+    errEl.style.display=''; return;
+  }
+  errEl.style.display='none';
+  btn.disabled=true; btn.textContent='Đang thực hiện...';
+  document.getElementById('log').innerHTML='';
+
+  try {
+    // ── Step 1: Login ──
+    log('🔐 Đang đăng nhập...','info');
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    log('✅ Đăng nhập thành công: '+cred.user.email,'ok');
+
+    // ── Step 2: Verify super admin ──
+    log('🔍 Kiểm tra quyền Super Admin...','info');
+    const saSnap = await get(ref(db,'admin_config/super_admin_uid'));
+    if(saSnap.val() !== cred.user.uid){
+      log('❌ Tài khoản này không phải Super Admin!','err');
+      btn.disabled=false; btn.textContent='🚀 Bắt đầu Migration';
+      return;
+    }
+    log('✅ Xác nhận Super Admin','ok');
+
+    // ── Step 3: Check if club already has data ──
+    log('📂 Kiểm tra dữ liệu CLB đích...','info');
+    const existSnap = await get(ref(db,'clubs/'+clubId+'/players'));
+    if(existSnap.exists()){
+      log('⚠️  CLB "'+clubId+'" đã có dữ liệu players. Tiếp tục sẽ ghi đè!','warn');
+    }
+
+    // ── Step 4: Read all root-level data ──
+    const dataPaths = ['players','matches','finances','fines','tournaments'];
+    const oldData = {};
+    let totalItems = 0;
+
+    log('📖 Đọc dữ liệu cũ từ root...','info');
+    for(const path of dataPaths){
+      const snap = await get(ref(db, path));
+      const val = snap.val();
+      if(val !== null){
+        oldData[path] = val;
+        const count = Array.isArray(val) ? val.length : Object.keys(val).length;
+        totalItems += count;
+        log('  ✓ '+path+': '+count+' bản ghi','ok');
+      } else {
+        log('  – '+path+': không có dữ liệu','warn');
+      }
+    }
+    log('📊 Tổng: '+totalItems+' bản ghi cần di chuyển','info');
+
+    if(totalItems === 0){
+      log('⚠️  Không có dữ liệu cũ để migrate. Kết thúc.','warn');
+      btn.disabled=false; btn.textContent='🚀 Bắt đầu Migration';
+      return;
+    }
+
+    // ── Step 5: Write club info ──
+    log('','');
+    log('📝 Tạo thông tin CLB...','info');
+    await set(ref(db,'clubs/'+clubId+'/info'), {
+      name: clubName,
+      createdAt: new Date().toISOString().slice(0,10),
+      migratedAt: new Date().toISOString()
+    });
+    log('✅ Đã tạo clubs/'+clubId+'/info','ok');
+
+    // ── Step 6: Copy data to new path ──
+    log('','');
+    log('🚚 Đang sao chép dữ liệu...','info');
+    for(const [path, data] of Object.entries(oldData)){
+      await set(ref(db,'clubs/'+clubId+'/'+path), data);
+      log('✅ clubs/'+clubId+'/'+path+' ← root/'+path,'ok');
+    }
+
+    // ── Step 7: Create user_roles entry ──
+    log('','');
+    log('👤 Cập nhật quyền Super Admin cho CLB...','info');
+    await set(ref(db,'user_roles/'+cred.user.uid), {
+      role: 'admin',
+      clubId: clubId,
+      clubName: clubName,
+      email: cred.user.email,
+      displayName: cred.user.displayName || cred.user.email,
+      createdAt: new Date().toISOString().slice(0,10)
+    });
+    log('✅ Đã set quyền admin cho CLB: '+clubName,'ok');
+
+    // ── Done ──
+    log('','');
+    log('🎉 Migration hoàn thành!','ok');
+    log('','');
+    log('📌 Bước tiếp theo:','info');
+    log('  1. Mở admin.html → tạo thêm tài khoản cho admin CLB / members','info');
+    log('  2. Mở index.html → đăng nhập bằng tài khoản vừa dùng','info');
+    log('  3. Dữ liệu cũ ở root vẫn còn — bạn có thể xóa thủ công sau','warn');
+    log('','');
+
+    btn.textContent='✅ Hoàn thành!';
+    btn.style.background='#4ADE80';
+
+  } catch(e) {
+    log('❌ Lỗi: '+e.message,'err');
+    console.error(e);
+    btn.disabled=false; btn.textContent='🚀 Bắt đầu Migration';
+  }
+};
+</script>
+</body>
+</html>
