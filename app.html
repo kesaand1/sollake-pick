@@ -77,6 +77,7 @@ onAuthStateChanged(auth, async (user) => {
     if (_urlClubId) {
       window._userRole='guest';
       if(window.applyRoleUI) window.applyRoleUI('guest');
+      subscribeClubData();
     }
     // No action needed - landing page already showing
     return;
