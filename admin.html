@@ -362,7 +362,10 @@ window.doCreateUser = async () => {
       username: uname||'',
       createdAt: new Date().toISOString().slice(0,10)
     });
-    if(uname){ await set(ref(db,'usernames/'+uname), cred.user.uid); }
+    if(uname){
+      await set(ref(db,'usernames/'+uname), cred.user.uid);
+      await set(ref(db,'usernames_email/'+uname), email);
+    }
 
     // Sign out secondary app
     await auth2.signOut();
@@ -450,10 +453,11 @@ window.doEditUser = async () => {
     // Remove old username mapping if changed
     if(oldUsername && oldUsername !== newUsername){
       await set(ref(db,'usernames/'+oldUsername), null);
+      await set(ref(db,'usernames_email/'+oldUsername), null);
     }
-    // Save new username mapping
     if(newUsername){
       await set(ref(db,'usernames/'+newUsername), uid);
+      await set(ref(db,'usernames_email/'+newUsername), existing.email||'');
     }
     await set(ref(db, 'user_roles/'+uid), {
       ...existing,
