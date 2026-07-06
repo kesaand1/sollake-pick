@@ -253,7 +253,7 @@ function renderClubs(clubs){
   // Filter out non-club keys
   const entries = Object.entries(clubs).filter(([id,c])=>c && typeof c === 'object');
   if(!entries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có CLB nào.</div>'; return; }
-  const baseUrl = window.location.origin + window.location.pathname.replace('admin.html','');
+  const baseUrl = window.location.origin + '/app';
   el.innerHTML = entries.map(([id,c])=>`
     <div class="club-card">
       <div style="min-width:0;flex:1">

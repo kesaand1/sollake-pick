@@ -72,7 +72,7 @@ onAuthStateChanged(auth, async (user) => {
       // No user_roles → check if super admin → redirect to admin.html
       const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
       if (saSnap.val() === user.uid) {
-        window.location.href = 'admin.html';
+        window.location.href = '/admin';
         return;
       }
       alert('Tài khoản chưa được phân quyền. Liên hệ quản trị viên.');
@@ -3283,7 +3283,7 @@ onAuthStateChanged(auth, async (user) => {
     if (!roleData) {
       const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
       if (saSnap.val() === user.uid) {
-        if(!_urlClubId){ window.location.href = 'admin.html'; return; }
+        if(!_urlClubId){ window.location.href = '/admin'; return; }
         // Super admin with club URL
         window._userRole='admin';
         window._clubId=_urlClubId;
