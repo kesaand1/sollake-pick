@@ -3111,11 +3111,10 @@ if(_urlClubId){
 // ── Auth state: upgrade guest to authenticated user ──
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    // Show app in guest mode if club URL present
     if(_urlClubId){
+      // Guest mode: keep login screen hidden, data already visible
       window._userRole='guest';
       if(typeof applyRoleUI==='function') applyRoleUI('guest');
-      if(typeof hideLoginScreen==='function') hideLoginScreen();
     } else {
       if(typeof showLoginScreen==='function') showLoginScreen();
     }
