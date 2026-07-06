@@ -199,6 +199,7 @@ function subscribeClubData(){
     unsubscribers.push(unsub);
   });
 }
+window.subscribeClubData = subscribeClubData;
 
 // ── Club-aware set ──
 window._clubSet = (path, data) => set(ref(db, clubPath+'/'+path), data);
@@ -2853,12 +2854,12 @@ async function enterGuestMode(clubId){
   }
   if(typeof applyRoleUI==='function') applyRoleUI('guest');
   if(typeof hideLoginScreen==='function') hideLoginScreen();
-  if(typeof subscribeClubData==='function') subscribeClubData();
+  if(window.subscribeClubData) window.subscribeClubData();
 }
 
 function subscribeClubDataReadOnly(){
   // Same as subscribeClubData but Firebase rules allow public read
-  subscribeClubData();
+  if(window.subscribeClubData) window.subscribeClubData();
 }
 function hideLoginScreen(){
   const s=document.getElementById('loginScreen');
@@ -3070,6 +3071,7 @@ function init(){
     // CSS rule ensures loginScreen stays hidden when no 'visible' class
     applyRoleUI('guest');
     if(window.applyClubBanner) window.applyClubBanner(_urlClubId, null);
+    if(window.subscribeClubData) window.subscribeClubData();
   } else {
     // No club URL - reset to empty defaults, don't load any club data
     players=[]; matches=[]; finances=[]; fines=[]; tournaments=[];
