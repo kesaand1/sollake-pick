@@ -49,13 +49,32 @@ onAuthStateChanged(auth, async (user) => {
 
   // Check if super admin
   const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
-  if (saSnap.val() === user.uid && !_urlClubId) {
-    // Super admin without ?club= → redirect to admin panel
+  const isSuperAdmin = saSnap.val() === user.uid;
+
+  if (isSuperAdmin && !_urlClubId) {
+    // Super admin without ?club= → go to admin panel
     window.location.href = 'admin.html';
     return;
   }
 
-  // Load user role
+  if (isSuperAdmin && _urlClubId) {
+    // Super admin accessing a specific club via ?club=
+    const targetClubId = _urlClubId;
+    currentRole = 'admin';
+    clubPath = 'clubs/' + targetClubId;
+    window._clubPath = clubPath;
+    window._userRole = 'admin';
+    window._clubId   = targetClubId;
+    const clubInfoSnap = await get(ref(db, 'clubs/' + targetClubId + '/info'));
+    const clubInfo = clubInfoSnap.val();
+    window._clubName = (clubInfo && clubInfo.name) || targetClubId;
+    applyRoleUI('admin');
+    hideLoginScreen();
+    subscribeClubData();
+    return;
+  }
+
+  // Regular user: load from user_roles
   const roleSnap = await get(ref(db, 'user_roles/' + user.uid));
   const roleData = roleSnap.val();
 
@@ -65,30 +84,25 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // Determine which club to load:
-  // 1. ?club= in URL takes priority (for super admin accessing specific club)
-  // 2. Otherwise use clubId from user_roles
   const targetClubId = _urlClubId || roleData.clubId;
 
-  // Security: non-super-admin can only access their own club
-  if(saSnap.val() !== user.uid && targetClubId !== roleData.clubId){
+  // Security: regular users can only access their own club
+  if(targetClubId !== roleData.clubId){
     alert('Bạn không có quyền truy cập CLB này.');
     signOut(auth);
     return;
   }
 
-  currentRole = (saSnap.val() === user.uid) ? 'admin' : roleData.role;
+  currentRole = roleData.role;
   clubPath = 'clubs/' + targetClubId;
   window._clubPath = clubPath;
   window._userRole = currentRole;
   window._clubId   = targetClubId;
 
-  // Load actual club name from clubs/{id}/info
   const clubInfoSnap = await get(ref(db, 'clubs/' + targetClubId + '/info'));
   const clubInfo = clubInfoSnap.val();
   window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
 
-  // Apply role-based UI
   applyRoleUI(currentRole);
   hideLoginScreen();
   subscribeClubData();
