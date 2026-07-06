@@ -48,65 +48,56 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // Check if super admin
-  const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
-  const isSuperAdmin = saSnap.val() === user.uid;
+  try {
+    // Load user_roles first
+    const roleSnap = await get(ref(db, 'user_roles/' + user.uid));
+    const roleData = roleSnap.val();
 
-  if (isSuperAdmin && !_urlClubId) {
-    // Super admin without ?club= → go to admin panel
-    window.location.href = 'admin.html';
-    return;
-  }
+    if (!roleData) {
+      // No user_roles → check if super admin → redirect to admin.html
+      const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
+      if (saSnap.val() === user.uid) {
+        window.location.href = 'admin.html';
+        return;
+      }
+      alert('Tài khoản chưa được phân quyền. Liên hệ quản trị viên.');
+      signOut(auth);
+      return;
+    }
 
-  if (isSuperAdmin && _urlClubId) {
-    // Super admin accessing a specific club via ?club=
-    const targetClubId = _urlClubId;
-    currentRole = 'admin';
+    // Determine club: ?club= param or from user_roles
+    const targetClubId = _urlClubId || roleData.clubId;
+
+    // Security: can only access own club unless super admin
+    if (_urlClubId && _urlClubId !== roleData.clubId) {
+      // Check if super admin
+      const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
+      if (saSnap.val() !== user.uid) {
+        alert('Bạn không có quyền truy cập CLB này.');
+        signOut(auth);
+        return;
+      }
+    }
+
+    currentRole = roleData.role || 'member';
     clubPath = 'clubs/' + targetClubId;
     window._clubPath = clubPath;
-    window._userRole = 'admin';
+    window._userRole = currentRole;
     window._clubId   = targetClubId;
+
     const clubInfoSnap = await get(ref(db, 'clubs/' + targetClubId + '/info'));
     const clubInfo = clubInfoSnap.val();
-    window._clubName = (clubInfo && clubInfo.name) || targetClubId;
-    applyRoleUI('admin');
+    window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
+
+    applyRoleUI(currentRole);
     hideLoginScreen();
     subscribeClubData();
-    return;
-  }
 
-  // Regular user: load from user_roles
-  const roleSnap = await get(ref(db, 'user_roles/' + user.uid));
-  const roleData = roleSnap.val();
-
-  if (!roleData) {
-    alert('Tài khoản chưa được phân quyền. Liên hệ quản trị viên.');
+  } catch(e) {
+    console.error('Auth error:', e);
+    alert('Lỗi xác thực: ' + e.message);
     signOut(auth);
-    return;
   }
-
-  const targetClubId = _urlClubId || roleData.clubId;
-
-  // Security: regular users can only access their own club
-  if(targetClubId !== roleData.clubId){
-    alert('Bạn không có quyền truy cập CLB này.');
-    signOut(auth);
-    return;
-  }
-
-  currentRole = roleData.role;
-  clubPath = 'clubs/' + targetClubId;
-  window._clubPath = clubPath;
-  window._userRole = currentRole;
-  window._clubId   = targetClubId;
-
-  const clubInfoSnap = await get(ref(db, 'clubs/' + targetClubId + '/info'));
-  const clubInfo = clubInfoSnap.val();
-  window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
-
-  applyRoleUI(currentRole);
-  hideLoginScreen();
-  subscribeClubData();
 });
 
 function applyRoleUI(role){
