@@ -2818,17 +2818,19 @@ function showLoginScreenWithGuest(){
   if(g) g.style.display='block';
 }
 
-async function enterGuestMode(clubId){
+async async function enterGuestMode(clubId){
   window._userRole='guest';
   window._clubId=clubId;
   clubPath='clubs/'+clubId;
   window._clubPath=clubPath;
   // Load club name
-  const clubInfoSnap=await window._fbGet('clubs/'+clubId+'/info');
-  window._clubName=(clubInfoSnap&&clubInfoSnap.name)||clubId;
-  applyRoleUI('guest');
-  hideLoginScreen();
-  subscribeClubDataReadOnly();
+  if(window._fbGet){
+    const clubInfoSnap=await window._fbGet('clubs/'+clubId+'/info');
+    window._clubName=(clubInfoSnap&&clubInfoSnap.name)||clubId;
+  }
+  if(typeof applyRoleUI==='function') applyRoleUI('guest');
+  if(typeof hideLoginScreen==='function') hideLoginScreen();
+  if(typeof subscribeClubData==='function') subscribeClubData();
 }
 
 function subscribeClubDataReadOnly(){
@@ -3259,6 +3261,12 @@ if(_urlClubId){
     window._clubId=_urlClubId;
     clubPath='clubs/'+_urlClubId;
     window._clubPath=clubPath;
+    // Set club banner image
+    const bannerEl=document.getElementById('heroBanner');
+    const bannerImg=bannerEl&&bannerEl.querySelector('img');
+    if(bannerImg && info && info.banner){
+      bannerImg.src=info.banner;
+    }
     subscribePublic(_urlClubId);
   });
 }

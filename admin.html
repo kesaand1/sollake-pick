@@ -122,7 +122,12 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="fgroup">
       <label>Mã CLB (ID duy nhất, không dấu, không cách)</label>
-      <input class="finput" id="newClubId" placeholder="VD: sollake_hanoi"/>
+      <input class="finput" id="newClubId" placeholder="VD: sollake"/>
+    </div>
+    <div class="fgroup">
+      <label>URL ảnh banner CLB (tùy chọn)</label>
+      <input class="finput" id="newClubBanner" placeholder="https://... hoặc tên file (VD: club.jpg)"/>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.25rem">Upload ảnh lên cùng thư mục repo rồi nhập tên file</div>
     </div>
     <div id="createClubErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
     <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
@@ -257,7 +262,10 @@ function renderClubs(clubs){
   el.innerHTML = entries.map(([id,c])=>`
     <div class="club-card">
       <div style="min-width:0;flex:1">
-        <div style="font-weight:600;font-size:.88rem">${(c.info&&c.info.name)||id}</div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          ${(c.info&&c.info.banner)?`<img src="${c.info.banner}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'"/>`:''}
+          <div style="font-weight:600;font-size:.88rem">${(c.info&&c.info.name)||id}</div>
+        </div>
         <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">ID: ${id} · Tạo: ${(c.info&&c.info.createdAt)||'—'}</div>
         <div style="font-size:.7rem;margin-top:.2rem">
           <span style="color:${((window._memberCounts&&window._memberCounts[id])||0)>=3?'#F87171':'#4ADE80'}">
@@ -275,6 +283,7 @@ function renderClubs(clubs){
       </div>
       <div style="display:flex;gap:.4rem;flex-shrink:0">
         <span class="pill p-green">Active</span>
+        <button class="btn btn-ghost btn-sm" onclick="editClubBanner('${id}','${(c.info&&c.info.name)||id}','${(c.info&&c.info.banner)||''}')">🖼</button>
         <button class="btn btn-danger btn-sm" onclick="deleteClub('${id}')">🗑</button>
       </div>
     </div>`).join('');
@@ -319,11 +328,17 @@ window.doCreateClub = async () => {
   if(!name||!id){ errEl.textContent='Vui lòng nhập đầy đủ.'; errEl.style.display=''; return; }
   if(!/^[a-z0-9_]+$/.test(id)){ errEl.textContent='Mã CLB chỉ dùng chữ thường, số, dấu gạch dưới.'; errEl.style.display=''; return; }
   try{
-    await set(ref(db,'clubs/'+id+'/info'), { name, createdAt: new Date().toISOString().slice(0,10) });
+    const banner = document.getElementById('newClubBanner').value.trim();
+    await set(ref(db,'clubs/'+id+'/info'), {
+      name,
+      createdAt: new Date().toISOString().slice(0,10),
+      ...(banner && {banner})
+    });
     notify('✅ Đã tạo CLB: '+name);
     closeModal('createClubModal');
     document.getElementById('newClubName').value='';
     document.getElementById('newClubId').value='';
+    document.getElementById('newClubBanner').value='';
     errEl.style.display='none';
   }catch(e){ errEl.textContent='Lỗi: '+e.message; errEl.style.display=''; }
 }
@@ -409,6 +424,18 @@ window.doCreateUser = async () => {
     }
     errEl.style.display='';
   }
+}
+
+window.editClubBanner = async (id, name, currentBanner) => {
+  const newBanner = prompt(`Nhập URL/tên file ảnh banner cho CLB "${name}":
+(Để trống để xóa banner)`, currentBanner);
+  if(newBanner === null) return; // cancelled
+  try{
+    const snap = await get(ref(db,'clubs/'+id+'/info'));
+    const info = snap.val()||{};
+    await set(ref(db,'clubs/'+id+'/info'), {...info, banner: newBanner.trim()});
+    notify('✅ Đã cập nhật banner CLB: '+name);
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
 }
 
 window.deleteClub = async (id) => {
