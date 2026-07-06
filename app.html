@@ -2314,17 +2314,18 @@ function renderProfile(name){
 // Manual one-time sync: push localStorage → Firebase
 function manualSync(){
   const dot = document.getElementById('syncDot');
-  if(!window._fbSet){
-    notify('⚠️ Firebase chưa kết nối. Hãy mở app từ GitHub Pages.');
+  if(!window._fbSet || !window._clubPath){
+    notify('⚠️ Firebase chưa kết nối hoặc chưa xác định được CLB.');
     return;
   }
+  const base = window._clubPath + '/';
   if(dot) dot.style.background='var(--warn)';
   Promise.all([
-    window._fbSet('players',  players),
-    window._fbSet('matches',  matches),
-    window._fbSet('finances', finances),
-    window._fbSet('fines',    fines),
-    window._fbSet('tournaments', tournaments),
+    window._fbSet(base+'players',  players),
+    window._fbSet(base+'matches',  matches),
+    window._fbSet(base+'finances', finances),
+    window._fbSet(base+'fines',    fines),
+    window._fbSet(base+'tournaments', tournaments),
   ]).then(()=>{
     if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',3000);}
     notify('✅ Đã đồng bộ lên Firebase!');
@@ -3000,7 +3001,7 @@ window.applyRoleUI = function applyRoleUI(role){
   const logBtn=document.querySelector('.btn-log');
   if(logBtn){ logBtn.textContent='+ Ghi trận'; logBtn.onclick=function(){ openModal('matchModal'); }; }
   const dot=document.getElementById('syncDot');
-  if(dot) dot.style.display='';
+  if(dot){ dot.style.display=''; dot.onclick=function(){ manualSync(); }; dot.title='Nhấn để đồng bộ lên Firebase'; }
   const logoutBtn=document.getElementById('logoutBtn');
   if(logoutBtn) logoutBtn.style.display='';
   if(role === 'member'){
