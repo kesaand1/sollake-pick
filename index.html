@@ -3057,7 +3057,7 @@ init();
 
 
 <!-- LANDING PAGE -->
-<div class="page active" id="landingPage" style="padding-top:0">
+<div class="page" id="landingPage" style="padding-top:0">
   <div style="width:100%;overflow:hidden;margin:0;padding:0">
     <img src="banner.png" alt="Sollake Pick" class="landing-banner-img"/>
   </div>
@@ -3195,7 +3195,9 @@ function subscribePublic(clubId){
 
 // Load club info & data immediately if ?club= in URL
 if(_urlClubId){
-  // Show hero banner for club pages
+  // Hide landing page, show hero banner for club pages
+  const lp=document.getElementById('landingPage');
+  if(lp) lp.classList.remove('active');
   const hb=document.getElementById('heroBanner');
   if(hb) hb.style.display='';
   get(ref(db,'clubs/'+_urlClubId+'/info')).then(snap=>{
