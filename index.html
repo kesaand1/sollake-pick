@@ -2841,9 +2841,7 @@ async function doLogin(){
       email = emailSnap;
     }
     await window._fbSignIn(email, pass);
-    // Close login screen, execute pending action
-    hideLoginScreen();
-    if(window._pendingAction){ window._pendingAction(); window._pendingAction=null; }
+    // hideLoginScreen will be called by onAuthStateChanged after login
   }catch(e){
     errEl.textContent=e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'
       ?'Tên đăng nhập/email hoặc mật khẩu không đúng.'
@@ -2871,7 +2869,7 @@ window.applyRoleUI = function applyRoleUI(role){
     const logBtn=document.querySelector('.btn-log');
     if(logBtn){
       logBtn.textContent='🔑 Đăng nhập';
-      logBtn.onclick=function(){ requireLogin(null); };
+      logBtn.onclick=function(){ const s=document.getElementById('loginScreen'); if(s) s.classList.add('active'); };
     }
     // Hide sync dot and logout
     const dot=document.getElementById('syncDot');
