@@ -27,10 +27,10 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;mi
 .header-right{display:flex;align-items:center;gap:.75rem}
 
 /* HERO */
-.hero{position:relative;width:100%;padding-top:82px}
+.hero{position:relative;width:100%;padding-top:56px}
 .hero img{width:100%;height:70vh;min-height:400px;max-height:700px;object-fit:cover;object-position:center top;display:block}
 .hero-overlay{
-  position:absolute;inset:0;padding-top:82px;
+  position:absolute;inset:0;padding-top:56px;
   background:linear-gradient(to bottom,rgba(11,25,41,0) 40%,rgba(11,25,41,.95) 100%);
   display:flex;align-items:flex-end;justify-content:center;padding-bottom:3rem;
 }
@@ -92,16 +92,23 @@ footer{
   .hero img{height:50vh;min-height:280px}
   .search-box{border-radius:12px;flex-direction:column;padding:.75rem}
   .btn-enter{border-radius:8px;width:100%;justify-content:center;padding:.65rem}
+  .header .slogan-divider{display:none}
+  .header .slogan-text{display:none}
+}
+@media(max-width:900px) and (min-width:601px){
+  .header .slogan-text{font-size:.85rem}
 }
 </style>
 </head>
 <body>
 
-<div style="text-align:center;font-size:.72rem;color:var(--muted);padding:.4rem .5rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);position:fixed;top:0;left:0;right:0;z-index:101">Hệ thống quản lý câu lạc bộ Pickleball</div>
-
 <!-- HEADER -->
-<div class="header" style="top:26px">
-  <a class="logo" href="/">Sollake <span>Pick</span></a>
+<div class="header">
+  <div style="display:flex;align-items:center;gap:.85rem">
+    <a class="logo" href="/">Sollake <span>Pick</span></a>
+    <span class="slogan-divider" style="width:1px;height:1.1rem;background:var(--border)"></span>
+    <span class="slogan-text" style="font-size:1rem;font-weight:700;color:var(--text);letter-spacing:-.2px">Hệ thống quản lý câu lạc bộ Pickleball</span>
+  </div>
   <div class="header-right">
     <a href="/admin" class="btn btn-ghost" style="font-size:.78rem">⚙️ Admin</a>
   </div>
