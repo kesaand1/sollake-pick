@@ -494,7 +494,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- HERO BANNER -->
 <div class="hero-banner">
-  <img src="club.jpg" alt="Sollake Pick Club" loading="eager"/>
+  <img src="banner.png" alt="Sollake Pick Club" loading="eager"/>
   <div class="hero-banner-overlay"></div>
 </div>
 
@@ -2851,6 +2851,24 @@ async function doLogin(){
     btn.disabled=false; btn.textContent='Đăng nhập';
   }
 }
+function goToClub(){
+  const code = (document.getElementById('clubCodeInput').value||'').trim().toLowerCase();
+  if(!code){ document.getElementById('clubCodeErr').textContent='Vui lòng nhập mã CLB.'; document.getElementById('clubCodeErr').style.display=''; return; }
+  window.location.href = '?club='+code;
+}
+
+function showLandingPage(){
+  // Hide main app content, show landing
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const landingEl = document.getElementById('landingPage');
+  if(landingEl) landingEl.style.display='flex';
+  // Hide nav
+  const nav = document.querySelector('.topnav');
+  if(nav) nav.style.display='none';
+  const botnav = document.querySelector('.botnav');
+  if(botnav) botnav.style.display='none';
+}
+
 function doLogout(){
   if(!confirm('Đăng xuất?')) return;
   localStorage.removeItem('sp2_players');
@@ -2964,7 +2982,8 @@ function init(){
     // CSS rule ensures loginScreen stays hidden when no 'visible' class
     applyRoleUI('guest');
   } else {
-    showLoginScreen();
+    // No club URL - show landing page (don't load any club data)
+    showLandingPage();
   }
 }
 init();
@@ -3032,9 +3051,32 @@ init();
 
 
 
+<!-- LANDING PAGE -->
+<div id="landingPage" style="display:none;position:fixed;inset:0;z-index:100;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center">
+  <img src="banner.png" alt="Sollake Pick" style="width:100%;max-width:500px;height:280px;object-fit:cover;border-radius:16px;margin-bottom:2rem;opacity:.9"/>
+  <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px;margin-bottom:.5rem">Sollake <span style="color:var(--text)">Pick</span></div>
+  <div style="font-size:.95rem;color:var(--muted);margin-bottom:2rem;max-width:360px;line-height:1.6">Hệ thống quản lý câu lạc bộ Pickleball.<br/>Nhập mã CLB để truy cập.</div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-bottom:1.5rem">
+    <div style="display:flex;gap:.5rem;width:100%;max-width:340px">
+      <input id="clubCodeInput" class="finput" placeholder="Nhập mã CLB (VD: sollake_pick)"
+        style="flex:1" onkeydown="if(event.key==='Enter')goToClub()"/>
+      <button class="btn btn-lime" onclick="goToClub()">Vào →</button>
+    </div>
+  </div>
+  <div id="clubCodeErr" style="color:var(--danger);font-size:.8rem;display:none;margin-bottom:.75rem"></div>
+  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('loginScreen').classList.add('open')" style="margin-top:.5rem">
+    🔑 Đăng nhập tài khoản
+  </button>
+</div>
+
 <!-- LOGIN SCREEN -->
 <div class="modal-bg" id="loginScreen">
   <div class="modal" style="max-width:380px">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
+      <button onclick="document.getElementById('loginScreen').classList.remove('open')"
+        style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;line-height:1;padding:.2rem .4rem"
+        title="Đóng">✕</button>
+    </div>
     <div style="text-align:center;margin-bottom:1.5rem">
       <div style="font-size:1.5rem;font-weight:800;color:var(--lime)">Sollake <span style="color:var(--text)">Pick</span></div>
       <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Đăng nhập để tiếp tục</div>
