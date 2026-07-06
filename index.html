@@ -219,6 +219,7 @@ body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);min
 .bot-tab.add-btn .bicon{background:var(--lime);color:var(--navy);border-radius:50%;width:38px;height:38px;font-size:1.4rem;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(181,240,51,.35)}
 
 /* PAGES */
+#landingPage{display:block}
 .page{display:none;max-width:1100px;margin:0 auto;padding:1.25rem 1rem}
 .page.active{display:block}
 
@@ -846,9 +847,20 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </div>
 
 <script>
-// Read ?club= from URL (also set by Firebase module via window._urlClubId)
+// Read ?club= from URL
 const _urlClubId = new URLSearchParams(window.location.search).get('club')||'';
 let clubPath = _urlClubId ? 'clubs/'+_urlClubId : '';
+// Hide landing page immediately if we have a club URL
+if(_urlClubId){
+  document.addEventListener('DOMContentLoaded', function(){
+    const lp = document.getElementById('landingPage');
+    if(lp){ lp.style.display='none'; lp.classList.remove('active'); }
+    const bn = document.querySelector('.botnav');
+    if(bn) bn.style.display='';
+    const nt = document.querySelector('.nav-tabs');
+    if(nt) nt.style.visibility='';
+  });
+}
 
 const COLORS=['c0','c1','c2','c3','c4','c5','c6','c7'];
 let showHidden=false,pendingFineId=null;
@@ -2999,8 +3011,18 @@ function init(){
     // CSS rule ensures loginScreen stays hidden when no 'visible' class
     applyRoleUI('guest');
   } else {
-    // No club URL - show landing page (don't load any club data)
-    showLandingPage();
+    // No club URL - landing page shown via CSS by default
+    // Just make sure nav is hidden
+    const logBtn = document.querySelector('.btn-log');
+    if(logBtn) logBtn.style.display='none';
+    const dot = document.getElementById('syncDot');
+    if(dot) dot.style.display='none';
+    const navTabs = document.querySelector('.nav-tabs');
+    if(navTabs) navTabs.style.visibility='hidden';
+    const botNav = document.querySelector('.botnav');
+    if(botNav) botNav.style.display='none';
+    const hero = document.querySelector('.hero-banner');
+    if(hero) hero.style.display='none';
   }
 }
 init();
