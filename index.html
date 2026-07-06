@@ -27,10 +27,10 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;mi
 .header-right{display:flex;align-items:center;gap:.75rem}
 
 /* HERO */
-.hero{position:relative;width:100%;padding-top:56px}
+.hero{position:relative;width:100%;padding-top:82px}
 .hero img{width:100%;height:70vh;min-height:400px;max-height:700px;object-fit:cover;object-position:center top;display:block}
 .hero-overlay{
-  position:absolute;inset:0;padding-top:56px;
+  position:absolute;inset:0;padding-top:82px;
   background:linear-gradient(to bottom,rgba(11,25,41,0) 40%,rgba(11,25,41,.95) 100%);
   display:flex;align-items:flex-end;justify-content:center;padding-bottom:3rem;
 }
@@ -97,8 +97,10 @@ footer{
 </head>
 <body>
 
+<div style="text-align:center;font-size:.72rem;color:var(--muted);padding:.4rem .5rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);position:fixed;top:0;left:0;right:0;z-index:101">Hệ thống quản lý câu lạc bộ Pickleball</div>
+
 <!-- HEADER -->
-<div class="header">
+<div class="header" style="top:26px">
   <a class="logo" href="/">Sollake <span>Pick</span></a>
   <div class="header-right">
     <a href="/admin" class="btn btn-ghost" style="font-size:.78rem">⚙️ Admin</a>
@@ -110,15 +112,6 @@ footer{
   <img src="banner.png" alt="Sollake Pick"/>
   <div class="hero-overlay">
     <div class="hero-content">
-      <h1 class="hero-title"><span class="lime">Sollake</span> Pick</h1>
-      <p class="hero-sub">Hệ thống quản lý câu lạc bộ Pickleball.<br/>Nhập mã CLB để xem bảng xếp hạng và lịch sử trận.</p>
-      <div class="search-box">
-        <input id="clubInput" type="text" placeholder="Nhập mã CLB (VD: sollake_pick)"
-          autocomplete="off" autocapitalize="none" spellcheck="false"
-          onkeydown="if(event.key==='Enter')goToClub()"/>
-        <button class="btn-enter" onclick="goToClub()">Vào →</button>
-      </div>
-      <div class="err" id="errMsg"></div>
     </div>
   </div>
 </div>
@@ -161,27 +154,5 @@ footer{
   © 2026 Sollake Pick · Hệ thống quản lý CLB Pickleball
 </footer>
 
-<script>
-function goToClub(){
-  const code = (document.getElementById('clubInput').value||'').trim().toLowerCase().replace(/\s+/g,'_');
-  const err = document.getElementById('errMsg');
-  if(!code){ err.textContent='Vui lòng nhập mã CLB.'; return; }
-  err.textContent='';
-  // Check subdomain support or fallback to query param
-  const hostname = location.hostname;
-  const isLocalOrApex = hostname === 'localhost' || hostname.split('.').length <= 2;
-  if(isLocalOrApex){
-    window.location.href = '/app?club=' + encodeURIComponent(code);
-  } else {
-    // On subdomain-capable host: redirect to subdomain
-    const parts = hostname.split('.');
-    const baseDomain = parts.slice(-2).join('.');
-    window.location.href = location.protocol + '//' + code + '.' + baseDomain + '/app';
-  }
-}
-document.getElementById('clubInput').addEventListener('keydown', function(e){
-  if(e.key==='Enter') goToClub();
-});
-</script>
 </body>
 </html>
