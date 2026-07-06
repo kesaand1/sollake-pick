@@ -115,7 +115,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-function applyRoleUI(role){
+window.applyRoleUI = function applyRoleUI(role){
   if(role === 'guest'){
     const badge=document.getElementById('guestBadge');
     if(badge) badge.style.display='flex';
@@ -1009,7 +1009,7 @@ function openModal(id){
   // Block write modals for guest
   const writeModals=['matchModal','playerModal','finModal','fineModal','newTournamentModal'];
   if(window._userRole==='guest' && writeModals.includes(id)){
-    requireLogin(function(){ openModal(id); });
+    if(window.requireLogin) window.requireLogin(function(){ openModal(id); });
     return;
   }
   document.getElementById(id).classList.add('open');
@@ -2847,7 +2847,7 @@ function hideLoginScreen(){
 }
 
 // Called when guest tries to do a write action
-function requireLogin(callback){
+window.requireLogin = function requireLogin(callback){
   if(window._userRole && window._userRole !== 'guest'){
     if(callback) callback();
     return;
@@ -2931,7 +2931,7 @@ document.addEventListener('click', function(e){
   if(isWrite){
     e.preventDefault();
     e.stopImmediatePropagation();
-    requireLogin(null);
+    if(window.requireLogin) window.requireLogin(null);
   }
 }, true); // capture phase - fires before onclick
 
