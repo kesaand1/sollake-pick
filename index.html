@@ -7,7 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAF4GMR-pn-7MXbwtKIF9u-hp4azUqbF8E",
@@ -20,54 +21,122 @@ const firebaseConfig = {
   measurementId: "G-MX5V4L3W3L"
 };
 
-const app = initializeApp(firebaseConfig);
-const db  = getDatabase(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getDatabase(app);
+const auth = getAuth(app);
 
-// Expose _fbSet for push operations
-window._fbSet = (path, data) => set(ref(db, path), data);
+let clubPath = '';
+let unsubscribers = [];
+let currentRole = '';
 
-// Subscribe directly in module (avoids async timing issue)
 function dot(col){ const d=document.getElementById('syncDot'); if(d) d.style.background=col; }
 
-onValue(ref(db,'players'), snap=>{
-  const val=snap.val();
-  if(!val||!Array.isArray(val)) return;
-  players=val;
-  try{localStorage.setItem('sp2_players',JSON.stringify(val));}catch{}
-  nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
-  if(typeof buildRankDropdown==='function') buildRankDropdown();
-  else if(typeof renderPlayers==='function') renderPlayers();
-  dot('var(--success)'); setTimeout(()=>dot('var(--muted)'),2500);
+// ── Expose globals ──
+window._fbSet = (path, data) => set(ref(db, path), data);
+window._fbAuth = auth;
+window._fbSignIn = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
+window._fbSignOut = () => signOut(auth);
+
+// ── Auth state listener ──
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    showLoginScreen();
+    return;
+  }
+  // Load user role
+  const roleSnap = await get(ref(db, 'user_roles/' + user.uid));
+  const roleData = roleSnap.val();
+
+  if (!roleData) {
+    // Check if super admin
+    const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
+    if (saSnap.val() === user.uid) {
+      // Super admin → redirect to admin panel
+      window.location.href = 'admin.html';
+      return;
+    }
+    alert('Tài khoản chưa được phân quyền. Liên hệ quản trị viên.');
+    signOut(auth);
+    return;
+  }
+
+  currentRole = roleData.role;
+  clubPath = 'clubs/' + roleData.clubId;
+  window._clubPath = clubPath;
+  window._userRole = currentRole;
+  window._clubId   = roleData.clubId;
+  window._clubName = roleData.clubName || roleData.clubId;
+
+  // Apply role-based UI
+  applyRoleUI(currentRole);
+  hideLoginScreen();
+  subscribeClubData();
 });
 
-onValue(ref(db,'matches'), snap=>{
-  const val=snap.val();
-  if(!val||!Array.isArray(val)) return;
-  matches=val;
-  try{localStorage.setItem('sp2_matches',JSON.stringify(val));}catch{}
-  nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
-  if(typeof buildRankDropdown==='function') buildRankDropdown();
-  if(typeof renderMatches==='function') renderMatches();
-});
+function applyRoleUI(role){
+  // Members cannot access finance, players management
+  if(role === 'member'){
+    document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display='none');
+  }
+}
 
-onValue(ref(db,'finances'), snap=>{
-  const val=snap.val();
-  if(!val||!Array.isArray(val)) return;
-  finances=val;
-  try{localStorage.setItem('sp2_finances',JSON.stringify(val));}catch{}
-  nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
-  if(typeof renderFinance==='function') renderFinance();
-});
+function subscribeClubData(){
+  // Unsubscribe previous
+  unsubscribers.forEach(fn => fn && fn());
+  unsubscribers = [];
 
-onValue(ref(db,'fines'), snap=>{
-  const val=snap.val();
-  if(!val||!Array.isArray(val)) return;
-  fines=val;
-  try{localStorage.setItem('sp2_fines',JSON.stringify(val));}catch{}
-  nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
-  if(typeof renderFines==='function') renderFines();
-  if(typeof renderDebt==='function') renderDebt();
-});
+  const paths = ['players','matches','finances','fines','tournaments'];
+  const handlers = {
+    players: (val) => {
+      if(!val||!Array.isArray(val)) return;
+      players=val;
+      try{localStorage.setItem('sp2_players',JSON.stringify(val));}catch{}
+      nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
+      if(typeof buildRankDropdown==='function') buildRankDropdown();
+      dot('var(--success)'); setTimeout(()=>dot('var(--muted)'),2500);
+    },
+    matches: (val) => {
+      if(!val||!Array.isArray(val)) return;
+      matches=val;
+      try{localStorage.setItem('sp2_matches',JSON.stringify(val));}catch{}
+      nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
+      if(typeof buildRankDropdown==='function') buildRankDropdown();
+      if(typeof renderMatches==='function') renderMatches();
+    },
+    finances: (val) => {
+      if(!val||!Array.isArray(val)) return;
+      finances=val;
+      try{localStorage.setItem('sp2_finances',JSON.stringify(val));}catch{}
+      nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
+      if(typeof renderFinance==='function') renderFinance();
+    },
+    fines: (val) => {
+      if(!val||!Array.isArray(val)) return;
+      fines=val;
+      try{localStorage.setItem('sp2_fines',JSON.stringify(val));}catch{}
+      nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
+      if(typeof renderFines==='function') renderFines();
+      if(typeof renderDebt==='function') renderDebt();
+    },
+    tournaments: (val) => {
+      if(!val||!Array.isArray(val)) return;
+      tournaments=val;
+      try{localStorage.setItem('sp_tournaments',JSON.stringify(val));}catch{}
+      nT=tournaments.length?Math.max(...tournaments.map(t=>t.id))+1:1;
+      if(typeof renderTournamentList==='function') renderTournamentList();
+    },
+  };
+
+  paths.forEach(path => {
+    const unsub = onValue(ref(db, clubPath+'/'+path), snap => {
+      handlers[path](snap.val());
+    });
+    unsubscribers.push(unsub);
+  });
+}
+
+// ── Club-aware set ──
+window._clubSet = (path, data) => set(ref(db, clubPath+'/'+path), data);
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
@@ -377,8 +446,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="tab-btn" onclick="showPage('tournament')">🏅 Giải đấu</button>
   </div>
   <div style="display:flex;align-items:center;gap:.6rem">
+    <span id="clubNameHeader" style="font-size:.75rem;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <span id="syncDot" onclick="manualSync()" title="Nhấn để đồng bộ lên Firebase" style="width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s;cursor:pointer"></span>
     <button class="btn-log" onclick="openModal('matchModal')">+ Ghi trận</button>
+    <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:.2rem .4rem" title="Đăng xuất">⎋</button>
   </div>
 </nav>
 
@@ -406,7 +477,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="bot-tab" onclick="showPage('tournament');botActive(this)">
       <span class="bicon">🏅</span><span class="blabel">Giải đấu</span>
     </button>
-    <button class="bot-tab" onclick="showPage('finance');botActive(this)">
+    <button class="bot-tab" onclick="showPage('finance');botActive(this)" data-admin-only>
       <span class="bicon">💰</span><span class="blabel">Thu chi</span>
     </button>
   </div>
@@ -741,15 +812,16 @@ const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 
 // Push all 4 collections to Firebase
 function pushToFirebase(){
-  if(!window._fbSet) return;
+  const fn=window._clubSet||window._fbSet;
+  if(!fn) return;
   const dot=document.getElementById('syncDot');
   if(dot) dot.style.background='var(--warn)';
   Promise.all([
-    window._fbSet('players',  players),
-    window._fbSet('matches',  matches),
-    window._fbSet('finances', finances),
-    window._fbSet('fines',    fines),
-    window._fbSet('tournaments', tournaments),
+    fn('players',  players),
+    fn('matches',  matches),
+    fn('finances', finances),
+    fn('fines',    fines),
+    fn('tournaments', tournaments),
   ]).then(()=>{
     if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',2000);}
   }).catch(()=>{if(dot)dot.style.background='var(--danger)';});
@@ -2634,6 +2706,54 @@ function deleteTournament(id){
   notify('🗑 Đã xóa giải: '+t.name);
 }
 
+
+// ── AUTH UI ──
+function showLoginScreen(){
+  const s=document.getElementById('loginScreen');
+  if(s){s.style.display='flex';}
+}
+function hideLoginScreen(){
+  const s=document.getElementById('loginScreen');
+  if(s){s.style.display='none';}
+  // Show club name in header
+  const h=document.getElementById('clubNameHeader');
+  if(h&&window._clubName) h.textContent=window._clubName;
+}
+function togglePassVis(){
+  const inp=document.getElementById('loginPass');
+  const btn=document.getElementById('passVisBtn');
+  if(!inp) return;
+  inp.type=inp.type==='password'?'text':'password';
+  if(btn) btn.textContent=inp.type==='password'?'👁':'🙈';
+}
+async function doLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  const errEl=document.getElementById('loginErr');
+  const btn=document.getElementById('loginBtn');
+  if(!email||!pass){errEl.textContent='Vui lòng nhập email và mật khẩu.';errEl.style.display='';return;}
+  btn.disabled=true; btn.textContent='Đang đăng nhập...';
+  try{
+    await window._fbSignIn(email,pass);
+  }catch(e){
+    errEl.textContent=e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'
+      ?'Email hoặc mật khẩu không đúng.'
+      :e.code==='auth/user-not-found'?'Tài khoản không tồn tại.'
+      :'Lỗi: '+e.message;
+    errEl.style.display='';
+    btn.disabled=false; btn.textContent='Đăng nhập';
+  }
+}
+function doLogout(){
+  if(!confirm('Đăng xuất?')) return;
+  localStorage.removeItem('sp2_players');
+  localStorage.removeItem('sp2_matches');
+  localStorage.removeItem('sp2_finances');
+  localStorage.removeItem('sp2_fines');
+  localStorage.removeItem('sp_tournaments');
+  if(window._fbSignOut) window._fbSignOut();
+}
+
 function init(){
   document.getElementById('rankTo').value=today();
   document.getElementById('matchTo').value=today();
@@ -2711,5 +2831,37 @@ init();
 </div>
 
 
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1.5rem">
+  <div style="width:100%;max-width:380px">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px">Sollake <span style="color:var(--text)">Pick</span></div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Đăng nhập để tiếp tục</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem">
+      <div class="fgroup">
+        <label>Email</label>
+        <input class="finput" type="email" id="loginEmail" placeholder="email@example.com" autocomplete="email"/>
+      </div>
+      <div class="fgroup">
+        <label>Mật khẩu</label>
+        <div style="position:relative">
+          <input class="finput" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"
+            style="padding-right:2.5rem"
+            onkeydown="if(event.key==='Enter')doLogin()"/>
+          <button onclick="togglePassVis()" style="position:absolute;right:.6rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem" id="passVisBtn">👁</button>
+        </div>
+      </div>
+      <div id="loginErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.75rem;display:none"></div>
+      <button class="btn btn-lime" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center;padding:.7rem">
+        Đăng nhập
+      </button>
+    </div>
+    <div style="text-align:center;margin-top:1rem;font-size:.75rem;color:var(--muted)">
+      Chưa có tài khoản? Liên hệ quản trị viên CLB.
+    </div>
+  </div>
+</div>
 </body>
 </html>
