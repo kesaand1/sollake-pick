@@ -2763,7 +2763,7 @@ function deleteTournament(id){
 function showLoginScreen(){
   if(_urlClubId) return;
   const s=document.getElementById('loginScreen');
-  if(s) s.classList.add('open');
+  if(s){ s.style.cssText='display:flex!important;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;align-items:center;justify-content:center;padding:1rem'; }
 }
 
 function showLoginScreenWithGuest(){
@@ -2791,7 +2791,7 @@ function subscribeClubDataReadOnly(){
 }
 function hideLoginScreen(){
   const s=document.getElementById('loginScreen');
-  if(s) s.classList.remove('open');
+  if(s){ s.style.cssText=''; s.style.display='none'; }
   const h=document.getElementById('clubNameHeader');
   const name=window._clubName||'';
   if(h&&name) h.textContent=name;
@@ -2869,12 +2869,12 @@ window.applyRoleUI = function applyRoleUI(role){
     const logBtn=document.querySelector('.btn-log');
     if(logBtn){
       logBtn.textContent='🔑 Đăng nhập';
-      logBtn.onclick=function(){ const s=document.getElementById('loginScreen'); if(s) s.classList.add('open'); };
+      logBtn.onclick=function(){ const s=document.getElementById('loginScreen'); if(s){ s.style.cssText='display:flex!important;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;align-items:center;justify-content:center;padding:1rem'; } };
     }
     // Hide sync dot and logout
     // Keep syncDot visible but clicking shows login for guest
     const dot=document.getElementById('syncDot');
-    if(dot){ dot.style.display=''; dot.onclick=function(){ const s=document.getElementById('loginScreen'); if(s) s.classList.add('open'); }; dot.title='Đăng nhập để đồng bộ'; }
+    if(dot){ dot.style.display=''; dot.onclick=function(){ const s=document.getElementById('loginScreen'); if(s){ s.style.cssText='display:flex!important;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;align-items:center;justify-content:center;padding:1rem'; } }; dot.title='Đăng nhập để đồng bộ'; }
     const logoutBtn=document.getElementById('logoutBtn');
     if(logoutBtn) logoutBtn.style.display='none';
     // Hide admin-only elements
@@ -2919,7 +2919,7 @@ function requireLogin(callback){
   }
   // Show login modal
   const s=document.getElementById('loginScreen');
-  if(s) s.classList.add('open');
+  if(s){ s.style.cssText='display:flex!important;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9999;align-items:center;justify-content:center;padding:1rem'; }
   window._pendingAction = callback;
 }
 
