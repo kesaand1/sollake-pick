@@ -37,35 +37,56 @@ window._fbAuth = auth;
 window._fbSignIn = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
 window._fbSignOut = () => signOut(auth);
 
+// ── Read ?club= from URL ──
+const _urlClubId = new URLSearchParams(window.location.search).get('club')||'';
+
 // ── Auth state listener ──
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     showLoginScreen();
     return;
   }
+
+  // Check if super admin
+  const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
+  if (saSnap.val() === user.uid && !_urlClubId) {
+    // Super admin without ?club= → redirect to admin panel
+    window.location.href = 'admin.html';
+    return;
+  }
+
   // Load user role
   const roleSnap = await get(ref(db, 'user_roles/' + user.uid));
   const roleData = roleSnap.val();
 
   if (!roleData) {
-    // Check if super admin
-    const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
-    if (saSnap.val() === user.uid) {
-      // Super admin → redirect to admin panel
-      window.location.href = 'admin.html';
-      return;
-    }
     alert('Tài khoản chưa được phân quyền. Liên hệ quản trị viên.');
     signOut(auth);
     return;
   }
 
-  currentRole = roleData.role;
-  clubPath = 'clubs/' + roleData.clubId;
+  // Determine which club to load:
+  // 1. ?club= in URL takes priority (for super admin accessing specific club)
+  // 2. Otherwise use clubId from user_roles
+  const targetClubId = _urlClubId || roleData.clubId;
+
+  // Security: non-super-admin can only access their own club
+  if(saSnap.val() !== user.uid && targetClubId !== roleData.clubId){
+    alert('Bạn không có quyền truy cập CLB này.');
+    signOut(auth);
+    return;
+  }
+
+  currentRole = (saSnap.val() === user.uid) ? 'admin' : roleData.role;
+  clubPath = 'clubs/' + targetClubId;
   window._clubPath = clubPath;
   window._userRole = currentRole;
-  window._clubId   = roleData.clubId;
-  window._clubName = roleData.clubName || roleData.clubId;
+  window._clubId   = targetClubId;
+
+  // Load actual club name from clubs/{id}/info
+  const clubInfoSnap = await get(ref(db, 'clubs/' + targetClubId + '/info'));
+  const clubInfo = clubInfoSnap.val();
+  window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
 
   // Apply role-based UI
   applyRoleUI(currentRole);
@@ -2715,9 +2736,11 @@ function showLoginScreen(){
 function hideLoginScreen(){
   const s=document.getElementById('loginScreen');
   if(s){s.style.display='none';}
-  // Show club name in header
+  // Show club name in header + page title
   const h=document.getElementById('clubNameHeader');
-  if(h&&window._clubName) h.textContent=window._clubName;
+  const name=window._clubName||'';
+  if(h&&name) h.textContent=name;
+  if(name) document.title = name + ' — Sollake Pick';
 }
 function togglePassVis(){
   const inp=document.getElementById('loginPass');
