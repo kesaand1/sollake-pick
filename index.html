@@ -2750,17 +2750,43 @@ function togglePassVis(){
   if(btn) btn.textContent=inp.type==='password'?'👁':'🙈';
 }
 async function doLogin(){
-  const email=document.getElementById('loginEmail').value.trim();
+  let input=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPass').value;
   const errEl=document.getElementById('loginErr');
   const btn=document.getElementById('loginBtn');
-  if(!email||!pass){errEl.textContent='Vui lòng nhập email và mật khẩu.';errEl.style.display='';return;}
+  if(!input||!pass){errEl.textContent='Vui lòng nhập tên đăng nhập và mật khẩu.';errEl.style.display='';return;}
   btn.disabled=true; btn.textContent='Đang đăng nhập...';
   try{
-    await window._fbSignIn(email,pass);
+    // If not email format → look up username → get email
+    let email = input;
+    if(!input.includes('@')){
+      const username = input.toLowerCase().replace(/[^a-z0-9._]/g,'');
+      // Lookup in usernames node
+      const { getDatabase, ref, get } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+      const db2 = getDatabase();
+      const snap = await get(ref(db2,'usernames/'+username));
+      const uid  = snap.val();
+      if(!uid){
+        errEl.textContent='Tên đăng nhập không tồn tại.';
+        errEl.style.display='';
+        btn.disabled=false; btn.textContent='Đăng nhập';
+        return;
+      }
+      // Get email from user_roles
+      const roleSnap = await get(ref(db2,'user_roles/'+uid));
+      const roleData = roleSnap.val();
+      if(!roleData||!roleData.email){
+        errEl.textContent='Tài khoản chưa được cấu hình. Liên hệ quản trị viên.';
+        errEl.style.display='';
+        btn.disabled=false; btn.textContent='Đăng nhập';
+        return;
+      }
+      email = roleData.email;
+    }
+    await window._fbSignIn(email, pass);
   }catch(e){
     errEl.textContent=e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'
-      ?'Email hoặc mật khẩu không đúng.'
+      ?'Tên đăng nhập/email hoặc mật khẩu không đúng.'
       :e.code==='auth/user-not-found'?'Tài khoản không tồn tại.'
       :'Lỗi: '+e.message;
     errEl.style.display='';
@@ -2864,8 +2890,8 @@ init();
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem">
       <div class="fgroup">
-        <label>Email</label>
-        <input class="finput" type="email" id="loginEmail" placeholder="email@example.com" autocomplete="email"/>
+        <label>Email hoặc tên đăng nhập</label>
+        <input class="finput" type="text" id="loginEmail" placeholder="email@example.com hoặc username" autocomplete="username" autocapitalize="none"/>
       </div>
       <div class="fgroup">
         <label>Mật khẩu</label>
