@@ -2908,6 +2908,9 @@ function init(){
     clubPath = 'clubs/'+_urlClubId;
     window._clubPath = clubPath;
     window._userRole = 'guest';
+    // Hide login screen immediately - show data right away
+    const ls = document.getElementById('loginScreen');
+    if(ls) ls.style.display = 'none';
     applyRoleUI('guest');
   } else {
     showLoginScreen();
@@ -2979,7 +2982,7 @@ init();
 
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1.5rem">
+<div id="loginScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;padding:1.5rem">
   <div style="width:100%;max-width:380px">
     <div style="text-align:center;margin-bottom:2rem">
       <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px">Sollake <span style="color:var(--text)">Pick</span></div>
