@@ -56,10 +56,10 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     // If ?club= in URL, show guest mode option
     if (_urlClubId) {
-      showLoginScreenWithGuest();
-    } else {
-      showLoginScreen();
+      window._userRole='guest';
+      if(window.applyRoleUI) window.applyRoleUI('guest');
     }
+    // No action needed - landing page already showing
     return;
   }
 
@@ -3216,7 +3216,7 @@ onAuthStateChanged(auth, async (user) => {
       window._userRole='guest';
       if(typeof applyRoleUI==='function') window.applyRoleUI && window.applyRoleUI('guest');
     } else {
-      if(typeof showLoginScreen==='function') showLoginScreen();
+      // No club URL - landing page already showing, no login popup
     }
     return;
   }
