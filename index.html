@@ -3038,16 +3038,9 @@ function init(){
   } else {
     // No club URL - reset to empty defaults, don't load any club data
     players=[]; matches=[]; finances=[]; fines=[]; tournaments=[];
-    // Clear localStorage cache
+    // Clear localStorage cache so old club data doesn't show
     try{['sp2_players','sp2_matches','sp2_finances','sp2_fines','sp_tournaments']
       .forEach(k=>localStorage.removeItem(k));}catch{}
-    // Hide ALL pages so only landingPage shows
-    document.querySelectorAll('.page').forEach(p=>{
-      p.classList.remove('active');
-      p.style.display='none';
-    });
-    const lp=document.getElementById('landingPage');
-    if(lp){lp.style.display='block';lp.style.removeProperty('display');lp.classList.add('active');}
     const logBtn = document.querySelector('.btn-log');
     if(logBtn) logBtn.style.display='none';
     const dot = document.getElementById('syncDot');
@@ -3244,7 +3237,7 @@ function subscribePublic(clubId){
 if(_urlClubId){
   // Hide landing page, show hero banner for club pages
   const lp=document.getElementById('landingPage');
-  if(lp){lp.classList.remove('active');lp.style.display='none';}
+  if(lp) lp.classList.remove('active');
   const hb=document.getElementById('heroBanner');
   if(hb) hb.style.display='';
   get(ref(db,'clubs/'+_urlClubId+'/info')).then(snap=>{
