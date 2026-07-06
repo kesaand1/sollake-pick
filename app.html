@@ -30,6 +30,25 @@ let currentRole = '';
 
 function dot(col){ const d=document.getElementById('syncDot'); if(d) d.style.background=col; }
 
+// ── Club banner: home page always uses banner.png (static, in landingPage).
+// Club pages (?club=xxx) show heroBanner: uses clubInfo.banner if admin uploaded one,
+// otherwise falls back to a known default per club (sollake_pick → club.jpg), else banner.png.
+function applyClubBanner(clubId, info){
+  const hero = document.getElementById('heroBanner');
+  if(!hero) return;
+  hero.style.display='';
+  const img = hero.querySelector('img');
+  if(!img) return;
+  if(info && info.banner){
+    img.src = info.banner;
+  } else if(clubId === 'sollake_pick' || clubId === 'sollake'){
+    img.src = 'club.jpg';
+  } else {
+    img.src = 'banner.png';
+  }
+}
+window.applyClubBanner = applyClubBanner;
+
 // ── Expose globals ──
 window._fbSet = (path, data) => set(ref(db, path), data);
 window._fbGet = async (path) => { const s = await get(ref(db, path)); return s.val(); };
@@ -103,6 +122,7 @@ onAuthStateChanged(auth, async (user) => {
     const clubInfoSnap = await get(ref(db, 'clubs/' + targetClubId + '/info'));
     const clubInfo = clubInfoSnap.val();
     window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
+    applyClubBanner(targetClubId, clubInfo);
 
     applyRoleUI(currentRole);
     hideLoginScreen();
@@ -2827,6 +2847,7 @@ async function enterGuestMode(clubId){
   if(window._fbGet){
     const clubInfoSnap=await window._fbGet('clubs/'+clubId+'/info');
     window._clubName=(clubInfoSnap&&clubInfoSnap.name)||clubId;
+    if(window.applyClubBanner) window.applyClubBanner(clubId, clubInfoSnap);
   }
   if(typeof applyRoleUI==='function') applyRoleUI('guest');
   if(typeof hideLoginScreen==='function') hideLoginScreen();
@@ -2902,7 +2923,10 @@ async function doLogin(){
 function goToClub(){
   const code = (document.getElementById('clubCodeInput').value||'').trim().toLowerCase();
   if(!code){ document.getElementById('clubCodeErr').textContent='Vui lòng nhập mã CLB.'; document.getElementById('clubCodeErr').style.display=''; return; }
-  window.location.href = '?club='+code;
+  // Subdomain routing: sollake.11points.me, demo.11points.me, ...
+  const parts = location.hostname.split('.');
+  const baseDomain = parts.length>=3 ? parts.slice(1).join('.') : parts.join('.');
+  window.location.href = location.protocol + '//' + code + '.' + baseDomain + location.pathname;
 }
 
 function showLandingPage(){
@@ -3043,6 +3067,7 @@ function init(){
     window._userRole = 'guest';
     // CSS rule ensures loginScreen stays hidden when no 'visible' class
     applyRoleUI('guest');
+    if(window.applyClubBanner) window.applyClubBanner(_urlClubId, null);
   } else {
     // No club URL - reset to empty defaults, don't load any club data
     players=[]; matches=[]; finances=[]; fines=[]; tournaments=[];
