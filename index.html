@@ -354,8 +354,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .bold{font-weight:600}.small{font-size:.73rem}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Login screen - controlled by class */
-#loginScreen{display:none!important}
-#loginScreen.visible{display:flex!important}
 /* HERO BANNER */
 .hero-banner{
   width:100%;
@@ -2779,10 +2777,9 @@ function deleteTournament(id){
 
 // ── AUTH UI ──
 function showLoginScreen(){
-  // Never show login screen if viewing a club as guest
   if(_urlClubId) return;
   const s=document.getElementById('loginScreen');
-  if(s){s.classList.add('visible');}
+  if(s) s.classList.add('active');
 }
 
 function showLoginScreenWithGuest(){
@@ -2810,7 +2807,7 @@ function subscribeClubDataReadOnly(){
 }
 function hideLoginScreen(){
   const s=document.getElementById('loginScreen');
-  if(s){s.classList.remove('visible'); s.style.display='';}
+  if(s) s.classList.remove('active');
   const h=document.getElementById('clubNameHeader');
   const name=window._clubName||'';
   if(h&&name) h.textContent=name;
@@ -2828,7 +2825,7 @@ function requireLogin(callback){
   }
   // Show login modal
   const s=document.getElementById('loginScreen');
-  if(s){ s.classList.add('visible'); }
+  if(s) s.classList.add('active');
   window._pendingAction = callback;
 }
 function togglePassVis(){
@@ -2983,38 +2980,32 @@ init();
 
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;padding:1.5rem">
-  <div style="width:100%;max-width:380px">
-    <div style="text-align:center;margin-bottom:2rem">
-      <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px">Sollake <span style="color:var(--text)">Pick</span></div>
+<div class="modal-bg" id="loginScreen">
+  <div class="modal" style="max-width:380px">
+    <div style="text-align:center;margin-bottom:1.5rem">
+      <div style="font-size:1.5rem;font-weight:800;color:var(--lime)">Sollake <span style="color:var(--text)">Pick</span></div>
       <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Đăng nhập để tiếp tục</div>
     </div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem">
-      <div class="fgroup">
-        <label>Email hoặc tên đăng nhập</label>
-        <input class="finput" type="text" id="loginEmail" placeholder="email@example.com hoặc username" autocomplete="username" autocapitalize="none"/>
-      </div>
-      <div class="fgroup">
-        <label>Mật khẩu</label>
-        <div style="position:relative">
-          <input class="finput" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"
-            style="padding-right:2.5rem"
-            onkeydown="if(event.key==='Enter')doLogin()"/>
-          <button onclick="togglePassVis()" style="position:absolute;right:.6rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem" id="passVisBtn">👁</button>
-        </div>
-      </div>
-      <div id="loginErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.75rem;display:none"></div>
-      <button class="btn btn-lime" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center;padding:.7rem">
-        Đăng nhập
-      </button>
+    <div class="fgroup">
+      <label>Email hoặc tên đăng nhập</label>
+      <input class="finput" type="text" id="loginEmail" placeholder="email@example.com hoặc username" autocomplete="username" autocapitalize="none"/>
     </div>
+    <div class="fgroup">
+      <label>Mật khẩu</label>
+      <div style="position:relative">
+        <input class="finput" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"
+          style="padding-right:2.5rem"
+          onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button onclick="togglePassVis()" style="position:absolute;right:.6rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem" id="passVisBtn">👁</button>
+      </div>
+    </div>
+    <div id="loginErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.75rem;display:none"></div>
+    <button class="btn btn-lime" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center;padding:.7rem">
+      Đăng nhập
+    </button>
     <div style="text-align:center;margin-top:1rem;font-size:.75rem;color:var(--muted)">
       Chưa có tài khoản? Liên hệ quản trị viên CLB.
     </div>
-    <button id="guestLoginBtn" onclick="enterGuestMode(''+new URLSearchParams(location.search).get('club')+'')" 
-      style="display:none;width:100%;margin-top:.75rem;padding:.6rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--muted);border-radius:8px;font-size:.82rem;cursor:pointer">
-      👁 Vào xem không cần đăng nhập
-    </button>
   </div>
 </div>
 
