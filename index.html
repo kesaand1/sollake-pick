@@ -2781,9 +2781,7 @@ function showLoginScreen(){
 }
 
 function showLoginScreenWithGuest(){
-  const s=document.getElementById('loginScreen');
-  if(s){s.style.display='flex';}
-  // Show guest option
+  // Don't auto-show login screen - user can click login button if needed
   const g=document.getElementById('guestLoginBtn');
   if(g) g.style.display='block';
 }
