@@ -2776,6 +2776,9 @@ function deleteTournament(id){
 
 // ── AUTH UI ──
 function showLoginScreen(){
+  // Never show login screen if viewing a club as guest
+  if(_urlClubId && window._userRole === 'guest') return;
+  if(_urlClubId && !window._userRole) return;
   const s=document.getElementById('loginScreen');
   if(s){s.style.display='flex';}
 }
