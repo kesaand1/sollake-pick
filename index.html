@@ -117,26 +117,49 @@ onAuthStateChanged(auth, async (user) => {
 
 function applyRoleUI(role){
   if(role === 'guest'){
-    // Guest: show badge, intercept write buttons
     const badge=document.getElementById('guestBadge');
     if(badge) badge.style.display='flex';
-    // Change write buttons to trigger login
+    // Ghi trận button → show login
     const logBtn=document.querySelector('.btn-log');
     if(logBtn){
       logBtn.textContent='🔑 Đăng nhập';
-      logBtn.onclick=()=>requireLogin(null);
+      logBtn.onclick=function(){ requireLogin(null); };
     }
+    // Hide sync dot and logout
     const dot=document.getElementById('syncDot');
     if(dot) dot.style.display='none';
     const logoutBtn=document.getElementById('logoutBtn');
     if(logoutBtn) logoutBtn.style.display='none';
+    // Hide admin-only elements
+    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
+    // Intercept all onclick on write buttons
+    document.querySelectorAll('button[onclick]').forEach(btn=>{
+      const oc = btn.getAttribute('onclick');
+      if(oc && (oc.includes('openModal') || oc.includes('delMatch') || oc.includes('addPlayer')
+        || oc.includes('logMatch') || oc.includes('saveAll') || oc.includes('addFine')
+        || oc.includes('confirmPay') || oc.includes('addFinance'))) {
+        const original = btn.onclick;
+        btn.onclick = function(e){
+          if(window._userRole === 'guest'){
+            e.preventDefault(); e.stopPropagation();
+            requireLogin(null);
+            return false;
+          }
+          if(original) original.call(this, e);
+        };
+      }
+    });
     return;
   }
-  // Authenticated: hide guest badge, restore buttons
+  // Authenticated
   const badge=document.getElementById('guestBadge');
   if(badge) badge.style.display='none';
   const logBtn=document.querySelector('.btn-log');
-  if(logBtn){ logBtn.textContent='+ Ghi trận'; logBtn.onclick=()=>openModal('matchModal'); }
+  if(logBtn){ logBtn.textContent='+ Ghi trận'; logBtn.onclick=function(){ openModal('matchModal'); }; }
+  const dot=document.getElementById('syncDot');
+  if(dot) dot.style.display='';
+  const logoutBtn=document.getElementById('logoutBtn');
+  if(logoutBtn) logoutBtn.style.display='';
   if(role === 'member'){
     document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
   }
@@ -983,6 +1006,12 @@ function botActive(el){document.querySelectorAll('.bot-tab').forEach(b=>b.classL
 
 // Modals
 function openModal(id){
+  // Block write modals for guest
+  const writeModals=['matchModal','playerModal','finModal','fineModal','newTournamentModal'];
+  if(window._userRole==='guest' && writeModals.includes(id)){
+    requireLogin(function(){ openModal(id); });
+    return;
+  }
   document.getElementById(id).classList.add('open');
   if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();document.getElementById('mTien').value='10000';if(document.getElementById('mTienCustom'))document.getElementById('mTienCustom').style.display='none';}
   if(id==='finModal'){popFinSel();document.getElementById('finDate').value=today();}
