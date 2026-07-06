@@ -115,55 +115,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-window.applyRoleUI = function applyRoleUI(role){
-  if(role === 'guest'){
-    const badge=document.getElementById('guestBadge');
-    if(badge) badge.style.display='flex';
-    // Ghi trận button → show login
-    const logBtn=document.querySelector('.btn-log');
-    if(logBtn){
-      logBtn.textContent='🔑 Đăng nhập';
-      logBtn.onclick=function(){ requireLogin(null); };
-    }
-    // Hide sync dot and logout
-    const dot=document.getElementById('syncDot');
-    if(dot) dot.style.display='none';
-    const logoutBtn=document.getElementById('logoutBtn');
-    if(logoutBtn) logoutBtn.style.display='none';
-    // Hide admin-only elements
-    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
-    // Intercept all onclick on write buttons
-    document.querySelectorAll('button[onclick]').forEach(btn=>{
-      const oc = btn.getAttribute('onclick');
-      if(oc && (oc.includes('openModal') || oc.includes('delMatch') || oc.includes('addPlayer')
-        || oc.includes('logMatch') || oc.includes('saveAll') || oc.includes('addFine')
-        || oc.includes('confirmPay') || oc.includes('addFinance'))) {
-        const original = btn.onclick;
-        btn.onclick = function(e){
-          if(window._userRole === 'guest'){
-            e.preventDefault(); e.stopPropagation();
-            requireLogin(null);
-            return false;
-          }
-          if(original) original.call(this, e);
-        };
-      }
-    });
-    return;
-  }
-  // Authenticated
-  const badge=document.getElementById('guestBadge');
-  if(badge) badge.style.display='none';
-  const logBtn=document.querySelector('.btn-log');
-  if(logBtn){ logBtn.textContent='+ Ghi trận'; logBtn.onclick=function(){ openModal('matchModal'); }; }
-  const dot=document.getElementById('syncDot');
-  if(dot) dot.style.display='';
-  const logoutBtn=document.getElementById('logoutBtn');
-  if(logoutBtn) logoutBtn.style.display='';
-  if(role === 'member'){
-    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
-  }
-}
+
 
 function subscribeClubData(){
   // Unsubscribe previous
@@ -2846,17 +2798,7 @@ function hideLoginScreen(){
   if(logoutBtn&&window._userRole!=='guest') logoutBtn.style.display='';
 }
 
-// Called when guest tries to do a write action
-window.requireLogin = function requireLogin(callback){
-  if(window._userRole && window._userRole !== 'guest'){
-    if(callback) callback();
-    return;
-  }
-  // Show login modal
-  const s=document.getElementById('loginScreen');
-  if(s) s.classList.add('active');
-  window._pendingAction = callback;
-}
+
 function togglePassVis(){
   const inp=document.getElementById('loginPass');
   const btn=document.getElementById('passVisBtn');
@@ -2917,6 +2859,69 @@ function doLogout(){
   localStorage.removeItem('sp_tournaments');
   if(window._fbSignOut) window._fbSignOut();
 }
+
+function applyRoleUI(role){
+  if(role === 'guest'){
+    const badge=document.getElementById('guestBadge');
+    if(badge) badge.style.display='flex';
+    // Ghi trận button → show login
+    const logBtn=document.querySelector('.btn-log');
+    if(logBtn){
+      logBtn.textContent='🔑 Đăng nhập';
+      logBtn.onclick=function(){ requireLogin(null); };
+    }
+    // Hide sync dot and logout
+    const dot=document.getElementById('syncDot');
+    if(dot) dot.style.display='none';
+    const logoutBtn=document.getElementById('logoutBtn');
+    if(logoutBtn) logoutBtn.style.display='none';
+    // Hide admin-only elements
+    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
+    // Intercept all onclick on write buttons
+    document.querySelectorAll('button[onclick]').forEach(btn=>{
+      const oc = btn.getAttribute('onclick');
+      if(oc && (oc.includes('openModal') || oc.includes('delMatch') || oc.includes('addPlayer')
+        || oc.includes('logMatch') || oc.includes('saveAll') || oc.includes('addFine')
+        || oc.includes('confirmPay') || oc.includes('addFinance'))) {
+        const original = btn.onclick;
+        btn.onclick = function(e){
+          if(window._userRole === 'guest'){
+            e.preventDefault(); e.stopPropagation();
+            requireLogin(null);
+            return false;
+          }
+          if(original) original.call(this, e);
+        };
+      }
+    });
+    return;
+  }
+  // Authenticated
+  const badge=document.getElementById('guestBadge');
+  if(badge) badge.style.display='none';
+  const logBtn=document.querySelector('.btn-log');
+  if(logBtn){ logBtn.textContent='+ Ghi trận'; logBtn.onclick=function(){ openModal('matchModal'); }; }
+  const dot=document.getElementById('syncDot');
+  if(dot) dot.style.display='';
+  const logoutBtn=document.getElementById('logoutBtn');
+  if(logoutBtn) logoutBtn.style.display='';
+  if(role === 'member'){
+    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
+  }
+}
+
+function requireLogin(callback){
+  if(window._userRole && window._userRole !== 'guest'){
+    if(callback) callback();
+    return;
+  }
+  // Show login modal
+  const s=document.getElementById('loginScreen');
+  if(s) s.classList.add('active');
+  window._pendingAction = callback;
+}
+
+
 
 // Global guest click interceptor
 document.addEventListener('click', function(e){
@@ -3210,4 +3215,11 @@ onAuthStateChanged(auth, async (user) => {
 window._clubSet = (path, data) => set(ref(db, clubPath+'/'+path));
 </script>
 </body>
-</html>
+</html
+
+// Called when guest tries to do a write action
+
+
+
+
+>
