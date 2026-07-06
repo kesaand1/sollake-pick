@@ -149,6 +149,12 @@ tr:last-child td{border-bottom:none}
       <input class="finput" id="newUserName" placeholder="Nguyễn Văn A"/>
     </div>
     <div class="fgroup">
+      <label>Tên đăng nhập (username)</label>
+      <input class="finput" id="newUserUsername" placeholder="VD: huy.nguyen (không dấu, không cách)" autocomplete="off"
+        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.25rem">Người dùng có thể đăng nhập bằng username này thay vì email</div>
+    </div>
+    <div class="fgroup">
       <label>CLB</label>
       <select class="finput" id="newUserClub"></select>
     </div>
@@ -268,19 +274,24 @@ function renderUsers(users){
   el.innerHTML = `<table>
     <thead><tr><th>Tên</th><th>CLB</th><th>Vai trò</th><th></th></tr></thead>
     <tbody>${entries.map(([uid,u])=>`<tr>
-      <td style="font-size:.8rem">${u.displayName||u.email||uid.slice(0,8)}</td>
+      <td style="font-size:.8rem">${u.displayName||u.email||uid.slice(0,8)}${u.username?'<br/><span style="font-size:.7rem;color:#B5F033">@'+u.username+'</span>':''}<br/><span style="font-size:.7rem;color:var(--muted)">${u.email||''}</span></td>
       <td style="font-size:.75rem;color:var(--muted)">${u.clubName||u.clubId||'—'}</td>
       <td><span class="pill ${u.role==='admin'?'p-green':'p-gray'}">${u.role==='admin'?'Admin':'Member'}</span></td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteUser('${uid}')">🗑</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" style="margin-right:.3rem" onclick="openEditUser('${uid}','${(u.displayName||'').replace(/'/g,'')}','${u.email||''}','${u.clubId||''}','${u.role||'member'}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteUser('${uid}')">🗑</button>
+      </td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
 
 function populateClubSelect(clubs){
-  const sel = document.getElementById('newUserClub');
-  if(!sel) return;
-  sel.innerHTML = '<option value="">— Chọn CLB —</option>'
-    + Object.entries(clubs).map(([id,c])=>`<option value="${id}">${c.info?.name||id}</option>`).join('');
+  const opts = '<option value="">— Chọn CLB —</option>'
+    + Object.entries(clubs).filter(([id,c])=>c&&typeof c==='object').map(([id,c])=>`<option value="${id}">${(c.info&&c.info.name)||id}</option>`).join('');
+  ['newUserClub','editUserClub'].forEach(selId=>{
+    const sel = document.getElementById(selId);
+    if(sel){ sel.innerHTML = opts; }
+  });
 }
 
 // ── Actions ──
@@ -344,18 +355,21 @@ window.doCreateUser = async () => {
     // Write user_roles using primary db (still authenticated as admin)
     const clubs    = window._clubs||{};
     const clubName = (clubs[clubId]&&clubs[clubId].info&&clubs[clubId].info.name)||clubId;
+    const uname = (document.getElementById('newUserUsername').value||'').trim().toLowerCase();
     await set(ref(db,'user_roles/'+cred.user.uid),{
       role, clubId, clubName,
       email, displayName: name||email,
+      username: uname||'',
       createdAt: new Date().toISOString().slice(0,10)
     });
+    if(uname){ await set(ref(db,'usernames/'+uname), cred.user.uid); }
 
     // Sign out secondary app
     await auth2.signOut();
 
     notify('✅ Đã tạo tài khoản: '+email);
     closeModal('createUserModal');
-    ['newUserEmail','newUserPass','newUserName'].forEach(id=>document.getElementById(id).value='');
+    ['newUserEmail','newUserPass','newUserName','newUserUsername'].forEach(id=>document.getElementById(id).value='');
     errEl.style.display='none';
   }catch(e){
     // If session was lost, re-login as admin
@@ -374,6 +388,97 @@ window.deleteClub = async (id) => {
   if(!confirm('Xóa CLB này? Tất cả dữ liệu CLB sẽ bị xóa vĩnh viễn!')) return;
   await set(ref(db,'clubs/'+id), null);
   notify('🗑 Đã xóa CLB: '+id);
+}
+
+window.sendResetEmail = async () => {
+  const email = document.getElementById('editUserEmailHidden').value;
+  if(!email){ notify('⚠️ Không tìm thấy email'); return; }
+  try {
+    const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    await sendPasswordResetEmail(auth, email);
+    notify('📧 Đã gửi email reset mật khẩu đến: '+email);
+  } catch(e) {
+    notify('❌ Lỗi gửi email: '+e.message);
+  }
+}
+
+window.openEditUser = (uid, name, email, clubId, role) => {
+  document.getElementById('editUserId').value = uid;
+  document.getElementById('editUserEmailHidden').value = email;
+  document.getElementById('editUserEmailShow').value = email;
+  document.getElementById('editUserDisplayName').value = name;
+  document.getElementById('editUserRole').value = role;
+  // Load username from user_roles
+  get(ref(db,'user_roles/'+uid)).then(s=>{
+    const d=s.val()||{};
+    document.getElementById('editUserUsername').value = d.username||'';
+  });
+  document.getElementById('editUserNewPass').value = '';
+  document.getElementById('editUserConfirmPass').value = '';
+  document.getElementById('editUserErr').style.display = 'none';
+  // Populate club select
+  populateClubSelect(window._clubs||{});
+  const clubSel = document.getElementById('editUserClub');
+  clubSel.value = clubId;
+  document.getElementById('editUserModal').style.display = 'flex';
+}
+
+window.doEditUser = async () => {
+  const uid      = document.getElementById('editUserId').value;
+  const name     = document.getElementById('editUserDisplayName').value.trim();
+  const clubId   = document.getElementById('editUserClub').value;
+  const role     = document.getElementById('editUserRole').value;
+  const newPass  = document.getElementById('editUserNewPass').value;
+  const confPass = document.getElementById('editUserConfirmPass').value;
+  const errEl    = document.getElementById('editUserErr');
+  const btn      = document.getElementById('editUserBtn');
+
+  if(!name){ errEl.textContent='Vui lòng nhập tên hiển thị.'; errEl.style.display=''; return; }
+  if(newPass && newPass.length < 6){ errEl.textContent='Mật khẩu mới tối thiểu 6 ký tự.'; errEl.style.display=''; return; }
+  if(newPass && newPass !== confPass){ errEl.textContent='Mật khẩu xác nhận không khớp.'; errEl.style.display=''; return; }
+
+  btn.disabled=true; btn.textContent='Đang lưu...';
+  try {
+    const clubs    = window._clubs||{};
+    const clubName = (clubs[clubId]&&clubs[clubId].info&&clubs[clubId].info.name)||clubId;
+
+    // Update user_roles in DB
+    const snap = await get(ref(db, 'user_roles/'+uid));
+    const existing = snap.val()||{};
+    const newUsername = (document.getElementById('editUserUsername').value||'').trim().toLowerCase();
+    const oldUsername = existing.username||'';
+    // Remove old username mapping if changed
+    if(oldUsername && oldUsername !== newUsername){
+      await set(ref(db,'usernames/'+oldUsername), null);
+    }
+    // Save new username mapping
+    if(newUsername){
+      await set(ref(db,'usernames/'+newUsername), uid);
+    }
+    await set(ref(db, 'user_roles/'+uid), {
+      ...existing,
+      displayName: name,
+      clubId, clubName, role,
+      username: newUsername,
+    });
+
+    // Send password reset email if new password requested
+    if(newPass){
+      const email = document.getElementById('editUserEmailHidden').value;
+      const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      await sendPasswordResetEmail(auth, email);
+      notify('📧 Đã gửi email đặt lại mật khẩu đến: '+email);
+    }
+
+    notify('✅ Đã cập nhật tài khoản: '+name);
+    closeModal('editUserModal');
+    errEl.style.display='none';
+  } catch(e) {
+    errEl.textContent = e.code==='auth/wrong-password'?'Mật khẩu cũ không đúng.':
+      e.code==='auth/weak-password'?'Mật khẩu quá yếu.':'Lỗi: '+e.message;
+    errEl.style.display='';
+  }
+  btn.disabled=false; btn.textContent='💾 Lưu thay đổi';
 }
 
 window.deleteUser = async (uid) => {
@@ -411,5 +516,51 @@ function notify(msg){
   setTimeout(()=>el.classList.remove('show'),2800);
 }
 </script>
+
+<!-- MODAL: EDIT USER -->
+<div id="editUserModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;width:100%;max-width:420px">
+    <div style="font-size:1rem;font-weight:700;margin-bottom:1rem">✏️ Sửa tài khoản</div>
+    <input type="hidden" id="editUserId"/>
+    <input type="hidden" id="editUserEmailHidden"/>
+    <div class="fgroup">
+      <label>Email (không thể sửa)</label>
+      <input class="finput" id="editUserEmailShow" disabled style="opacity:.5"/>
+    </div>
+    <div class="fgroup">
+      <label>Tên hiển thị</label>
+      <input class="finput" id="editUserDisplayName" placeholder="Nguyễn Văn A"/>
+    </div>
+    <div class="fgroup">
+      <label>Tên đăng nhập (username)</label>
+      <input class="finput" id="editUserUsername" placeholder="VD: huy.nguyen"
+        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
+    </div>
+    <div class="fgroup">
+      <label>CLB</label>
+      <select class="finput" id="editUserClub"></select>
+    </div>
+    <div class="fgroup">
+      <label>Vai trò</label>
+      <select class="finput" id="editUserRole">
+        <option value="admin">Admin CLB</option>
+        <option value="member">Thành viên</option>
+      </select>
+    </div>
+    <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs);padding:.85rem;margin-bottom:.75rem">
+      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.4rem">Đặt lại mật khẩu</div><div style="font-size:.72rem;color:var(--muted);margin-bottom:.6rem">Nhấn "Gửi email reset" để gửi link đổi mật khẩu đến người dùng</div>
+      <input type="hidden" id="editUserNewPass" value=""/>
+      <input type="hidden" id="editUserConfirmPass" value=""/>
+      <button type="button" class="btn btn-ghost" style="width:100%;justify-content:center" onclick="sendResetEmail()">
+        📧 Gửi email đặt lại mật khẩu
+      </button>
+    </div>
+    <div id="editUserErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-ghost" onclick="closeModal('editUserModal')">Hủy</button>
+      <button class="btn btn-lime" id="editUserBtn" onclick="doEditUser()">💾 Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
