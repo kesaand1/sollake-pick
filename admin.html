@@ -218,7 +218,10 @@ function loadData(){
     window._clubs = clubs;
     renderClubs(clubs);
     populateClubSelect(clubs);
-    document.getElementById('statClubs').textContent = Object.keys(clubs).length;
+    const validClubs = Object.entries(clubs).filter(([id,c])=>c&&typeof c==='object');
+    document.getElementById('statClubs').textContent = validClubs.length;
+  }, err => {
+    document.getElementById('clubList').innerHTML = '<div style="color:#F87171;font-size:.82rem">⚠️ Lỗi đọc dữ liệu: '+err.message+'<br/>Kiểm tra Firebase Rules — cần thêm ".read" cho node clubs.</div>';
   });
   // Users
   onValue(ref(db,'user_roles'), snap => {
@@ -233,13 +236,14 @@ function loadData(){
 
 function renderClubs(clubs){
   const el = document.getElementById('clubList');
-  const entries = Object.entries(clubs);
+  // Filter out non-club keys
+  const entries = Object.entries(clubs).filter(([id,c])=>c && typeof c === 'object');
   if(!entries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có CLB nào.</div>'; return; }
   el.innerHTML = entries.map(([id,c])=>`
     <div class="club-card">
       <div>
-        <div style="font-weight:600;font-size:.88rem">${c.info?.name||id}</div>
-        <div style="font-size:.72rem;color:var(--muted)">ID: ${id} · Tạo: ${c.info?.createdAt||'—'}</div>
+        <div style="font-weight:600;font-size:.88rem">${(c.info&&c.info.name)||id}</div>
+        <div style="font-size:.72rem;color:var(--muted)">ID: ${id} · Tạo: ${(c.info&&c.info.createdAt)||'—'}</div>
       </div>
       <div style="display:flex;gap:.4rem;flex-shrink:0">
         <span class="pill p-green">Active</span>
