@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sollake Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0B1929;--card:#111f33;--border:rgba(255,255,255,.1);
+  --text:#F1F5F9;--muted:#64748B;--lime:#B5F033;--warn:#FCD34D;
+  --success:#4ADE80;--danger:#F87171;--r:12px;--rs:8px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh}
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:.85rem 1.25rem;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:1.1rem;font-weight:800;color:var(--lime)}
+.logo span{color:var(--text)}
+.container{max-width:900px;margin:0 auto;padding:1.25rem}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:1rem}
+.panel-hd{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:1rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}}
+.btn{display:inline-flex;align-items:center;border:none;border-radius:var(--rs);padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s}
+.btn-lime{background:var(--lime);color:#0B1929}
+.btn-ghost{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.2)}
+.btn-sm{padding:.3rem .65rem;font-size:.75rem}
+.finput{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:var(--rs);padding:.55rem .75rem;color:var(--text);font-size:.85rem;outline:none}
+.finput:focus{border-color:var(--lime)}
+.fgroup{margin-bottom:.75rem}
+.fgroup label{display:block;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.35rem}
+.club-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.5rem}
+.club-card:hover{background:rgba(255,255,255,.05)}
+.pill{display:inline-block;padding:.18rem .5rem;border-radius:50px;font-size:.68rem;font-weight:600}
+.p-green{background:rgba(74,222,128,.15);color:#4ADE80;border:1px solid rgba(74,222,128,.25)}
+.p-gray{background:rgba(100,116,139,.15);color:var(--muted);border:1px solid rgba(100,116,139,.2)}
+.stat-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs);padding:.85rem;text-align:center}
+.stat-val{font-size:1.6rem;font-weight:700;color:var(--lime)}
+.stat-lbl{font-size:.72rem;color:var(--muted);margin-top:.2rem}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;padding:.5rem .75rem;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:.55rem .75rem;border-bottom:1px solid rgba(255,255,255,.04)}
+tr:last-child td{border-bottom:none}
+.notify{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#1E3A5F;border:1px solid var(--lime);color:var(--lime);padding:.6rem 1.25rem;border-radius:50px;font-size:.82rem;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap}
+.notify.show{opacity:1}
+
+/* Login */
+#loginScreen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1.5rem}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-size:1.8rem;font-weight:800;color:var(--lime)">Sollake <span style="color:var(--text)">Admin</span></div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Trang quản trị tổng</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem">
+      <div class="fgroup">
+        <label>Email</label>
+        <input class="finput" type="email" id="loginEmail" placeholder="admin@example.com"/>
+      </div>
+      <div class="fgroup">
+        <label>Mật khẩu</label>
+        <input class="finput" type="password" id="loginPass" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div id="loginErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.75rem;display:none"></div>
+      <button class="btn btn-lime" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center;padding:.7rem">Đăng nhập</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none">
+  <div class="header">
+    <div class="logo">Sollake <span>Admin</span></div>
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <span id="adminEmail" style="font-size:.75rem;color:var(--muted)"></span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">⎋ Đăng xuất</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem" id="statsRow">
+      <div class="stat-card"><div class="stat-val" id="statClubs">—</div><div class="stat-lbl">CLB</div></div>
+      <div class="stat-card"><div class="stat-val" id="statUsers">—</div><div class="stat-lbl">Tài khoản</div></div>
+      <div class="stat-card"><div class="stat-val" id="statActive">—</div><div class="stat-lbl">Đang hoạt động</div></div>
+    </div>
+
+    <div class="grid2">
+      <!-- Clubs list -->
+      <div class="panel">
+        <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Danh sách CLB</span>
+          <button class="btn btn-lime btn-sm" onclick="openCreateClub()">+ Tạo CLB</button>
+        </div>
+        <div id="clubList"><div style="color:var(--muted);font-size:.82rem">Đang tải...</div></div>
+      </div>
+
+      <!-- Users list -->
+      <div class="panel">
+        <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Tài khoản người dùng</span>
+          <button class="btn btn-lime btn-sm" onclick="openCreateUser()">+ Tạo tài khoản</button>
+        </div>
+        <div id="userList"><div style="color:var(--muted);font-size:.82rem">Đang tải...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CREATE CLUB -->
+<div id="createClubModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;width:100%;max-width:400px">
+    <div style="font-size:1rem;font-weight:700;margin-bottom:1rem">🏸 Tạo CLB mới</div>
+    <div class="fgroup">
+      <label>Tên CLB</label>
+      <input class="finput" id="newClubName" placeholder="VD: Sollake Pick Hà Nội"/>
+    </div>
+    <div class="fgroup">
+      <label>Mã CLB (ID duy nhất, không dấu, không cách)</label>
+      <input class="finput" id="newClubId" placeholder="VD: sollake_hanoi"/>
+    </div>
+    <div id="createClubErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-ghost" onclick="closeModal('createClubModal')">Hủy</button>
+      <button class="btn btn-lime" onclick="doCreateClub()">✅ Tạo CLB</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CREATE USER -->
+<div id="createUserModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;width:100%;max-width:420px">
+    <div style="font-size:1rem;font-weight:700;margin-bottom:1rem">👤 Tạo tài khoản</div>
+    <div class="fgroup">
+      <label>Email</label>
+      <input class="finput" id="newUserEmail" placeholder="user@example.com" type="email"/>
+    </div>
+    <div class="fgroup">
+      <label>Mật khẩu</label>
+      <input class="finput" id="newUserPass" placeholder="Tối thiểu 6 ký tự" type="password"/>
+    </div>
+    <div class="fgroup">
+      <label>Tên hiển thị</label>
+      <input class="finput" id="newUserName" placeholder="Nguyễn Văn A"/>
+    </div>
+    <div class="fgroup">
+      <label>CLB</label>
+      <select class="finput" id="newUserClub"></select>
+    </div>
+    <div class="fgroup">
+      <label>Vai trò</label>
+      <select class="finput" id="newUserRole">
+        <option value="admin">Admin CLB</option>
+        <option value="member" selected>Thành viên</option>
+      </select>
+    </div>
+    <div id="createUserErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-ghost" onclick="closeModal('createUserModal')">Hủy</button>
+      <button class="btn btn-lime" onclick="doCreateUser()">✅ Tạo tài khoản</button>
+    </div>
+  </div>
+</div>
+
+<div class="notify" id="notify"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAF4GMR-pn-7MXbwtKIF9u-hp4azUqbF8E",
+  authDomain: "sollake-pick.firebaseapp.com",
+  databaseURL: "https://sollake-pick-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sollake-pick",
+  storageBucket: "sollake-pick.firebasestorage.app",
+  messagingSenderId: "223126852935",
+  appId: "1:223126852935:web:e2ccfca7e1f1b86f3f6862",
+};
+
+const app  = initializeApp(firebaseConfig);
+const db   = getDatabase(app);
+const auth = getAuth(app);
+
+window._auth = auth;
+window._db   = db;
+window._createUser = createUserWithEmailAndPassword;
+window._updateProfile = updateProfile;
+
+// ── Auth state ──
+onAuthStateChanged(auth, async (user) => {
+  if(!user){ showLogin(); return; }
+  // Verify super admin
+  const saSnap = await get(ref(db,'admin_config/super_admin_uid'));
+  if(saSnap.val() !== user.uid){
+    alert('Bạn không có quyền truy cập trang này.');
+    signOut(auth); return;
+  }
+  document.getElementById('adminEmail').textContent = user.email;
+  showApp();
+  loadData();
+});
+
+function showLogin(){ document.getElementById('loginScreen').style.display='flex'; document.getElementById('mainApp').style.display='none'; }
+function showApp()  { document.getElementById('loginScreen').style.display='none'; document.getElementById('mainApp').style.display='block'; }
+
+// ── Load clubs & users ──
+function loadData(){
+  // Clubs
+  onValue(ref(db,'clubs'), snap => {
+    const clubs = snap.val()||{};
+    window._clubs = clubs;
+    renderClubs(clubs);
+    populateClubSelect(clubs);
+    document.getElementById('statClubs').textContent = Object.keys(clubs).length;
+  });
+  // Users
+  onValue(ref(db,'user_roles'), snap => {
+    const users = snap.val()||{};
+    window._users = users;
+    renderUsers(users);
+    document.getElementById('statUsers').textContent = Object.keys(users).length;
+    const active = Object.values(users).filter(u=>u.role).length;
+    document.getElementById('statActive').textContent = active;
+  });
+}
+
+function renderClubs(clubs){
+  const el = document.getElementById('clubList');
+  const entries = Object.entries(clubs);
+  if(!entries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có CLB nào.</div>'; return; }
+  el.innerHTML = entries.map(([id,c])=>`
+    <div class="club-card">
+      <div>
+        <div style="font-weight:600;font-size:.88rem">${c.info?.name||id}</div>
+        <div style="font-size:.72rem;color:var(--muted)">ID: ${id} · Tạo: ${c.info?.createdAt||'—'}</div>
+      </div>
+      <div style="display:flex;gap:.4rem;flex-shrink:0">
+        <span class="pill p-green">Active</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteClub('${id}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderUsers(users){
+  const el = document.getElementById('userList');
+  const entries = Object.entries(users);
+  if(!entries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có tài khoản.</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Tên</th><th>CLB</th><th>Vai trò</th><th></th></tr></thead>
+    <tbody>${entries.map(([uid,u])=>`<tr>
+      <td style="font-size:.8rem">${u.displayName||u.email||uid.slice(0,8)}</td>
+      <td style="font-size:.75rem;color:var(--muted)">${u.clubName||u.clubId||'—'}</td>
+      <td><span class="pill ${u.role==='admin'?'p-green':'p-gray'}">${u.role==='admin'?'Admin':'Member'}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteUser('${uid}')">🗑</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function populateClubSelect(clubs){
+  const sel = document.getElementById('newUserClub');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— Chọn CLB —</option>'
+    + Object.entries(clubs).map(([id,c])=>`<option value="${id}">${c.info?.name||id}</option>`).join('');
+}
+
+// ── Actions ──
+window.openCreateClub = () => { document.getElementById('createClubModal').style.display='flex'; }
+window.openCreateUser = () => { populateClubSelect(window._clubs||{}); document.getElementById('createUserModal').style.display='flex'; }
+window.closeModal = (id) => { document.getElementById(id).style.display='none'; }
+
+window.doCreateClub = async () => {
+  const name = document.getElementById('newClubName').value.trim();
+  const id   = document.getElementById('newClubId').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const errEl = document.getElementById('createClubErr');
+  if(!name||!id){ errEl.textContent='Vui lòng nhập đầy đủ.'; errEl.style.display=''; return; }
+  if(!/^[a-z0-9_]+$/.test(id)){ errEl.textContent='Mã CLB chỉ dùng chữ thường, số, dấu gạch dưới.'; errEl.style.display=''; return; }
+  try{
+    await set(ref(db,'clubs/'+id+'/info'), { name, createdAt: new Date().toISOString().slice(0,10) });
+    notify('✅ Đã tạo CLB: '+name);
+    closeModal('createClubModal');
+    document.getElementById('newClubName').value='';
+    document.getElementById('newClubId').value='';
+    errEl.style.display='none';
+  }catch(e){ errEl.textContent='Lỗi: '+e.message; errEl.style.display=''; }
+}
+
+window.doCreateUser = async () => {
+  const email   = document.getElementById('newUserEmail').value.trim();
+  const pass    = document.getElementById('newUserPass').value;
+  const name    = document.getElementById('newUserName').value.trim();
+  const clubId  = document.getElementById('newUserClub').value;
+  const role    = document.getElementById('newUserRole').value;
+  const errEl   = document.getElementById('createUserErr');
+  if(!email||!pass||!clubId){ errEl.textContent='Vui lòng điền đầy đủ thông tin.'; errEl.style.display=''; return; }
+  try{
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    if(name) await updateProfile(cred.user,{displayName:name});
+    const clubs = window._clubs||{};
+    const clubName = clubs[clubId]?.info?.name || clubId;
+    await set(ref(db,'user_roles/'+cred.user.uid),{
+      role, clubId, clubName,
+      email, displayName:name||email,
+      createdAt: new Date().toISOString().slice(0,10)
+    });
+    notify('✅ Đã tạo tài khoản: '+email);
+    closeModal('createUserModal');
+    ['newUserEmail','newUserPass','newUserName'].forEach(id=>document.getElementById(id).value='');
+    errEl.style.display='none';
+  }catch(e){
+    errEl.textContent = e.code==='auth/email-already-in-use'?'Email đã được sử dụng.'
+      :e.code==='auth/weak-password'?'Mật khẩu quá yếu (tối thiểu 6 ký tự).':'Lỗi: '+e.message;
+    errEl.style.display='';
+  }
+}
+
+window.deleteClub = async (id) => {
+  if(!confirm('Xóa CLB này? Tất cả dữ liệu CLB sẽ bị xóa vĩnh viễn!')) return;
+  await set(ref(db,'clubs/'+id), null);
+  notify('🗑 Đã xóa CLB: '+id);
+}
+
+window.deleteUser = async (uid) => {
+  if(!confirm('Xóa tài khoản này?')) return;
+  await set(ref(db,'user_roles/'+uid), null);
+  notify('🗑 Đã xóa tài khoản');
+}
+
+window.doLogin = async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn');
+  btn.disabled=true; btn.textContent='Đang đăng nhập...';
+  try{
+    await signInWithEmailAndPassword(auth,email,pass);
+  }catch(e){
+    errEl.textContent = e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'
+      ?'Email hoặc mật khẩu không đúng.':'Lỗi: '+e.message;
+    errEl.style.display='';
+    btn.disabled=false; btn.textContent='Đăng nhập';
+  }
+}
+
+window.doLogout = async () => {
+  if(!confirm('Đăng xuất?')) return;
+  await signOut(auth);
+}
+</script>
+
+<script>
+function notify(msg){
+  const el=document.getElementById('notify');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>
