@@ -855,19 +855,22 @@ const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 
 // Push all 4 collections to Firebase
 function pushToFirebase(){
-  const fn=window._clubSet||window._fbSet;
-  if(!fn) return;
+  if(!window._fbSet||!window._clubPath) return;
   const dot=document.getElementById('syncDot');
   if(dot) dot.style.background='var(--warn)';
+  const base=window._clubPath+'/';
   Promise.all([
-    fn('players',  players),
-    fn('matches',  matches),
-    fn('finances', finances),
-    fn('fines',    fines),
-    fn('tournaments', tournaments),
+    window._fbSet(base+'players',  players),
+    window._fbSet(base+'matches',  matches),
+    window._fbSet(base+'finances', finances),
+    window._fbSet(base+'fines',    fines),
+    window._fbSet(base+'tournaments', tournaments),
   ]).then(()=>{
     if(dot){dot.style.background='var(--success)';setTimeout(()=>dot.style.background='var(--muted)',2000);}
-  }).catch(()=>{if(dot)dot.style.background='var(--danger)';});
+  }).catch((e)=>{
+    if(dot)dot.style.background='var(--danger)';
+    notify('❌ Lỗi: '+e.message);
+  });
 }
 
 
@@ -897,7 +900,7 @@ let fines=ld('sp2_fines',[
 let tournaments=ld('sp_tournaments',[]);
 let nT=tournaments.length?Math.max(...tournaments.map(t=>t.id))+1:1;
 
-const saveAll=()=>{sv('sp2_players',players);sv('sp2_matches',matches);sv('sp2_finances',finances);sv('sp2_fines',fines);sv('sp_tournaments',tournaments);pushToFirebase();buildRankDropdown();};
+const saveAll=()=>{sv('sp2_players',players);sv('sp2_matches',matches);sv('sp2_finances',finances);sv('sp2_fines',fines);sv('sp_tournaments',tournaments);if(window._userRole!=='guest')pushToFirebase();buildRankDropdown();};
 let nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
 let nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
 let nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
