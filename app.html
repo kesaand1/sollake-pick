@@ -150,6 +150,8 @@ function subscribeClubData(){
       try{localStorage.setItem('sp2_players',JSON.stringify(val));}catch{}
       nP=players.length?Math.max(...players.map(p=>p.id))+1:1;
       if(typeof buildRankDropdown==='function') buildRankDropdown();
+      if(typeof renderRanking==='function') renderRanking();
+      if(typeof renderPlayers==='function') renderPlayers();
       dot('var(--success)'); setTimeout(()=>dot('var(--muted)'),2500);
     },
     matches: (val) => {
@@ -159,6 +161,7 @@ function subscribeClubData(){
       nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
       if(typeof buildRankDropdown==='function') buildRankDropdown();
       if(typeof renderMatches==='function') renderMatches();
+      if(typeof renderRanking==='function') renderRanking();
     },
     finances: (val) => {
       if(!val||!Array.isArray(val)) return;
@@ -187,6 +190,11 @@ function subscribeClubData(){
   paths.forEach(path => {
     const unsub = onValue(ref(db, clubPath+'/'+path), snap => {
       handlers[path](snap.val());
+    }, (err) => {
+      dot('var(--danger)');
+      const msg = '⚠️ Lỗi tải "'+path+'": '+(err && err.code ? err.code : (err && err.message) || err);
+      if (typeof window.notify === 'function') window.notify(msg);
+      else alert(msg);
     });
     unsubscribers.push(unsub);
   });
@@ -997,6 +1005,7 @@ function notify(msg){
   el.textContent=msg;el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'),2800);
 }
+window.notify = notify;
 
 // Navigation
 function showPage(id){
