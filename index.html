@@ -219,7 +219,7 @@ body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);min
 .bot-tab.add-btn .bicon{background:var(--lime);color:var(--navy);border-radius:50%;width:38px;height:38px;font-size:1.4rem;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(181,240,51,.35)}
 
 /* PAGES */
-#landingPage{display:block!important}
+#landingPage{display:block!important;padding:0!important;margin:0!important;position:relative;width:100%}
 .page{display:none;max-width:1100px;margin:0 auto;padding:1.25rem 1rem}
 .page.active{display:block}
 
@@ -495,6 +495,31 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button id="logoutBtn" onclick="doLogout()" style="display:none;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:.2rem .4rem" title="Đăng xuất">⎋</button>
   </div>
 </nav>
+
+<!-- LANDING PAGE -->
+<div class="page" id="landingPage" style="padding-top:0">
+  <div style="width:100%;overflow:hidden;margin:0;padding:0">
+    <img src="banner.png" alt="Sollake Pick" class="landing-banner-img"/>
+  </div>
+  <div class="landing-content" style="max-width:480px;margin:0 auto;text-align:center">
+    <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px;margin-bottom:.5rem">Sollake <span style="color:var(--text)">Pick</span></div>
+    <div style="font-size:.9rem;color:var(--muted);margin-bottom:2rem;line-height:1.7">Hệ thống quản lý câu lạc bộ Pickleball.<br/>Nhập mã CLB để xem thông tin.</div>
+    <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+      <input id="clubCodeInput" class="finput" placeholder="Nhập mã CLB (VD: sollake_pick)"
+        style="flex:1" onkeydown="if(event.key==='Enter')goToClub()"/>
+      <button class="btn btn-lime" onclick="goToClub()">Vào →</button>
+    </div>
+    <div id="clubCodeErr" style="color:var(--danger);font-size:.78rem;display:none;margin-bottom:.75rem"></div>
+    <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)">
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Bạn có tài khoản quản trị?</div>
+      <button class="btn btn-ghost" onclick="document.getElementById('loginScreen').classList.add('open')" style="width:100%;justify-content:center">
+        🔑 Đăng nhập
+      </button>
+    </div>
+  </div>
+</div>
+
+
 
 <!-- HERO BANNER -->
 <div class="hero-banner" id="heroBanner" style="display:none">
@@ -3011,8 +3036,11 @@ function init(){
     // CSS rule ensures loginScreen stays hidden when no 'visible' class
     applyRoleUI('guest');
   } else {
-    // No club URL - landing page shown via CSS by default
-    // Just make sure nav is hidden
+    // No club URL - reset to empty defaults, don't load any club data
+    players=[]; matches=[]; finances=[]; fines=[]; tournaments=[];
+    // Clear localStorage cache so old club data doesn't show
+    try{['sp2_players','sp2_matches','sp2_finances','sp2_fines','sp_tournaments']
+      .forEach(k=>localStorage.removeItem(k));}catch{}
     const logBtn = document.querySelector('.btn-log');
     if(logBtn) logBtn.style.display='none';
     const dot = document.getElementById('syncDot');
@@ -3090,28 +3118,6 @@ init();
 
 
 
-<!-- LANDING PAGE -->
-<div class="page" id="landingPage" style="padding-top:0">
-  <div style="width:100%;overflow:hidden;margin:0;padding:0">
-    <img src="banner.png" alt="Sollake Pick" class="landing-banner-img"/>
-  </div>
-  <div class="landing-content" style="max-width:480px;margin:0 auto;text-align:center">
-    <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px;margin-bottom:.5rem">Sollake <span style="color:var(--text)">Pick</span></div>
-    <div style="font-size:.9rem;color:var(--muted);margin-bottom:2rem;line-height:1.7">Hệ thống quản lý câu lạc bộ Pickleball.<br/>Nhập mã CLB để xem thông tin.</div>
-    <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
-      <input id="clubCodeInput" class="finput" placeholder="Nhập mã CLB (VD: sollake_pick)"
-        style="flex:1" onkeydown="if(event.key==='Enter')goToClub()"/>
-      <button class="btn btn-lime" onclick="goToClub()">Vào →</button>
-    </div>
-    <div id="clubCodeErr" style="color:var(--danger);font-size:.78rem;display:none;margin-bottom:.75rem"></div>
-    <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)">
-      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Bạn có tài khoản quản trị?</div>
-      <button class="btn btn-ghost" onclick="document.getElementById('loginScreen').classList.add('open')" style="width:100%;justify-content:center">
-        🔑 Đăng nhập
-      </button>
-    </div>
-  </div>
-</div>
 
 <!-- LOGIN SCREEN -->
 <div class="modal-bg" id="loginScreen">
