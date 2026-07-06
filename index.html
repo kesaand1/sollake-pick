@@ -2860,7 +2860,7 @@ function doLogout(){
   if(window._fbSignOut) window._fbSignOut();
 }
 
-function applyRoleUI(role){
+window.applyRoleUI = function applyRoleUI(role){
   if(role === 'guest'){
     const badge=document.getElementById('guestBadge');
     if(badge) badge.style.display='flex';
@@ -3157,7 +3157,7 @@ onAuthStateChanged(auth, async (user) => {
     if(_urlClubId){
       // Guest mode: keep login screen hidden, data already visible
       window._userRole='guest';
-      if(typeof applyRoleUI==='function') applyRoleUI('guest');
+      if(typeof applyRoleUI==='function') window.applyRoleUI && window.applyRoleUI('guest');
     } else {
       if(typeof showLoginScreen==='function') showLoginScreen();
     }
@@ -3177,7 +3177,7 @@ onAuthStateChanged(auth, async (user) => {
         window._clubId=_urlClubId;
         clubPath='clubs/'+_urlClubId;
         window._clubPath=clubPath;
-        if(typeof applyRoleUI==='function') applyRoleUI('admin');
+        if(typeof applyRoleUI==='function') window.applyRoleUI && window.applyRoleUI('admin');
         if(typeof hideLoginScreen==='function') hideLoginScreen();
         return;
       }
@@ -3203,7 +3203,7 @@ onAuthStateChanged(auth, async (user) => {
     const clubInfo = clubInfoSnap.val();
     window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
 
-    if(typeof applyRoleUI==='function') applyRoleUI(window._userRole);
+    if(typeof applyRoleUI==='function') window.applyRoleUI && window.applyRoleUI(window._userRole);
     if(typeof hideLoginScreen==='function') hideLoginScreen();
     // Re-subscribe with auth (same subscribePublic, data already loaded)
 
