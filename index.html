@@ -2918,6 +2918,23 @@ function doLogout(){
   if(window._fbSignOut) window._fbSignOut();
 }
 
+// Global guest click interceptor
+document.addEventListener('click', function(e){
+  if(window._userRole !== 'guest') return;
+  const btn = e.target.closest('button, [onclick]');
+  if(!btn) return;
+  const oc = btn.getAttribute('onclick') || '';
+  const writeActions = ['openModal','delMatch','delPlayer','logMatch','addFine',
+    'confirmPayFine','addFinance','delFinance','savePlayer','deleteTournament',
+    'saveMatchResult','endTournament','genTournamentMatches','confirmCreateTournament'];
+  const isWrite = writeActions.some(a => oc.includes(a));
+  if(isWrite){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    requireLogin(null);
+  }
+}, true); // capture phase - fires before onclick
+
 function init(){
   document.getElementById('rankTo').value=today();
   document.getElementById('matchTo').value=today();
