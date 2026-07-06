@@ -42,9 +42,26 @@ window._fbSignOut = () => signOut(auth);
 const _urlClubId = new URLSearchParams(window.location.search).get('club')||'';
 
 // ── Auth state listener ──
+// Guest mode timer: if no login after 3s and ?club= present, show read-only
+let _guestTimer = null;
+if (_urlClubId) {
+  _guestTimer = setTimeout(() => {
+    const loginScreen = document.getElementById('loginScreen');
+    if (loginScreen && loginScreen.style.display !== 'none') {
+      enterGuestMode(_urlClubId);
+    }
+  }, 500);
+}
+
 onAuthStateChanged(auth, async (user) => {
+  if (_guestTimer) { clearTimeout(_guestTimer); _guestTimer = null; }
   if (!user) {
-    showLoginScreen();
+    // If ?club= in URL, show guest mode option
+    if (_urlClubId) {
+      showLoginScreenWithGuest();
+    } else {
+      showLoginScreen();
+    }
     return;
   }
 
@@ -101,9 +118,23 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function applyRoleUI(role){
-  // Members cannot access finance, players management
+  if(role === 'guest'){
+    // Guest: hide all write actions
+    document.querySelectorAll('[data-admin-only],[data-member-only]').forEach(el=>el.style.display='none');
+    // Hide + Ghi trận button
+    const logBtn=document.querySelector('.btn-log');
+    if(logBtn) logBtn.style.display='none';
+    // Hide sync dot
+    const dot=document.getElementById('syncDot');
+    if(dot) dot.style.display='none';
+    // Show guest badge
+    const badge=document.getElementById('guestBadge');
+    if(badge) badge.style.display='flex';
+    return;
+  }
   if(role === 'member'){
-    document.querySelectorAll('[data-admin-only]').forEach(el => el.style.display='none');
+    // Member: hide admin-only (finance, player mgmt)
+    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
   }
 }
 
@@ -473,6 +504,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="tab-btn" onclick="showPage('tournament')">🏅 Giải đấu</button>
   </div>
   <div style="display:flex;align-items:center;gap:.6rem">
+    <span id="guestBadge" style="display:none;align-items:center;gap:.3rem;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.3);color:#FB923C;border-radius:50px;padding:.2rem .6rem;font-size:.7rem;font-weight:600">👁 Chế độ xem</span>
     <span id="clubNameHeader" style="font-size:.75rem;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <span id="syncDot" onclick="manualSync()" title="Nhấn để đồng bộ lên Firebase" style="width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s;cursor:pointer"></span>
     <button class="btn-log" onclick="openModal('matchModal')">+ Ghi trận</button>
@@ -2739,6 +2771,32 @@ function showLoginScreen(){
   const s=document.getElementById('loginScreen');
   if(s){s.style.display='flex';}
 }
+
+function showLoginScreenWithGuest(){
+  const s=document.getElementById('loginScreen');
+  if(s){s.style.display='flex';}
+  // Show guest option
+  const g=document.getElementById('guestLoginBtn');
+  if(g) g.style.display='block';
+}
+
+async function enterGuestMode(clubId){
+  window._userRole='guest';
+  window._clubId=clubId;
+  clubPath='clubs/'+clubId;
+  window._clubPath=clubPath;
+  // Load club name
+  const clubInfoSnap=await window._fbGet('clubs/'+clubId+'/info');
+  window._clubName=(clubInfoSnap&&clubInfoSnap.name)||clubId;
+  applyRoleUI('guest');
+  hideLoginScreen();
+  subscribeClubDataReadOnly();
+}
+
+function subscribeClubDataReadOnly(){
+  // Same as subscribeClubData but Firebase rules allow public read
+  subscribeClubData();
+}
 function hideLoginScreen(){
   const s=document.getElementById('loginScreen');
   if(s){s.style.display='none';}
@@ -2914,6 +2972,10 @@ init();
     <div style="text-align:center;margin-top:1rem;font-size:.75rem;color:var(--muted)">
       Chưa có tài khoản? Liên hệ quản trị viên CLB.
     </div>
+    <button id="guestLoginBtn" onclick="enterGuestMode(''+new URLSearchParams(location.search).get('club')+'')" 
+      style="display:none;width:100%;margin-top:.75rem;padding:.6rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--muted);border-radius:8px;font-size:.82rem;cursor:pointer">
+      👁 Vào xem không cần đăng nhập
+    </button>
   </div>
 </div>
 </body>
