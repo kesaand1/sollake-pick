@@ -235,6 +235,14 @@ function loadData(){
     window._users = users;
     renderUsers(users);
     document.getElementById('statUsers').textContent = Object.keys(users).length;
+    // Show member counts per club
+    const memberCounts = {};
+    Object.values(users).forEach(u => {
+      if(u.role === 'member' && u.clubId){
+        memberCounts[u.clubId] = (memberCounts[u.clubId]||0) + 1;
+      }
+    });
+    window._memberCounts = memberCounts;
     const active = Object.values(users).filter(u=>u.role).length;
     document.getElementById('statActive').textContent = active;
   });
@@ -251,6 +259,11 @@ function renderClubs(clubs){
       <div style="min-width:0;flex:1">
         <div style="font-weight:600;font-size:.88rem">${(c.info&&c.info.name)||id}</div>
         <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">ID: ${id} · Tạo: ${(c.info&&c.info.createdAt)||'—'}</div>
+        <div style="font-size:.7rem;margin-top:.2rem">
+          <span style="color:${((window._memberCounts&&window._memberCounts[id])||0)>=3?'#F87171':'#4ADE80'}">
+            👥 ${(window._memberCounts&&window._memberCounts[id])||0}/3 thành viên
+          </span>
+        </div>
         <div style="margin-top:.3rem;display:flex;align-items:center;gap:.35rem">
           <a href="${baseUrl}?club=${id}" target="_blank"
             style="font-size:.7rem;color:#60A5FA;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px"
@@ -323,6 +336,17 @@ window.doCreateUser = async () => {
   const role    = document.getElementById('newUserRole').value;
   const errEl   = document.getElementById('createUserErr');
   if(!email||!pass||!clubId){ errEl.textContent='Vui lòng điền đầy đủ thông tin.'; errEl.style.display=''; return; }
+
+  // Check member limit: max 3 member accounts per club
+  if(role === 'member'){
+    const allRoles = window._users || {};
+    const clubMembers = Object.values(allRoles).filter(u => u.clubId === clubId && u.role === 'member');
+    if(clubMembers.length >= 3){
+      errEl.textContent = 'CLB này đã đủ 3 tài khoản thành viên (giới hạn tối đa). Chỉ có thể thêm Admin CLB.';
+      errEl.style.display = '';
+      return;
+    }
+  }
 
   // Save current super admin credentials to re-login after
   const currentUser = auth.currentUser;
