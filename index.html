@@ -2858,15 +2858,14 @@ function goToClub(){
 }
 
 function showLandingPage(){
-  // Hide main app content, show landing
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const landingEl = document.getElementById('landingPage');
-  if(landingEl) landingEl.style.display='flex';
-  // Hide nav
-  const nav = document.querySelector('.topnav');
-  if(nav) nav.style.display='none';
-  const botnav = document.querySelector('.botnav');
-  if(botnav) botnav.style.display='none';
+  if(landingEl) landingEl.classList.add('active');
+  // Hide nav and header actions for landing
+  const logBtn = document.querySelector('.btn-log');
+  if(logBtn) logBtn.style.display='none';
+  const dot = document.getElementById('syncDot');
+  if(dot) dot.style.display='none';
 }
 
 function doLogout(){
@@ -3052,21 +3051,26 @@ init();
 
 
 <!-- LANDING PAGE -->
-<div id="landingPage" style="display:none;position:fixed;inset:0;z-index:100;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center">
-  <img src="banner.png" alt="Sollake Pick" style="width:100%;max-width:500px;height:280px;object-fit:cover;border-radius:16px;margin-bottom:2rem;opacity:.9"/>
-  <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px;margin-bottom:.5rem">Sollake <span style="color:var(--text)">Pick</span></div>
-  <div style="font-size:.95rem;color:var(--muted);margin-bottom:2rem;max-width:360px;line-height:1.6">Hệ thống quản lý câu lạc bộ Pickleball.<br/>Nhập mã CLB để truy cập.</div>
-  <div style="display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-bottom:1.5rem">
-    <div style="display:flex;gap:.5rem;width:100%;max-width:340px">
+<div class="page active" id="landingPage">
+  <div style="width:100%;max-height:400px;overflow:hidden;border-radius:0">
+    <img src="banner.png" alt="Sollake Pick" style="width:100%;height:400px;object-fit:cover;object-position:center;display:block"/>
+  </div>
+  <div style="max-width:480px;margin:0 auto;padding:2rem 1.25rem;text-align:center">
+    <div style="font-size:2rem;font-weight:800;color:var(--lime);letter-spacing:-1px;margin-bottom:.5rem">Sollake <span style="color:var(--text)">Pick</span></div>
+    <div style="font-size:.9rem;color:var(--muted);margin-bottom:2rem;line-height:1.7">Hệ thống quản lý câu lạc bộ Pickleball.<br/>Nhập mã CLB để xem thông tin.</div>
+    <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
       <input id="clubCodeInput" class="finput" placeholder="Nhập mã CLB (VD: sollake_pick)"
         style="flex:1" onkeydown="if(event.key==='Enter')goToClub()"/>
       <button class="btn btn-lime" onclick="goToClub()">Vào →</button>
     </div>
+    <div id="clubCodeErr" style="color:var(--danger);font-size:.78rem;display:none;margin-bottom:.75rem"></div>
+    <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)">
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">Bạn có tài khoản quản trị?</div>
+      <button class="btn btn-ghost" onclick="document.getElementById('loginScreen').classList.add('open')" style="width:100%;justify-content:center">
+        🔑 Đăng nhập
+      </button>
+    </div>
   </div>
-  <div id="clubCodeErr" style="color:var(--danger);font-size:.8rem;display:none;margin-bottom:.75rem"></div>
-  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('loginScreen').classList.add('open')" style="margin-top:.5rem">
-    🔑 Đăng nhập tài khoản
-  </button>
 </div>
 
 <!-- LOGIN SCREEN -->
