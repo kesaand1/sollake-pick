@@ -329,9 +329,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .tm{color:var(--muted)}.tl{color:var(--lime)}.td{color:var(--danger)}.ts{color:var(--success)}.tw{color:var(--warn)}
 .bold{font-weight:600}.small{font-size:.73rem}
 .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#landingPage{padding:0}#landingPage .landing-content{padding:2rem 1.25rem}.landing-banner-img{width:100%;height:480px;object-fit:cover;object-position:center top;display:block}
-@media(max-width:768px){.landing-banner-img{height:260px}}
-@media(max-width:480px){.landing-banner-img{height:200px}}
+#landingPage{padding:0}#landingPage .landing-content{padding:2rem 1.25rem}.landing-banner-img{width:100%;height:500px;object-fit:cover;object-position:center top;display:block}
+@media(max-width:1024px){.landing-banner-img{height:380px}}
+@media(max-width:768px){.landing-banner-img{height:280px}}
+@media(max-width:480px){.landing-banner-img{height:220px}}
 /* Login screen - controlled by class */
 /* HERO BANNER */
 .hero-banner{
@@ -498,7 +499,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- LANDING PAGE -->
 <div class="page" id="landingPage" style="padding-top:0">
-  <div style="width:100%;overflow:hidden;margin:0;padding:0">
+  <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;overflow:hidden">
     <img src="banner.png" alt="Sollake Pick" class="landing-banner-img"/>
   </div>
   <div class="landing-content" style="max-width:480px;margin:0 auto;text-align:center">
