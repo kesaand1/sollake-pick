@@ -239,11 +239,20 @@ function renderClubs(clubs){
   // Filter out non-club keys
   const entries = Object.entries(clubs).filter(([id,c])=>c && typeof c === 'object');
   if(!entries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có CLB nào.</div>'; return; }
+  const baseUrl = window.location.origin + window.location.pathname.replace('admin.html','');
   el.innerHTML = entries.map(([id,c])=>`
     <div class="club-card">
-      <div>
+      <div style="min-width:0;flex:1">
         <div style="font-weight:600;font-size:.88rem">${(c.info&&c.info.name)||id}</div>
-        <div style="font-size:.72rem;color:var(--muted)">ID: ${id} · Tạo: ${(c.info&&c.info.createdAt)||'—'}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">ID: ${id} · Tạo: ${(c.info&&c.info.createdAt)||'—'}</div>
+        <div style="margin-top:.3rem;display:flex;align-items:center;gap:.35rem">
+          <a href="${baseUrl}?club=${id}" target="_blank"
+            style="font-size:.7rem;color:#60A5FA;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px"
+            title="Mở CLB">🔗 ${baseUrl}?club=${id}</a>
+          <button onclick="navigator.clipboard.writeText('${baseUrl}?club=${id}');notify('✅ Đã copy link!')"
+            style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;flex-shrink:0"
+            title="Copy link">📋</button>
+        </div>
       </div>
       <div style="display:flex;gap:.4rem;flex-shrink:0">
         <span class="pill p-green">Active</span>
