@@ -33,6 +33,7 @@ function dot(col){ const d=document.getElementById('syncDot'); if(d) d.style.bac
 
 // ── Expose globals ──
 window._fbSet = (path, data) => set(ref(db, path), data);
+window._fbGet = async (path) => { const s = await get(ref(db, path)); return s.val(); };
 window._fbAuth = auth;
 window._fbSignIn = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
 window._fbSignOut = () => signOut(auth);
@@ -2770,34 +2771,32 @@ async function doLogin(){
   const btn=document.getElementById('loginBtn');
   if(!input||!pass){errEl.textContent='Vui lòng nhập tên đăng nhập và mật khẩu.';errEl.style.display='';return;}
   btn.disabled=true; btn.textContent='Đang đăng nhập...';
+  errEl.style.display='none';
   try{
-    // If not email format → look up username → get email
     let email = input;
+    // Username lookup (no auth needed - usernames node has .read: true)
     if(!input.includes('@')){
       const username = input.toLowerCase().replace(/[^a-z0-9._]/g,'');
-      // Lookup in usernames node
-      const { getDatabase, ref, get } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
-      const db2 = getDatabase();
-      const snap = await get(ref(db2,'usernames/'+username));
-      const uid  = snap.val();
+      const snap = await window._fbGet('usernames/'+username);
+      const uid = snap;
       if(!uid){
         errEl.textContent='Tên đăng nhập không tồn tại.';
         errEl.style.display='';
         btn.disabled=false; btn.textContent='Đăng nhập';
         return;
       }
-      // Get email from user_roles
-      const roleSnap = await get(ref(db2,'user_roles/'+uid));
-      const roleData = roleSnap.val();
-      if(!roleData||!roleData.email){
-        errEl.textContent='Tài khoản chưa được cấu hình. Liên hệ quản trị viên.';
+      // Get email from usernames_email node (public readable)
+      const emailSnap = await window._fbGet('usernames_email/'+username);
+      if(!emailSnap){
+        errEl.textContent='Tài khoản chưa được cấu hình đúng. Liên hệ quản trị viên.';
         errEl.style.display='';
         btn.disabled=false; btn.textContent='Đăng nhập';
         return;
       }
-      email = roleData.email;
+      email = emailSnap;
     }
     await window._fbSignIn(email, pass);
+    // onAuthStateChanged will handle the rest
   }catch(e){
     errEl.textContent=e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'
       ?'Tên đăng nhập/email hoặc mật khẩu không đúng.'
