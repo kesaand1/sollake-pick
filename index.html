@@ -2861,17 +2861,29 @@ function goToClub(){
 }
 
 function showLandingPage(){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p=>{
+    p.classList.remove('active');
+    p.style.display='none';
+  });
+  // Show landing with inline style (bypass CSS specificity issues)
   const landingEl = document.getElementById('landingPage');
-  if(landingEl) landingEl.classList.add('active');
-  // Hide nav and header actions for landing
+  if(landingEl){
+    landingEl.classList.add('active');
+    landingEl.style.display='block';
+  }
+  // Hide nav buttons
   const logBtn = document.querySelector('.btn-log');
   if(logBtn) logBtn.style.display='none';
   const dot = document.getElementById('syncDot');
   if(dot) dot.style.display='none';
-  // Hide hero banner (club photo) on landing page
   const hero = document.querySelector('.hero-banner');
   if(hero) hero.style.display='none';
+  // Hide top nav tabs
+  const navTabs = document.querySelector('.nav-tabs');
+  if(navTabs) navTabs.style.visibility='hidden';
+  const botNav = document.querySelector('.botnav');
+  if(botNav) botNav.style.display='none';
 }
 
 function doLogout(){
