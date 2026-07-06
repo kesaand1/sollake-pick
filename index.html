@@ -2866,6 +2866,9 @@ function showLandingPage(){
   if(logBtn) logBtn.style.display='none';
   const dot = document.getElementById('syncDot');
   if(dot) dot.style.display='none';
+  // Hide hero banner (club photo) on landing page
+  const hero = document.querySelector('.hero-banner');
+  if(hero) hero.style.display='none';
 }
 
 function doLogout(){
