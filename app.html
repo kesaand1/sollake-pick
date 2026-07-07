@@ -432,6 +432,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .t-mode-card:hover{background:rgba(255,255,255,.05)}
 .t-mode-card.selected{border-color:var(--lime);background:rgba(181,240,51,.08)}
 .t-accordion{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:.75rem;overflow:hidden}
+.t-accordion.t-alt-0{background:#111f33}
+.t-accordion.t-alt-1{background:#152238}
+.t-accordion.t-alt-2{background:#0e1a2b}
 .t-accordion-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;cursor:pointer;gap:.75rem;transition:background .18s}
 .t-accordion-header:hover{background:rgba(255,255,255,.04)}
 .t-accordion-body{border-top:0}
@@ -2447,11 +2450,14 @@ let tMode   = 'teams';      // 'teams' | 'tournament'
 let tFormat = 'roundrobin'; // 'roundrobin' | 'singleelim'
 let tAssign = 'auto';       // 'auto' | 'manual'
 let tManualAssign = {};     // { playerName: teamIndex } for manual assignment
-let tTeamCandidates = [];   // 3 auto-split candidates sorted by increasing point deviation
-let tCandidateIdx = 0;      // which candidate is currently shown
 let tViewingId       = null;
 
 function openNewTournamentModal(){if(guardScorer())return;
+  const activeTournament = tournaments.find(t=>t.status!=='done');
+  if(activeTournament){
+    alert('Giải "'+activeTournament.name+'" vẫn đang diễn ra. Vui lòng kết thúc giải đó trước khi tạo giải mới.');
+    return;
+  }
   openModal('newTournamentModal');
   tSelectedPlayers = [];
   tMode = 'teams'; tFormat='roundrobin'; tAssign='auto'; tManualAssign={};
@@ -2542,9 +2548,7 @@ function generateTournamentTeamsAuto(){if(guardScorer())return;
     alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
   }
   tCurrentName = name;
-  tTeamCandidates = generateTeamCandidates(tSelectedPlayers, tc, ts);
-  tCandidateIdx = 0;
-  tCurrentTeams = tTeamCandidates[0];
+  tCurrentTeams = balanceTeams(tSelectedPlayers, tc, ts);
   showTeamSuggestion(tc, ts);
   closeModal('newTournamentModal');
   openModal('teamSuggestionModal');
@@ -2634,35 +2638,10 @@ function generateTeams(){if(guardScorer())return;
     alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
   }
   tCurrentName = name;
-  tTeamCandidates = generateTeamCandidates(tSelectedPlayers, tc, ts);
-  tCandidateIdx = 0;
-  tCurrentTeams = tTeamCandidates[0];
+  tCurrentTeams = balanceTeams(tSelectedPlayers, tc, ts);
   showTeamSuggestion(tc, ts);
   closeModal('newTournamentModal');
   openModal('teamSuggestionModal');
-}
-
-function computeTeamsDiff(teams){
-  const avgs = teams.map(t=>t.members.reduce((s,n)=>s+effectiveScoreT(n),0)/t.members.length);
-  return Math.max(...avgs)-Math.min(...avgs);
-}
-
-function generateTeamCandidates(playerNames, tc, ts){
-  const attempts=[balanceTeams(playerNames, tc, ts)]; // pure snake draft: best possible balance
-  for(let i=0;i<20;i++){
-    const withNoise = playerNames.map(n=>({n,s:effectiveScoreT(n)+(Math.random()-0.5)*(0.15+i*0.05)}))
-      .sort((a,b)=>b.s-a.s).map(x=>x.n);
-    attempts.push(balanceTeams(withNoise, tc, ts));
-  }
-  const seen=new Set(), scored=[];
-  attempts.forEach(teams=>{
-    const key = teams.map(t=>[...t.members].sort().join(',')).sort().join('|');
-    if(seen.has(key)) return;
-    seen.add(key);
-    scored.push({teams, diff: computeTeamsDiff(teams)});
-  });
-  scored.sort((a,b)=>a.diff-b.diff);
-  return scored.slice(0,3).map(s=>s.teams);
 }
 
 function balanceTeams(playerNames, tc, ts){
@@ -2678,14 +2657,6 @@ function balanceTeams(playerNames, tc, ts){
     else teamIdx+=dir;
   }
   return teams;
-}
-
-function nextTeamCandidate(){if(guardScorer())return;
-  if(!tTeamCandidates.length) return;
-  tCandidateIdx = (tCandidateIdx+1) % tTeamCandidates.length;
-  tCurrentTeams = tTeamCandidates[tCandidateIdx];
-  const tc = tCurrentTeams.length, ts = tCurrentTeams[0].members.length;
-  showTeamSuggestion(tc, ts);
 }
 
 function teamColors(i){
@@ -2727,14 +2698,9 @@ function showTeamSuggestion(tc, ts){
   const avgs = tCurrentTeams.map(t=>t.members.reduce((s,n)=>s+effectiveScoreT(n),0)/t.members.length);
   const maxAvg = Math.max(...avgs), minAvg = Math.min(...avgs);
   const diff = (maxAvg-minAvg).toFixed(3);
-  const rankLabels = ['Lệch ít nhất','Lệch ít nhì','Lệch ít thứ 3'];
-  const rankLabel = tTeamCandidates.length>1
-    ? '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">📊 Cách chia hiện tại: <strong style="color:var(--text)">'+(rankLabels[tCandidateIdx]||('Cách '+(tCandidateIdx+1)))+'</strong> ('+(tCandidateIdx+1)+'/'+tTeamCandidates.length+')</div>'
-    : '';
 
   document.getElementById('teamSuggestionContent').innerHTML =
-    rankLabel
-    +'<div class="t-balance">'
+    '<div class="t-balance">'
     +'<div class="t-stat"><div class="val">'+tCurrentTeams.length+'</div><div class="lbl">Teams</div></div>'
     +'<div class="t-stat"><div class="val">'+tCurrentTeams[0].members.length+'</div><div class="lbl">Người/team</div></div>'
     +'<div class="t-stat"><div class="val" style="color:'+(parseFloat(diff)<0.3?'var(--success)':'var(--warn)')+'">'+diff+'</div><div class="lbl">Chênh lệch TB</div></div>'
@@ -3023,7 +2989,7 @@ function renderTournamentList(){
           }).join('')
         + '</div>'
       : '';
-    return '<div class="t-accordion" id="tacc_'+t.id+'">'
+    return '<div class="t-accordion t-alt-'+(idx%3)+'" id="tacc_'+t.id+'">'
       +'<div class="t-accordion-header" onclick="toggleTAccordion('+t.id+')">'
       +'<div style="display:flex;align-items:center;gap:.6rem;min-width:0;flex:1">'
       +'<span style="font-size:.85rem;font-weight:700;color:var(--text)">'+t.name+'</span>'
@@ -4118,8 +4084,7 @@ init();
     <div class="modal-title-row"><div class="modal-title">⚡ Gợi ý phân bổ team</div><button class="modal-x" onclick="closeModal('teamSuggestionModal')" title="Đóng">✕</button></div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">AI đã cân bằng theo điểm số, phong độ và trình độ.</div>
     <div id="teamSuggestionContent"></div>
-    <div class="modal-footer" style="flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm" onclick="nextTeamCandidate()" title="Bấm liên tiếp để xem cách chia lệch ít nhất → nhì → thứ 3">🔄 Chọn cách chia khác</button>
+    <div class="modal-footer">
       <button class="btn btn-lime" style="margin-left:auto" onclick="confirmTeamStep()">✅ Tạo giải đấu</button>
     </div>
   </div>
