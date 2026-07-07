@@ -2734,13 +2734,32 @@ function genTournamentMatches(teams){
     return res;
   }
   var teamPairs=teams.map(function(t){return combos2(t.members);});
+
+  // Circle method: order team-pair matchups into rounds so no team plays
+  // several matches in a row while others sit out (interleaved schedule).
+  var idx = teams.map(function(t,i){return i;});
+  if(idx.length%2!==0) idx.push(null);
+  var n = idx.length;
+  var teamRounds=[];
+  var arr=idx.slice();
+  for(var r=0;r<n-1;r++){
+    var roundPairs=[];
+    for(var i=0;i<n/2;i++){
+      var a=arr[i], b=arr[n-1-i];
+      if(a!==null && b!==null) roundPairs.push([a,b]);
+    }
+    teamRounds.push(roundPairs);
+    arr=[arr[0], arr[n-1]].concat(arr.slice(1,n-1));
+  }
+
   var matches=[];
   var mid=1;
-  for(var ti=0;ti<teams.length;ti++){
-    for(var tj=ti+1;tj<teams.length;tj++){
+  teamRounds.forEach(function(roundPairs){
+    roundPairs.forEach(function(pair){
+      var ti=pair[0], tj=pair[1];
       var pi=teamPairs[ti], pj=teamPairs[tj];
-      var n=Math.max(pi.length,pj.length);
-      for(var k=0;k<n;k++){
+      var n2=Math.max(pi.length,pj.length);
+      for(var k=0;k<n2;k++){
         var a=pi[k%pi.length];
         var b=pj[k%pj.length];
         matches.push({
@@ -2751,8 +2770,8 @@ function genTournamentMatches(teams){
           scoreA:null, scoreB:null, done:false
         });
       }
-    }
-  }
+    });
+  });
   return matches;
 }
 
@@ -2966,7 +2985,7 @@ function renderTournamentList(){
     const statusPill=isActive?'<span class="pill p-green">Đang diễn ra</span>':'<span class="pill p-gray">Đã kết thúc</span>';
     // Default: only most recent (idx===0) is expanded
     const expanded=(idx===0);
-    const top = !isActive ? getTournamentTopStandings(t) : [];
+    const top = (!isActive && done>0) ? getTournamentTopStandings(t) : [];
     const podiumSummary = top.length
       ? '<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;padding:0 1rem .1rem;display:flex;flex-wrap:wrap;gap:.5rem">'
         + top.map((s,i)=>'<span>'+(medals[i]||'#'+(i+1))+' <strong style="color:var(--text)">'+s.name+'</strong></span>').join('')
