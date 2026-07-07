@@ -1367,20 +1367,23 @@ function renderOverviewCards(){
 
   // ── Tốp nộp: kèo thua + tiền phạt đã nộp ──
   const bal = {};
-  vis.forEach(p=>{ bal[p.name]={tien:0,nuoc:0,phat:0}; });
+  function ensureBal(n){ if(!bal[n]) bal[n]={tien:0,nuoc:0,phat:0}; }
+  vis.forEach(p=>ensureBal(p.name));
 
   // Kèo
   filtered.forEach(m=>{
     if(!m.keo||m.keo==='none') return;
     [...m.a,...m.b].forEach(n=>{
-      if(!bal[n]) return;
+      ensureBal(n);
       if(m.keo==='tien') bal[n].tien += keoVal(m,n,'tien');
       if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
     });
   });
-  // Phạt đã nộp (âm = đã chi ra)
+  // Phạt đã nộp (âm = đã chi ra) — tính cho MỌI người từng bị phạt,
+  // kể cả người đã bị ẩn khỏi danh sách thành viên hiện tại
   fines.filter(f=>f.paid&&inR(f.date,from,to)).forEach(f=>{
-    if(bal[f.player]!==undefined) bal[f.player].phat -= f.amount;
+    ensureBal(f.player);
+    bal[f.player].phat -= f.amount;
   });
 
   // Round
