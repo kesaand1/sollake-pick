@@ -713,17 +713,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
     <div class="filter-row">
-      <label>Từ</label><input type="date" class="finput" id="matchFrom" onchange="renderMatches()"/>
-      <label>Đến</label><input type="date" class="finput" id="matchTo" onchange="renderMatches()"/>
+      <label>Từ</label><input type="date" class="finput" id="matchFrom" onchange="_matchPage=1;renderMatches()"/>
+      <label>Đến</label><input type="date" class="finput" id="matchTo" onchange="_matchPage=1;renderMatches()"/>
     </div>
     <div class="filter-row" style="margin-bottom:.85rem">
       <label>Người chơi</label>
-      <select class="finput" id="matchPlayerFilter" onchange="renderMatches()" style="flex:1;max-width:220px">
+      <select class="finput" id="matchPlayerFilter" onchange="_matchPage=1;renderMatches()" style="flex:1;max-width:220px">
         <option value="">— Tất cả —</option>
       </select>
     </div>
     <div class="desk tbl-wrap" id="matchD"></div>
     <div class="mob" id="matchM"></div>
+    <div id="matchPager"></div>
   </div>
 </div>
 
@@ -754,16 +755,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
         </div>
       </div>
       <div class="filter-row">
-        <label>Từ</label><input type="date" class="finput" id="finFrom" onchange="renderFinance()"/>
-        <label>Đến</label><input type="date" class="finput" id="finTo" onchange="renderFinance()"/>
+        <label>Từ</label><input type="date" class="finput" id="finFrom" onchange="_finPage=1;renderFinance()"/>
+        <label>Đến</label><input type="date" class="finput" id="finTo" onchange="_finPage=1;renderFinance()"/>
       </div>
       <div id="finList"></div>
+      <div id="finPager"></div>
     </div>
     <div class="panel">
       <div class="panel-hd">⚠️ Khoản phạt
         <div class="right"><button class="btn btn-danger btn-sm" onclick="openModal('fineModal')">+ Ghi phạt</button></div>
       </div>
       <div id="fineList"></div>
+      <div id="finePager"></div>
     </div>
   </div>
   <div class="panel">
@@ -1015,6 +1018,30 @@ function notify(msg){
   setTimeout(()=>el.classList.remove('show'),2800);
 }
 window.notify = notify;
+
+// ══════════════════ PAGINATION (30 records/page) ══════════════════
+const PAGE_SIZE = 30;
+let _matchPage = 1, _finPage = 1, _finePage = 1;
+
+function paginateList(list, page){
+  const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  page = Math.min(Math.max(1, page), totalPages);
+  const start = (page - 1) * PAGE_SIZE;
+  return { pageItems: list.slice(start, start + PAGE_SIZE), page, totalPages, total: list.length };
+}
+
+function pagerHTML(page, totalPages, gotoFn){
+  if(totalPages <= 1) return '';
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:.6rem;margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border)">
+    <button class="btn btn-ghost btn-sm" ${page<=1?'disabled':''} onclick="${gotoFn}(${page-1})">‹ Trước</button>
+    <span style="font-size:.78rem;color:var(--muted)">Trang ${page}/${totalPages}</span>
+    <button class="btn btn-ghost btn-sm" ${page>=totalPages?'disabled':''} onclick="${gotoFn}(${page+1})">Sau ›</button>
+  </div>`;
+}
+
+window.gotoMatchPage = (p) => { _matchPage = p; renderMatches(); };
+window.gotoFinPage   = (p) => { _finPage = p; renderFinance(); };
+window.gotoFinePage  = (p) => { _finePage = p; renderFines(); };
 
 // Navigation
 function showPage(id){
@@ -1630,11 +1657,15 @@ function renderMatches(){
   const from=document.getElementById('matchFrom').value;
   const to=document.getElementById('matchTo').value;
   const playerF=(document.getElementById('matchPlayerFilter')||{}).value||'';
-  const list=matches.filter(m=>inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>b.date.localeCompare(a.date));
-  if(!list.length){
+  const fullList=matches.filter(m=>inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!fullList.length){
     const e=empty('🏓','Chưa có trận nào trong khoảng thời gian này');
-    document.getElementById('matchD').innerHTML=e;document.getElementById('matchM').innerHTML=e;return;
+    document.getElementById('matchD').innerHTML=e;document.getElementById('matchM').innerHTML=e;
+    document.getElementById('matchPager').innerHTML='';
+    return;
   }
+  const {pageItems:list, page, totalPages} = paginateList(fullList, _matchPage);
+  _matchPage = page;
   const rows=list.map(m=>{
     const wA=m.winner==='A';
     return`<tr>
@@ -1689,6 +1720,7 @@ function renderMatches(){
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
+  document.getElementById('matchPager').innerHTML=pagerHTML(page, totalPages, 'gotoMatchPage');
 }
 
 // Finance
@@ -1760,9 +1792,9 @@ function delFine(id){if(guardScorer())return;
 function renderFinance(){
   const from=document.getElementById('finFrom').value;
   const to=document.getElementById('finTo').value;
-  const list=finances.filter(f=>inR(f.date,from,to)).sort((a,b)=>b.date.localeCompare(a.date));
-  const thuBase=list.filter(f=>f.type==='thu').reduce((s,f)=>s+f.amount,0);
-  const chi=list.filter(f=>f.type==='chi').reduce((s,f)=>s+f.amount,0);
+  const fullList=finances.filter(f=>inR(f.date,from,to)).sort((a,b)=>b.date.localeCompare(a.date));
+  const thuBase=fullList.filter(f=>f.type==='thu').reduce((s,f)=>s+f.amount,0);
+  const chi=fullList.filter(f=>f.type==='chi').reduce((s,f)=>s+f.amount,0);
   // Cộng tiền phạt đã nộp trong khoảng thời gian vào Tổng thu
   const phatDaNop=fines.filter(f=>f.paid&&inR(f.date,from,to)).reduce((s,f)=>s+f.amount,0);
   const thu=thuBase+phatDaNop;
@@ -1771,8 +1803,10 @@ function renderFinance(){
     <div class="sc"><div class="val ts">${fmt(thu)}</div><div class="lbl">Tổng thu${phatDaNop>0?` <span style="font-size:.65rem;opacity:.6">(+${fmt(phatDaNop)} phạt)</span>`:''}</div></div>
     <div class="sc"><div class="val td">${fmt(chi)}</div><div class="lbl">Tổng chi</div></div>
     <div class="sc"><div class="val ${bal>=0?'tl':'td'}">${fmt(Math.abs(bal))}</div><div class="lbl">${bal>=0?'Quỹ hiện có':'Âm quỹ'}</div></div>
-    <div class="sc"><div class="val">${list.length}</div><div class="lbl">Giao dịch</div></div>`;
-  if(!list.length){document.getElementById('finList').innerHTML=empty('💰','Chưa có giao dịch nào');return;}
+    <div class="sc"><div class="val">${fullList.length}</div><div class="lbl">Giao dịch</div></div>`;
+  if(!fullList.length){document.getElementById('finList').innerHTML=empty('💰','Chưa có giao dịch nào');document.getElementById('finPager').innerHTML='';return;}
+  const {pageItems:list, page, totalPages} = paginateList(fullList, _finPage);
+  _finPage = page;
   document.getElementById('finList').innerHTML=list.map(f=>`<div class="fin-row">
     <div class="fleft"><div class="bold" style="overflow-wrap:break-word">${f.desc}</div><div class="small tm">${f.player||'Quỹ chung'} · ${fmtD(f.date)}</div></div>
     <div class="fright">
@@ -1780,10 +1814,13 @@ function renderFinance(){
       <button class="btn btn-danger btn-xs" onclick="delFinance(${f.id})">🗑</button>
     </div>
   </div>`).join('');
+  document.getElementById('finPager').innerHTML=pagerHTML(page, totalPages, 'gotoFinPage');
 }
 function renderFines(){
-  const list=[...fines].sort((a,b)=>b.date.localeCompare(a.date));
-  if(!list.length){document.getElementById('fineList').innerHTML=empty('⚠️','Chưa có khoản phạt nào');return;}
+  const fullList=[...fines].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!fullList.length){document.getElementById('fineList').innerHTML=empty('⚠️','Chưa có khoản phạt nào');document.getElementById('finePager').innerHTML='';return;}
+  const {pageItems:list, page, totalPages} = paginateList(fullList, _finePage);
+  _finePage = page;
   document.getElementById('fineList').innerHTML=list.map(f=>`<div class="fin-row">
     <div class="fleft">
       <div style="display:flex;align-items:flex-start;gap:.4rem;min-width:0">
@@ -1798,6 +1835,7 @@ function renderFines(){
       <button class="btn btn-danger btn-xs" onclick="delFine(${f.id})">🗑</button>
     </div>
   </div>`).join('');
+  document.getElementById('finePager').innerHTML=pagerHTML(page, totalPages, 'gotoFinePage');
 }
 function renderDebt(){
   const dm={};
