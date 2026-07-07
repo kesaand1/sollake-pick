@@ -49,6 +49,13 @@ function applyClubBanner(clubId, info){
 }
 window.applyClubBanner = applyClubBanner;
 
+function applyClubLogo(name){
+  const el = document.getElementById('clubLogo');
+  if(!el || !name) return;
+  el.textContent = name;
+}
+window.applyClubLogo = applyClubLogo;
+
 // ── Expose globals ──
 window._fbSet = (path, data) => set(ref(db, path), data);
 window._fbGet = async (path) => { const s = await get(ref(db, path)); return s.val(); };
@@ -83,6 +90,7 @@ onAuthStateChanged(auth, async (user) => {
         const info = snap.val();
         window._clubName = (info && info.name) || _urlClubId;
         applyClubBanner(_urlClubId, info); // upgrade to custom banner if set
+        applyClubLogo(window._clubName);
       }).catch(()=>{});
     }
     // No action needed - landing page already showing
@@ -130,6 +138,7 @@ onAuthStateChanged(auth, async (user) => {
     const clubInfo = clubInfoSnap.val();
     window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
     applyClubBanner(targetClubId, clubInfo);
+    applyClubLogo(window._clubName);
 
     applyRoleUI(currentRole);
     hideLoginScreen();
@@ -517,7 +526,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- TOP NAV -->
 <nav class="topnav">
-  <div class="logo">Sollake <span>Pick</span></div>
+  <div class="logo" id="clubLogo">Sollake <span>Pick</span></div>
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="showPage('ranking')">🏆 Tổng quan</button>
     <button class="tab-btn" onclick="showPage('matches')">Lịch sử</button>
@@ -2860,6 +2869,7 @@ async function enterGuestMode(clubId){
     const clubInfoSnap=await window._fbGet('clubs/'+clubId+'/info');
     window._clubName=(clubInfoSnap&&clubInfoSnap.name)||clubId;
     if(window.applyClubBanner) window.applyClubBanner(clubId, clubInfoSnap);
+    if(window.applyClubLogo) window.applyClubLogo(window._clubName);
   }
   if(typeof applyRoleUI==='function') applyRoleUI('guest');
   if(typeof hideLoginScreen==='function') hideLoginScreen();
