@@ -256,7 +256,7 @@ body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);min
   background:rgba(11,25,41,0.98);border-top:1px solid var(--border);
   z-index:200;backdrop-filter:blur(14px);
   padding-bottom:env(safe-area-inset-bottom);}
-.botnav-inner{display:grid;grid-template-columns:repeat(6,1fr);height:var(--bot-h)}
+.botnav-inner{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;height:var(--bot-h)}
 .bot-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:none;color:var(--muted);transition:color .18s;padding:.2rem .25rem;font-family:'Inter',sans-serif}
 .bot-tab .bicon{font-size:1.2rem;line-height:1}
 .bot-tab .blabel{font-size:.6rem;font-weight:500;letter-spacing:.2px}
@@ -534,6 +534,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
     <button class="tab-btn" onclick="showPage('tournament')">🏅 Giải đấu</button>
+    <button class="tab-btn" onclick="showPage('settings')" data-admin-only style="display:none">⚙️ Cài đặt</button>
   </div>
   <div style="display:flex;align-items:center;gap:.6rem">
     <span id="syncDot" onclick="manualSync()" title="Nhấn để đồng bộ lên Firebase" style="width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s;cursor:pointer"></span>
@@ -585,6 +586,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </button>
     <button class="bot-tab" onclick="showPage('finance');botActive(this)">
       <span class="bicon">💰</span><span class="blabel">Thu chi</span>
+    </button>
+    <button class="bot-tab" onclick="showPage('settings');botActive(this)" data-admin-only style="display:none">
+      <span class="bicon">⚙️</span><span class="blabel">Cài đặt</span>
     </button>
   </div>
 </nav>
@@ -1032,7 +1036,7 @@ function showPage(id){
   if(!pageEl) return;
   pageEl.classList.add('active');
   if(id!=='profile') sessionStorage.setItem('sp_page', id);
-  const map={ranking:'tổng',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',tournament:'giải',profile:''};
+  const map={ranking:'tổng',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',tournament:'giải',settings:'cài',profile:''};
   if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   if(id==='ranking'){renderRanking();renderPairsStats();}
   if(id==='matches'){populateMatchPlayerFilter();renderMatches();}
@@ -1040,10 +1044,18 @@ function showPage(id){
   if(id==='finance'){renderFinance();renderFines();renderDebt();}
   if(id==='pairing')populatePairingSelects();
   if(id==='tournament')renderTournamentList();
+  if(id==='settings')loadSettingsPage();
 }
 function botActive(el){document.querySelectorAll('.bot-tab').forEach(b=>b.classList.remove('active'));if(el)el.classList.add('active');}
 
 // Modals
+function guardScorer(){
+  if(window._userRole==='scorer'){
+    notify('🔒 Tài khoản Ghi trận chỉ có quyền ghi nhận trận đấu.');
+    return true;
+  }
+  return false;
+}
 function openModal(id){
   // Block write modals for guest
   const writeModals=['matchModal','playerModal','finModal','fineModal','newTournamentModal'];
@@ -1051,6 +1063,8 @@ function openModal(id){
     if(window.requireLogin) window.requireLogin(function(){ openModal(id); });
     return;
   }
+  // Scorer role: can only record matches, nothing else
+  if(window._userRole==='scorer' && id!=='matchModal'){ guardScorer(); return; }
   document.getElementById(id).classList.add('open');
   if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();document.getElementById('mTien').value='10000';if(document.getElementById('mTienCustom'))document.getElementById('mTienCustom').style.display='none';}
   if(id==='finModal'){popFinSel();document.getElementById('finDate').value=today();}
@@ -1066,7 +1080,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open')}));
 
 // Players
-function addPlayer(){
+function addPlayer(){if(guardScorer())return;
   const name=document.getElementById('pName').value.trim();
   const score=parseFloat(parseFloat(document.getElementById('pScore').value).toFixed(2));
   const note=document.getElementById('pNote').value.trim();
@@ -1081,13 +1095,13 @@ function addPlayer(){
   document.getElementById('levelPreview').innerHTML='';
   notify('✅ Đã thêm: '+name);
 }
-function togglePlayerVis(id){const p=players.find(x=>x.id===id);if(p){p.visible=!p.visible;saveAll();renderPlayers();}}
-function toggleHidden(){
+function togglePlayerVis(id){if(guardScorer())return;const p=players.find(x=>x.id===id);if(p){p.visible=!p.visible;saveAll();renderPlayers();}}
+function toggleHidden(){if(guardScorer())return;
   showHidden=!showHidden;
   document.getElementById('hiddenBtn').textContent=showHidden?'🙈 Ẩn thành viên ẩn':'👁 Xem thành viên ẩn';
   renderPlayers();
 }
-function editScore(id){
+function editScore(id){if(guardScorer())return;
   const p=players.find(x=>x.id===id);if(!p)return;
   const ns=prompt(`Điểm mới cho ${p.name} (hiện: ${p.score.toFixed(2)}, từ 2.00 đến 8.00):`,p.score.toFixed(2));
   if(ns===null)return;
@@ -1095,7 +1109,7 @@ function editScore(id){
   if(isNaN(n)||n<2||n>8)return alert('Điểm phải từ 2.00 đến 8.00');
   p.score=n;saveAll();renderPlayers();renderRanking();notify(`✅ Điểm ${p.name}: ${n.toFixed(2)}`);
 }
-function delPlayer(id){
+function delPlayer(id){if(guardScorer())return;
   const p=players.find(x=>x.id===id);if(!p)return;
   if(!confirm(`Xóa ${p.name}?`))return;
   players=players.filter(x=>x.id!==id);saveAll();renderPlayers();notify('🗑 Đã xóa '+p.name);
@@ -1617,7 +1631,7 @@ function logMatch(){
   saveAll();closeModal('matchModal');renderMatches();renderRanking();renderPlayers();
   notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
 }
-function delMatch(id){
+function delMatch(id){if(guardScorer())return;
   if(!confirm('Xóa trận? Điểm ELO không hoàn lại.'))return;
   matches=matches.filter(m=>m.id!==id);saveAll();renderMatches();notify('🗑 Đã xóa trận');
 }
@@ -1698,7 +1712,7 @@ function setFinPeriod(p){
   document.getElementById('finFrom').value=p==='all'?'':ago(30);
   document.getElementById('finTo').value=today();renderFinance();
 }
-function addFinance(){
+function addFinance(){if(guardScorer())return;
   const type=document.getElementById('finType').value;
   const desc=document.getElementById('finDesc').value.trim();
   const amount=parseInt(document.getElementById('finAmt').value)||0;
@@ -1714,7 +1728,7 @@ function toggleFineOther(){
   document.getElementById('fineOtherWrap').style.display = val==='other' ? '' : 'none';
 }
 
-function addFine(){
+function addFine(){if(guardScorer())return;
   const player=document.getElementById('finePlayer').value;
   const reasonSel=document.getElementById('fineReason').value;
   const reason=reasonSel==='other'
@@ -1727,17 +1741,17 @@ function addFine(){
   saveAll();closeModal('fineModal');renderFines();renderDebt();
   notify(`⚠️ Phạt ${player}: ${fmt(amount)}`);
 }
-function delFinance(id){
+function delFinance(id){if(guardScorer())return;
   if(!confirm('Xóa giao dịch?'))return;
   finances=finances.filter(f=>f.id!==id);saveAll();renderFinance();renderDebt();notify('🗑 Đã xóa');
 }
-function payFine(id){
+function payFine(id){if(guardScorer())return;
   const fine=fines.find(f=>f.id===id);if(!fine||fine.paid)return;
   pendingFineId=id;
   document.getElementById('payFineContent').innerHTML=`<p style="line-height:1.8">Xác nhận <strong>${fine.player}</strong> đã nộp phạt<br/><strong style="color:var(--lime);font-size:1.2rem">${fmt(fine.amount)}</strong></p><p class="tm small" style="margin-top:.4rem">Lý do: ${fine.reason}</p>`;
   openModal('payFineModal');
 }
-function confirmPayFine(){
+function confirmPayFine(){if(guardScorer())return;
   if(pendingFineId===null)return;
   const fine=fines.find(f=>f.id===pendingFineId);
   if(fine){
@@ -1748,7 +1762,7 @@ function confirmPayFine(){
   }
   closeModal('payFineModal');pendingFineId=null;notify('✅ Đã xác nhận nộp phạt');
 }
-function delFine(id){
+function delFine(id){if(guardScorer())return;
   if(!confirm('Xóa khoản phạt?'))return;
   fines=fines.filter(f=>f.id!==id);saveAll();renderFines();renderDebt();notify('🗑 Đã xóa khoản phạt');
 }
@@ -2370,7 +2384,7 @@ let tCurrentTeams    = [];
 let tCurrentName     = '';
 let tViewingId       = null;
 
-function openNewTournamentModal(){
+function openNewTournamentModal(){if(guardScorer())return;
   openModal('newTournamentModal');
   tSelectedPlayers = [];
   renderTPlayersList();
@@ -2404,7 +2418,7 @@ function renderTPlayersList(){
   }).join('');
 }
 
-function toggleTPlayer(name){
+function toggleTPlayer(name){if(guardScorer())return;
   const idx = tSelectedPlayers.indexOf(name);
   if(idx>=0) tSelectedPlayers.splice(idx,1);
   else tSelectedPlayers.push(name);
@@ -2420,7 +2434,7 @@ function effectiveScoreT(name){
   return parseFloat((p.score+form).toFixed(3));
 }
 
-function generateTeams(){
+function generateTeams(){if(guardScorer())return;
   const tc   = parseInt(document.getElementById('tTeamCount').value)||4;
   const ts   = parseInt(document.getElementById('tTeamSize').value)||2;
   const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
@@ -2450,7 +2464,7 @@ function balanceTeams(playerNames, tc, ts){
   return teams;
 }
 
-function reshuffleTeams(){
+function reshuffleTeams(){if(guardScorer())return;
   const tc = tCurrentTeams.length;
   const ts = tCurrentTeams[0].members.length;
   // Slight shuffle then rebalance
@@ -2543,7 +2557,7 @@ function genTournamentMatches(teams){
   return matches;
 }
 
-function confirmCreateTournament(){
+function confirmCreateTournament(){if(guardScorer())return;
   const teamNames=['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6'];
   const builtTeams=tCurrentTeams.map(function(t,i){return {id:i,name:teamNames[i],members:t.members};});
   const matches_t=genTournamentMatches(builtTeams);
@@ -2807,6 +2821,7 @@ function renderTournamentView(t){
 }
 
 function saveMatchResult(tId, mId){
+  if(guardScorer())return;
   const t=tournaments.find(x=>x.id===tId); if(!t) return;
   const m=t.matches.find(x=>x.id===mId); if(!m) return;
   const sa=parseInt(document.getElementById('ms_'+tId+'_'+mId+'_a').value);
@@ -2826,7 +2841,7 @@ function saveMatchResult(tId, mId){
   renderTournamentList();
 }
 
-function endTournament(){
+function endTournament(){if(guardScorer())return;
   const t=tournaments.find(x=>x.id===tViewingId); if(!t) return;
   const undone=t.matches.filter(m=>!m.done).length;
   if(undone>0&&!confirm('Còn '+undone+' trận chưa có kết quả. Vẫn kết thúc giải?')) return;
@@ -3033,10 +3048,202 @@ window.applyRoleUI = function applyRoleUI(role){
   if(dot){ dot.style.display=''; dot.onclick=function(){ manualSync(); }; dot.title='Nhấn để đồng bộ lên Firebase'; }
   const logoutBtn=document.getElementById('logoutBtn');
   if(logoutBtn) logoutBtn.style.display='';
-  if(role === 'member'){
+  if(role === 'member' || role === 'scorer'){
     document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
+  } else if(role === 'admin'){
+    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='');
+    loadSettingsPage();
   }
 }
+
+// ══════════════════ SETTINGS PAGE (admin only) ══════════════════
+function loadSettingsPage(){
+  if(window._userRole !== 'admin') return;
+  const nameInput = document.getElementById('settingsClubName');
+  if(nameInput) nameInput.value = window._clubName || '';
+  const bannerErr = document.getElementById('settingsBannerErr');
+  if(bannerErr) bannerErr.style.display='none';
+  refreshScorerList();
+}
+
+window.doUpdateClubName = async () => {
+  const errEl = document.getElementById('settingsNameErr');
+  errEl.style.display='none';
+  const newName = document.getElementById('settingsClubName').value.trim();
+  if(!newName){ errEl.textContent='Vui lòng nhập tên CLB.'; errEl.style.display=''; return; }
+  try{
+    await window._clubSet('info/name', newName);
+    window._clubName = newName;
+    if(window.applyClubLogo) window.applyClubLogo(newName);
+    notify('✅ Đã cập nhật tên CLB');
+  }catch(e){ errEl.textContent='Lỗi: '+e.message; errEl.style.display=''; }
+};
+
+let _pendingBannerDataUrl = null;
+
+function compressImage(file, maxWidth, quality){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxWidth){ h = Math.round(h * maxWidth / w); w = maxWidth; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Không đọc được ảnh'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Không đọc được file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+window.previewBannerFile = async (event) => {
+  const file = event.target.files[0];
+  const errEl = document.getElementById('settingsBannerErr');
+  errEl.style.display='none';
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ errEl.textContent='Vui lòng chọn file ảnh.'; errEl.style.display=''; return; }
+  try{
+    const dataUrl = await compressImage(file, 1600, 0.82);
+    _pendingBannerDataUrl = dataUrl;
+    const img = document.getElementById('settingsBannerPreview');
+    img.src = dataUrl; img.style.display='block';
+    document.getElementById('settingsBannerSaveBtn').disabled = false;
+  }catch(e){
+    errEl.textContent='Không thể xử lý ảnh: '+e.message; errEl.style.display='';
+  }
+};
+
+window.doUploadBanner = async () => {
+  const errEl = document.getElementById('settingsBannerErr');
+  errEl.style.display='none';
+  if(!_pendingBannerDataUrl){ errEl.textContent='Vui lòng chọn ảnh trước.'; errEl.style.display=''; return; }
+  const btn = document.getElementById('settingsBannerSaveBtn');
+  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang lưu...';
+  try{
+    await window._clubSet('info/banner', _pendingBannerDataUrl);
+    if(window.applyClubBanner) window.applyClubBanner(window._clubId, {name:window._clubName, banner:_pendingBannerDataUrl});
+    notify('✅ Đã cập nhật banner CLB');
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message; errEl.style.display='';
+  }
+  btn.disabled=false; btn.textContent=oldTxt;
+};
+
+async function refreshScorerList(){
+  const listEl = document.getElementById('scorerList');
+  const countEl = document.getElementById('scorerCount');
+  const addBtn = document.getElementById('scorerAddBtn');
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Đang tải...</div>';
+  try{
+    const all = (await window._fbGet('user_roles')) || {};
+    const clubId = window._clubId;
+    const scorers = Object.entries(all).filter(([uid,u])=>u && u.clubId===clubId && u.role==='scorer');
+    countEl.textContent = scorers.length;
+    if(scorers.length===0){
+      listEl.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Chưa có tài khoản Ghi trận nào.</div>';
+    } else {
+      listEl.innerHTML = scorers.map(([uid,u])=>
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)">'
+        +'<div><div style="font-size:.85rem;font-weight:600">'+(u.displayName||u.email)+'</div>'
+        +'<div style="font-size:.72rem;color:var(--muted)">'+u.email+(u.username?' · @'+u.username:'')+'</div></div>'
+        +'<button class="btn btn-ghost btn-sm" onclick="deleteScorer(\''+uid+'\')">🗑 Xóa</button>'
+        +'</div>'
+      ).join('');
+    }
+    if(addBtn) addBtn.style.display = scorers.length>=3 ? 'none' : '';
+  }catch(e){
+    listEl.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Lỗi tải danh sách: '+e.message+'</div>';
+  }
+}
+
+window.openScorerForm = () => { document.getElementById('scorerForm').style.display=''; };
+window.closeScorerForm = () => {
+  document.getElementById('scorerForm').style.display='none';
+  ['scorerEmail','scorerPass','scorerName','scorerUsername'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('scorerFormErr').style.display='none';
+};
+
+window.doCreateScorer = async () => {
+  const errEl = document.getElementById('scorerFormErr');
+  errEl.style.display='none';
+  const email = document.getElementById('scorerEmail').value.trim();
+  const pass  = document.getElementById('scorerPass').value;
+  const name  = document.getElementById('scorerName').value.trim();
+  const uname = document.getElementById('scorerUsername').value.trim();
+  if(!email || !pass || !name){ errEl.textContent='Vui lòng điền đầy đủ thông tin.'; errEl.style.display=''; return; }
+  if(pass.length<6){ errEl.textContent='Mật khẩu tối thiểu 6 ký tự.'; errEl.style.display=''; return; }
+
+  const btn = document.getElementById('scorerSubmitBtn');
+  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang tạo...';
+
+  try{
+    const all = (await window._fbGet('user_roles')) || {};
+    const existing = Object.values(all).filter(u=>u && u.clubId===window._clubId && u.role==='scorer');
+    if(existing.length>=3){
+      errEl.textContent='CLB đã đủ 3 tài khoản Ghi trận (giới hạn tối đa).'; errEl.style.display='';
+      btn.disabled=false; btn.textContent=oldTxt; return;
+    }
+    if(uname){
+      const uCheck = await window._fbGet('usernames/'+uname);
+      if(uCheck){ errEl.textContent='Tên đăng nhập đã được sử dụng.'; errEl.style.display=''; btn.disabled=false; btn.textContent=oldTxt; return; }
+    }
+
+    const { initializeApp, getApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const { getAuth: getAuth2, createUserWithEmailAndPassword: createUser2, updateProfile: updateProfile2 } =
+      await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+
+    let secondaryApp;
+    try { secondaryApp = getApp('secondary'); }
+    catch(e){
+      secondaryApp = initializeApp({
+        apiKey: "AIzaSyAF4GMR-pn-7MXbwtKIF9u-hp4azUqbF8E",
+        authDomain: "sollake-pick.firebaseapp.com",
+        projectId: "sollake-pick",
+      }, 'secondary');
+    }
+    const auth2 = getAuth2(secondaryApp);
+    const cred = await createUser2(auth2, email, pass);
+    if(name) await updateProfile2(cred.user, {displayName:name});
+
+    const today = new Date().toISOString().slice(0,10);
+    await window._fbSet('user_roles/'+cred.user.uid, {
+      role:'scorer', clubId: window._clubId, clubName: window._clubName,
+      email, displayName: name||email, username: uname||'', createdAt: today
+    });
+    if(uname){
+      await window._fbSet('usernames/'+uname, cred.user.uid);
+      await window._fbSet('usernames_email/'+uname, email);
+    }
+    await auth2.signOut();
+
+    notify('✅ Đã tạo tài khoản Ghi trận: '+email);
+    closeScorerForm();
+    refreshScorerList();
+  }catch(e){
+    if(e.code==='auth/email-already-in-use') errEl.textContent='Email đã được sử dụng.';
+    else if(e.code==='auth/weak-password') errEl.textContent='Mật khẩu quá yếu (tối thiểu 6 ký tự).';
+    else if(e.code==='auth/invalid-email') errEl.textContent='Email không hợp lệ.';
+    else errEl.textContent='Lỗi: '+e.message;
+    errEl.style.display='';
+  }
+  btn.disabled=false; btn.textContent=oldTxt;
+};
+
+window.deleteScorer = async (uid) => {
+  if(!confirm('Xóa tài khoản Ghi trận này?')) return;
+  try{
+    await window._fbSet('user_roles/'+uid, null);
+    notify('🗑 Đã xóa tài khoản');
+    refreshScorerList();
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
+};
 
 function requireLogin(callback){
   if(window._userRole && window._userRole !== 'guest'){
@@ -3126,6 +3333,72 @@ init();
     <button class="btn btn-lime" onclick="openNewTournamentModal()">+ Tạo giải mới</button>
   </div>
   <div id="tournamentList"></div>
+</div>
+
+<!-- SETTINGS PAGE (admin only) -->
+<div class="page" id="page-settings">
+  <div class="sec-title">⚙️ Cài đặt CLB</div>
+
+  <!-- Sửa tên CLB -->
+  <div class="panel">
+    <div class="panel-hd">Tên câu lạc bộ</div>
+    <div class="fgroup">
+      <label>Tên hiển thị</label>
+      <input class="finput" id="settingsClubName" placeholder="VD: Sollake Pick"/>
+    </div>
+    <div id="settingsNameErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+    <button class="btn btn-lime" onclick="doUpdateClubName()">💾 Lưu tên CLB</button>
+  </div>
+
+  <!-- Đổi banner -->
+  <div class="panel">
+    <div class="panel-hd">Ảnh banner CLB</div>
+    <div style="margin-bottom:.75rem">
+      <img id="settingsBannerPreview" src="" alt="Banner preview" style="width:100%;max-height:180px;object-fit:contain;border-radius:var(--rs);background:var(--navy);display:none"/>
+    </div>
+    <div class="fgroup">
+      <label>Chọn ảnh từ máy</label>
+      <input class="finput" type="file" id="settingsBannerFile" accept="image/*" onchange="previewBannerFile(event)"/>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Ảnh sẽ được tự động thu nhỏ để tối ưu tốc độ tải.</div>
+    </div>
+    <div id="settingsBannerErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+    <button class="btn btn-lime" id="settingsBannerSaveBtn" onclick="doUploadBanner()" disabled>💾 Lưu banner</button>
+  </div>
+
+  <!-- Tài khoản Ghi trận -->
+  <div class="panel">
+    <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Tài khoản Ghi trận (<span id="scorerCount">0</span>/3)</span>
+      <button class="btn btn-lime btn-sm" id="scorerAddBtn" onclick="openScorerForm()">+ Tạo tài khoản</button>
+    </div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Tài khoản này chỉ có quyền ghi nhận trận đấu, không thể sửa thành viên, thu chi, hay cài đặt khác.</div>
+    <div id="scorerList"></div>
+
+    <div id="scorerForm" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div class="fgroup">
+        <label>Email</label>
+        <input class="finput" id="scorerEmail" placeholder="user@example.com" type="email"/>
+      </div>
+      <div class="fgroup">
+        <label>Mật khẩu</label>
+        <input class="finput" id="scorerPass" placeholder="Tối thiểu 6 ký tự" type="password"/>
+      </div>
+      <div class="fgroup">
+        <label>Tên hiển thị</label>
+        <input class="finput" id="scorerName" placeholder="Nguyễn Văn A"/>
+      </div>
+      <div class="fgroup">
+        <label>Tên đăng nhập (username, tùy chọn)</label>
+        <input class="finput" id="scorerUsername" placeholder="VD: huy.nguyen" autocomplete="off"
+          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
+      </div>
+      <div id="scorerFormErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeScorerForm()">Hủy</button>
+        <button class="btn btn-lime" id="scorerSubmitBtn" onclick="doCreateScorer()">✅ Tạo tài khoản</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: NEW TOURNAMENT STEP 1 -->
