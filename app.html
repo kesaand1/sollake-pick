@@ -3751,9 +3751,18 @@ window.previewFeedbackImage = async (event) => {
     _pendingFeedbackImage = dataUrl;
     const img = document.getElementById('feedbackImagePreview');
     img.src = dataUrl; img.style.display='block';
+    document.getElementById('feedbackImageRemoveBtn').style.display='';
   }catch(e){
     errEl.textContent='Không thể xử lý ảnh: '+e.message; errEl.style.display='';
   }
+};
+
+window.removeFeedbackImage = () => {
+  _pendingFeedbackImage = null;
+  document.getElementById('feedbackImage').value='';
+  document.getElementById('feedbackImagePreview').style.display='none';
+  document.getElementById('feedbackImagePreview').src='';
+  document.getElementById('feedbackImageRemoveBtn').style.display='none';
 };
 
 window.submitFeedback = async () => {
@@ -3775,9 +3784,7 @@ window.submitFeedback = async () => {
     });
     notify('✅ Đã gửi góp ý, cảm ơn bạn!');
     document.getElementById('feedbackContent').value='';
-    document.getElementById('feedbackImage').value='';
-    document.getElementById('feedbackImagePreview').style.display='none';
-    _pendingFeedbackImage = null;
+    removeFeedbackImage();
   }catch(e){
     errEl.textContent='Lỗi: '+e.message; errEl.style.display='';
   }
@@ -4068,7 +4075,10 @@ init();
     <div class="fgroup">
       <label>Đính kèm ảnh (tùy chọn)</label>
       <input type="file" class="finput" id="feedbackImage" accept="image/*" onchange="previewFeedbackImage(event)"/>
-      <img id="feedbackImagePreview" src="" alt="" style="max-width:100%;max-height:180px;margin-top:.6rem;border-radius:var(--rs);display:none"/>
+      <div style="position:relative;display:inline-block;margin-top:.6rem">
+        <img id="feedbackImagePreview" src="" alt="" style="max-width:100%;max-height:180px;border-radius:var(--rs);display:none"/>
+        <button type="button" id="feedbackImageRemoveBtn" onclick="removeFeedbackImage()" style="display:none;position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:var(--danger);color:#fff;border:2px solid var(--card);cursor:pointer;font-size:.8rem;line-height:1" title="Xóa ảnh">✕</button>
+      </div>
     </div>
     <div id="feedbackErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
     <button class="btn btn-lime" id="feedbackSubmitBtn" onclick="submitFeedback()">📨 Gửi góp ý</button>
