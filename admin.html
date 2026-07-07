@@ -795,6 +795,7 @@ function renderFeedback(){
       +'</div>'
       +'<div style="font-size:.85rem;margin-bottom:.6rem;white-space:pre-wrap">'+(f.content||'').replace(/</g,'&lt;')+'</div>'
       +(f.image?'<img src="'+f.image+'" style="max-width:220px;border-radius:6px;margin-bottom:.6rem;display:block"/>':'')
+      +(f.reply?'<div style="font-size:.78rem;color:var(--lime);background:rgba(181,240,51,.08);border:1px solid rgba(181,240,51,.25);border-radius:var(--rs);padding:.5rem .65rem;margin-bottom:.6rem">💬 Đã trả lời: '+f.reply.replace(/</g,'&lt;')+'</div>':'')
       +'<div style="display:flex;gap:.4rem;flex-wrap:wrap">'
       +'<button class="btn btn-lime btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'resolved\')">✅ Đã xử lý</button>'
       +'<button class="btn btn-danger btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'rejected\')">❌ Reject</button>'
@@ -803,9 +804,24 @@ function renderFeedback(){
   }).join('');
 }
 
+const FEEDBACK_REPLIES = {
+  resolved: 'Cảm ơn bạn đã góp ý, chúng tôi đã xử lý vấn đề trên.',
+  rejected: 'Cảm ơn bạn đã góp ý, hiện tại hệ thống của chúng tôi chưa thể đáp ứng được việc này trong thời gian gần. Bạn muốn biết thêm thông tin hãy liên hệ trực tiếp với Admin hệ thống qua mã Zalo.',
+};
+
 window.setFeedbackStatus = async (id, status) => {
   try{
-    await set(ref(db,'feedback/'+id+'/status'), status);
+    const updates = { status };
+    if(FEEDBACK_REPLIES[status]){
+      updates.reply = FEEDBACK_REPLIES[status];
+      updates.repliedAt = new Date().toISOString();
+    } else {
+      updates.reply = null;
+      updates.repliedAt = null;
+    }
+    const snap = await get(ref(db,'feedback/'+id));
+    const f = snap.val()||{};
+    await set(ref(db,'feedback/'+id), {...f, ...updates});
     notify('✅ Đã cập nhật trạng thái góp ý');
   }catch(e){ notify('❌ Lỗi: '+e.message); }
 }

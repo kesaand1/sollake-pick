@@ -3666,6 +3666,42 @@ function loadSettingsPage(){
   const bannerErr = document.getElementById('settingsBannerErr');
   if(bannerErr) bannerErr.style.display='none';
   refreshScorerList();
+  loadMyFeedback();
+}
+
+async function loadMyFeedback(){
+  const el = document.getElementById('myFeedbackList');
+  if(!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Đang tải...</div>';
+  try{
+    const all = (await window._fbGet('feedback')) || {};
+    const mine = Object.entries(all).filter(([id,f])=>f && f.clubId===window._clubId);
+    mine.sort((a,b)=>(b[1].createdAt||'').localeCompare(a[1].createdAt||''));
+    if(!mine.length){
+      el.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Bạn chưa gửi góp ý nào.</div>';
+      return;
+    }
+    const statusMap = {
+      pending:  {label:'Chưa xử lý', pill:'p-gray'},
+      rejected: {label:'Reject',     pill:'p-red'},
+      resolved: {label:'Đã xử lý',   pill:'p-green'},
+    };
+    el.innerHTML = mine.map(([id,f])=>{
+      const st = statusMap[f.status] || statusMap.pending;
+      const dt = (f.createdAt||'').slice(0,16).replace('T',' ');
+      return '<div style="border:1px solid var(--border);border-radius:var(--rs);padding:.65rem .75rem;margin-bottom:.5rem">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem">'
+        +'<span style="font-size:.72rem;color:var(--muted)">'+dt+'</span>'
+        +'<span class="pill '+st.pill+'">'+st.label+'</span>'
+        +'</div>'
+        +'<div style="font-size:.82rem;margin-bottom:'+(f.image||f.reply?'.5rem':'0')+';white-space:pre-wrap">'+(f.content||'').replace(/</g,'&lt;')+'</div>'
+        +(f.image?'<img src="'+f.image+'" style="max-width:180px;border-radius:6px;margin-bottom:'+(f.reply?'.5rem':'0')+';display:block"/>':'')
+        +(f.reply?'<div style="font-size:.78rem;color:var(--lime);background:rgba(181,240,51,.08);border:1px solid rgba(181,240,51,.25);border-radius:var(--rs);padding:.5rem .65rem">💬 '+f.reply.replace(/</g,'&lt;')+'</div>':'')
+        +'</div>';
+    }).join('');
+  }catch(e){
+    el.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Lỗi tải: '+e.message+'</div>';
+  }
 }
 
 window.doUpdateClubName = async () => {
@@ -3785,6 +3821,7 @@ window.submitFeedback = async () => {
     notify('✅ Đã gửi góp ý, cảm ơn bạn!');
     document.getElementById('feedbackContent').value='';
     removeFeedbackImage();
+    loadMyFeedback();
   }catch(e){
     errEl.textContent='Lỗi: '+e.message; errEl.style.display='';
   }
@@ -4082,6 +4119,11 @@ init();
     </div>
     <div id="feedbackErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
     <button class="btn btn-lime" id="feedbackSubmitBtn" onclick="submitFeedback()">📨 Gửi góp ý</button>
+
+    <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.6rem">Góp ý đã gửi</div>
+      <div id="myFeedbackList"><div style="color:var(--muted);font-size:.8rem">Đang tải...</div></div>
+    </div>
   </div>
 </div>
 
