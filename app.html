@@ -100,6 +100,7 @@ onAuthStateChanged(auth, async (user) => {
       window._userRole='guest';
       if(window.applyRoleUI) window.applyRoleUI('guest');
       subscribeClubData();
+      if(window.restoreLastPage) window.restoreLastPage();
       applyClubBanner(_urlClubId, null); // show fallback banner immediately
       get(ref(db, 'clubs/'+_urlClubId+'/info')).then(snap=>{
         const info = snap.val();
@@ -168,6 +169,7 @@ onAuthStateChanged(auth, async (user) => {
     applyRoleUI(currentRole);
     hideLoginScreen();
     subscribeClubData();
+    if(window.restoreLastPage) window.restoreLastPage();
 
   } catch(e) {
     console.error('Auth error:', e);
@@ -435,6 +437,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .t-accordion.t-alt-0{background:#111f33}
 .t-accordion.t-alt-1{background:#152238}
 .t-accordion.t-alt-2{background:#0e1a2b}
+.t-alt-0 .t-name{color:var(--lime)}
+.t-alt-1 .t-name{color:#60A5FA}
+.t-alt-2 .t-name{color:#FB923C}
 .t-accordion-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;cursor:pointer;gap:.75rem;transition:background .18s}
 .t-accordion-header:hover{background:rgba(255,255,255,.04)}
 .t-accordion-body{border-top:0}
@@ -1079,6 +1084,12 @@ window.gotoFinPage   = (p) => { _finPage = p; renderFinance(); };
 window.gotoFinePage  = (p) => { _finePage = p; renderFines(); };
 
 // Navigation
+function restoreLastPage(){
+  const lastPage = sessionStorage.getItem('sp_page');
+  if(lastPage && lastPage!=='ranking' && document.getElementById('page-'+lastPage)) showPage(lastPage);
+}
+window.restoreLastPage = restoreLastPage;
+
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1088,6 +1099,8 @@ function showPage(id){
   if(id!=='profile') sessionStorage.setItem('sp_page', id);
   const map={ranking:'tổng',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',tournament:'giải',settings:'cài',profile:''};
   if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
+  document.querySelectorAll('.bot-tab').forEach(b=>b.classList.remove('active'));
+  if(map[id])document.querySelectorAll('.bot-tab').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   if(id==='ranking'){renderRanking();renderPairsStats();}
   if(id==='matches'){populateMatchPlayerFilter();renderMatches();}
   if(id==='players')renderPlayers();
@@ -2992,7 +3005,7 @@ function renderTournamentList(){
     return '<div class="t-accordion t-alt-'+(idx%3)+'" id="tacc_'+t.id+'">'
       +'<div class="t-accordion-header" onclick="toggleTAccordion('+t.id+')">'
       +'<div style="display:flex;align-items:center;gap:.6rem;min-width:0;flex:1">'
-      +'<span style="font-size:.85rem;font-weight:700;color:var(--text)">'+t.name+'</span>'
+      +'<span class="t-name" style="font-size:.85rem;font-weight:700">'+t.name+'</span>'
       +statusPill
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">'
@@ -3478,6 +3491,7 @@ async function enterGuestMode(clubId){
   if(typeof applyRoleUI==='function') applyRoleUI('guest');
   if(typeof hideLoginScreen==='function') hideLoginScreen();
   if(window.subscribeClubData) window.subscribeClubData();
+  restoreLastPage();
 }
 
 function subscribeClubDataReadOnly(){
@@ -3871,8 +3885,7 @@ function init(){
   document.getElementById('finFrom').value=ago(30);
   buildRankDropdown();
   // Restore last visited page
-  const lastPage = sessionStorage.getItem('sp_page');
-  if(lastPage && lastPage !== 'ranking' && document.getElementById('page-'+lastPage)) showPage(lastPage);
+  restoreLastPage();
   document.getElementById('ovTo').value=today();
   renderRanking();renderPlayers();
 
@@ -4064,6 +4077,22 @@ init();
         <option value="2" selected>2 người/team (đôi)</option>
         <option value="3">3 người/team</option>
         <option value="4">4 người/team</option>
+        <option value="5">5 người/team</option>
+        <option value="6">6 người/team</option>
+        <option value="7">7 người/team</option>
+        <option value="8">8 người/team</option>
+        <option value="9">9 người/team</option>
+        <option value="10">10 người/team</option>
+        <option value="11">11 người/team</option>
+        <option value="12">12 người/team</option>
+        <option value="13">13 người/team</option>
+        <option value="14">14 người/team</option>
+        <option value="15">15 người/team</option>
+        <option value="16">16 người/team</option>
+        <option value="17">17 người/team</option>
+        <option value="18">18 người/team</option>
+        <option value="19">19 người/team</option>
+        <option value="20">20 người/team</option>
       </select>
     </div>
     <div class="fgroup">
