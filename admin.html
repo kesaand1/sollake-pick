@@ -763,46 +763,65 @@ let _feedbackFilter = 'all';
 
 window.setFeedbackFilter = (status) => {
   _feedbackFilter = status;
+  _feedbackPage = 1;
   document.querySelectorAll('.feedback-filter-btn').forEach(b=>b.classList.toggle('active', b.dataset.status===status));
   renderFeedback();
 }
+
+let _feedbackPage = 1;
+const FEEDBACK_PAGE_SIZE = 15;
+window.gotoFeedbackPage = (p) => { _feedbackPage = p; renderFeedback(); };
 
 function renderFeedback(){
   const el = document.getElementById('feedbackList');
   if(!el) return;
   const all = window._feedback || {};
-  let entries = Object.entries(all);
+  let allEntries = Object.entries(all);
   if(_feedbackFilter !== 'all'){
-    entries = entries.filter(([id,f])=>(f.status||'pending')===_feedbackFilter);
+    allEntries = allEntries.filter(([id,f])=>(f.status||'pending')===_feedbackFilter);
   }
-  entries.sort((a,b)=>(b[1].createdAt||'').localeCompare(a[1].createdAt||''));
-  if(!entries.length){
+  allEntries.sort((a,b)=>(b[1].createdAt||'').localeCompare(a[1].createdAt||''));
+  if(!allEntries.length){
     el.innerHTML = '<div style="color:var(--muted);font-size:.82rem">Chưa có góp ý nào'+(_feedbackFilter!=='all'?' ở trạng thái này':'')+'.</div>';
     return;
   }
+  const { items: entries, page, totalPages } = paginateArr(allEntries, _feedbackPage, FEEDBACK_PAGE_SIZE);
+  _feedbackPage = page;
   const statusMap = {
-    pending:  {label:'Chưa xử lý', pill:'p-gray'},
-    rejected: {label:'Reject',     pill:'p-red'},
-    resolved: {label:'Đã xử lý',   pill:'p-green'},
+    pending:  {label:'Chưa xử lý', pill:'p-gray',  replyBg:'rgba(100,116,139,.1)', replyBorder:'rgba(100,116,139,.25)', replyColor:'var(--muted)'},
+    rejected: {label:'Reject',     pill:'p-red',   replyBg:'rgba(248,113,113,.1)', replyBorder:'rgba(248,113,113,.3)',  replyColor:'#F87171'},
+    resolved: {label:'Đã xử lý',   pill:'p-green', replyBg:'rgba(181,240,51,.08)', replyBorder:'rgba(181,240,51,.25)',  replyColor:'var(--lime)'},
   };
-  el.innerHTML = entries.map(([id,f])=>{
+  const startNum = (page-1)*FEEDBACK_PAGE_SIZE;
+  el.innerHTML = entries.map(([id,f],i)=>{
     const st = statusMap[f.status] || statusMap.pending;
     const dt = (f.createdAt||'').slice(0,16).replace('T',' ');
     return '<div style="border:1px solid var(--border);border-radius:var(--rs);padding:.75rem;margin-bottom:.6rem">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem">'
-      +'<span style="font-size:.78rem;color:var(--muted)">'+(f.clubName||f.clubId||'—')+' · '+dt+'</span>'
+      +'<span style="font-size:.78rem;color:var(--muted)">#'+(startNum+i+1)+' · '+(f.clubName||f.clubId||'—')+' · '+dt+'</span>'
+      +'<div style="display:flex;align-items:center;gap:.4rem">'
       +'<span class="pill '+st.pill+'">'+st.label+'</span>'
+      +'<button class="btn btn-danger btn-xs" onclick="deleteFeedback(\''+id+'\')" title="Xóa vĩnh viễn">🗑</button>'
+      +'</div>'
       +'</div>'
       +'<div style="font-size:.85rem;margin-bottom:.6rem;white-space:pre-wrap">'+(f.content||'').replace(/</g,'&lt;')+'</div>'
       +(f.image?'<img src="'+f.image+'" style="max-width:220px;border-radius:6px;margin-bottom:.6rem;display:block"/>':'')
-      +(f.reply?'<div style="font-size:.78rem;color:var(--lime);background:rgba(181,240,51,.08);border:1px solid rgba(181,240,51,.25);border-radius:var(--rs);padding:.5rem .65rem;margin-bottom:.6rem">💬 Đã trả lời: '+f.reply.replace(/</g,'&lt;')+'</div>':'')
+      +(f.reply?'<div style="font-size:.78rem;color:'+st.replyColor+';background:'+st.replyBg+';border:1px solid '+st.replyBorder+';border-radius:var(--rs);padding:.5rem .65rem;margin-bottom:.6rem">💬 Đã trả lời: '+f.reply.replace(/</g,'&lt;')+'</div>':'')
       +'<div style="display:flex;gap:.4rem;flex-wrap:wrap">'
       +'<button class="btn btn-lime btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'resolved\')">✅ Đã xử lý</button>'
       +'<button class="btn btn-danger btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'rejected\')">❌ Reject</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'pending\')">↩️ Chưa xử lý</button>'
       +'</div></div>';
-  }).join('');
+  }).join('') + adminPagerHTML(page, totalPages, 'gotoFeedbackPage');
 }
+
+window.deleteFeedback = async (id) => {
+  if(!confirm('Xóa VĨNH VIỄN góp ý này? Không thể hoàn tác.')) return;
+  try{
+    await set(ref(db,'feedback/'+id), null);
+    notify('🗑 Đã xóa góp ý');
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
+};
 
 const FEEDBACK_REPLIES = {
   resolved: 'Cảm ơn bạn đã góp ý, chúng tôi đã xử lý vấn đề trên.',

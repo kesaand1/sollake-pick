@@ -3669,36 +3669,47 @@ function loadSettingsPage(){
   loadMyFeedback();
 }
 
+let _myFeedbackPage = 1;
+const MY_FEEDBACK_PAGE_SIZE = 15;
+
+window.gotoMyFeedbackPage = (p) => { _myFeedbackPage = p; loadMyFeedback(); };
+
 async function loadMyFeedback(){
   const el = document.getElementById('myFeedbackList');
   if(!el) return;
   el.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Đang tải...</div>';
   try{
     const all = (await window._fbGet('feedback')) || {};
-    const mine = Object.entries(all).filter(([id,f])=>f && f.clubId===window._clubId);
+    const mine = Object.entries(all).filter(([id,f])=>f && f.clubId===window._clubId && !f.hiddenByClub);
     mine.sort((a,b)=>(b[1].createdAt||'').localeCompare(a[1].createdAt||''));
     if(!mine.length){
       el.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Bạn chưa gửi góp ý nào.</div>';
       return;
     }
+    const {pageItems, page, totalPages} = paginateList(mine, _myFeedbackPage);
+    _myFeedbackPage = page;
     const statusMap = {
-      pending:  {label:'Chưa xử lý', pill:'p-gray'},
-      rejected: {label:'Reject',     pill:'p-red'},
-      resolved: {label:'Đã xử lý',   pill:'p-green'},
+      pending:  {label:'Chưa xử lý', pill:'p-gray',  replyBg:'rgba(100,116,139,.1)',  replyBorder:'rgba(100,116,139,.25)', replyColor:'var(--muted)'},
+      rejected: {label:'Reject',     pill:'p-red',   replyBg:'rgba(248,113,113,.1)',  replyBorder:'rgba(248,113,113,.3)',  replyColor:'#F87171'},
+      resolved: {label:'Đã xử lý',   pill:'p-green', replyBg:'rgba(181,240,51,.08)',  replyBorder:'rgba(181,240,51,.25)',  replyColor:'var(--lime)'},
     };
-    el.innerHTML = mine.map(([id,f])=>{
+    const startNum = (page-1)*MY_FEEDBACK_PAGE_SIZE;
+    el.innerHTML = pageItems.map(([id,f],i)=>{
       const st = statusMap[f.status] || statusMap.pending;
       const dt = (f.createdAt||'').slice(0,16).replace('T',' ');
       return '<div style="border:1px solid var(--border);border-radius:var(--rs);padding:.65rem .75rem;margin-bottom:.5rem">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;flex-wrap:wrap;gap:.4rem">'
-        +'<span style="font-size:.72rem;color:var(--muted)">'+dt+'</span>'
+        +'<span style="font-size:.72rem;color:var(--muted)">#'+(startNum+i+1)+' · '+dt+'</span>'
+        +'<div style="display:flex;align-items:center;gap:.4rem">'
         +'<span class="pill '+st.pill+'">'+st.label+'</span>'
+        +'<button class="btn btn-ghost btn-xs" onclick="deleteMyFeedback(\''+id+'\')" title="Xóa khỏi danh sách của tôi">🗑</button>'
+        +'</div>'
         +'</div>'
         +'<div style="font-size:.82rem;margin-bottom:'+(f.image||f.reply?'.5rem':'0')+';white-space:pre-wrap">'+(f.content||'').replace(/</g,'&lt;')+'</div>'
         +(f.image?'<img src="'+f.image+'" style="max-width:180px;border-radius:6px;margin-bottom:'+(f.reply?'.5rem':'0')+';display:block"/>':'')
-        +(f.reply?'<div style="font-size:.78rem;color:var(--lime);background:rgba(181,240,51,.08);border:1px solid rgba(181,240,51,.25);border-radius:var(--rs);padding:.5rem .65rem">💬 '+f.reply.replace(/</g,'&lt;')+'</div>':'')
+        +(f.reply?'<div style="font-size:.78rem;color:'+st.replyColor+';background:'+st.replyBg+';border:1px solid '+st.replyBorder+';border-radius:var(--rs);padding:.5rem .65rem">💬 '+f.reply.replace(/</g,'&lt;')+'</div>':'')
         +'</div>';
-    }).join('');
+    }).join('') + pagerHTML(page, totalPages, 'gotoMyFeedbackPage');
   }catch(e){
     el.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Lỗi tải: '+e.message+'</div>';
   }
@@ -3799,6 +3810,14 @@ window.removeFeedbackImage = () => {
   document.getElementById('feedbackImagePreview').style.display='none';
   document.getElementById('feedbackImagePreview').src='';
   document.getElementById('feedbackImageRemoveBtn').style.display='none';
+};
+
+window.deleteMyFeedback = async (id) => {
+  if(!confirm('Xóa góp ý này khỏi danh sách của bạn? (Vẫn được lưu trong hệ thống cho Admin xem)')) return;
+  try{
+    await window._fbSet('feedback/'+id+'/hiddenByClub', true);
+    loadMyFeedback();
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
 };
 
 window.submitFeedback = async () => {
