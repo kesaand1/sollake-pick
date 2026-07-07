@@ -2456,7 +2456,7 @@ function openNewTournamentModal(){if(guardScorer())return;
   document.getElementById('tModeCardTeams').classList.add('selected');
   document.getElementById('tModeCardTournament').classList.remove('selected');
   document.getElementById('tFormatGroup').style.display='none';
-  document.getElementById('tAssignGroup').style.display='none';
+  document.getElementById('tAssignGroup').style.display='';
   renderTPlayersList();
   updateTLabel();
   updatePrimaryBtn();
@@ -2467,7 +2467,7 @@ function setTMode(mode){
   document.getElementById('tModeCardTeams').classList.toggle('selected', mode==='teams');
   document.getElementById('tModeCardTournament').classList.toggle('selected', mode==='tournament');
   document.getElementById('tFormatGroup').style.display = mode==='tournament' ? '' : 'none';
-  document.getElementById('tAssignGroup').style.display = mode==='tournament' ? '' : 'none';
+  document.getElementById('tAssignGroup').style.display = '';
   updatePrimaryBtn();
 }
 function setTFormat(fmt){
@@ -2483,9 +2483,9 @@ function setTAssign(a){
 }
 function updatePrimaryBtn(){
   const btn = document.getElementById('tPrimaryBtn');
-  if(tMode==='teams'){ btn.textContent='⚡ Chia đội'; btn.onclick=generateTeams; }
-  else if(tAssign==='auto'){ btn.textContent='⚡ Chia đội & Tạo giải'; btn.onclick=generateTournamentTeamsAuto; }
-  else { btn.textContent='✋ Chia đội thủ công'; btn.onclick=openManualTeamAssign; }
+  if(tAssign==='manual'){ btn.textContent='✋ Chia đội thủ công'; btn.onclick=openManualTeamAssign; }
+  else if(tMode==='teams'){ btn.textContent='⚡ Chia đội'; btn.onclick=generateTeams; }
+  else { btn.textContent='⚡ Chia đội & Tạo giải'; btn.onclick=generateTournamentTeamsAuto; }
 }
 
 function updateTLabel(){
@@ -2612,7 +2612,12 @@ function confirmManualAssign(){
   Object.values(tManualAssign).forEach(ti=>counts[ti]++);
   if(!counts.every(c=>c===ts)){ alert('Vui lòng cân bằng đủ số người mỗi team trước khi tạo giải!'); return; }
   const teams = Array.from({length:tc},(_,i)=>({id:i, members: tSelectedPlayers.filter(n=>tManualAssign[n]===i)}));
-  createTournamentFromTeams(teams);
+  if(tMode==='teams'){
+    tCurrentTeams = teams;
+    confirmCreateTournament();
+  } else {
+    createTournamentFromTeams(teams);
+  }
   closeModal('manualAssignModal');
 }
 
@@ -2646,15 +2651,27 @@ function balanceTeams(playerNames, tc, ts){
   return teams;
 }
 
-function reshuffleTeams(){if(guardScorer())return;
+function reshuffleTeams(strategy){if(guardScorer())return;
+  strategy = strategy || 'balanced';
   const tc = tCurrentTeams.length;
   const ts = tCurrentTeams[0].members.length;
-  // Slight shuffle then rebalance
   const all = tCurrentTeams.flatMap(t=>t.members);
-  // Add small random noise then resort
-  const withNoise = all.map(n=>({n,s:effectiveScoreT(n)+(Math.random()-0.5)*0.1}))
-    .sort((a,b)=>b.s-a.s).map(x=>x.n);
-  tCurrentTeams = balanceTeams(withNoise, tc, ts);
+  let newTeams;
+  if(strategy==='balanced'){
+    // Ít lệch nhất: snake draft thuần theo điểm, không xáo trộn
+    newTeams = balanceTeams(all, tc, ts);
+  } else if(strategy==='medium'){
+    // Lệch vừa: thêm nhiễu nhẹ trước khi snake draft
+    const withNoise = all.map(n=>({n,s:effectiveScoreT(n)+(Math.random()-0.5)*0.35}))
+      .sort((a,b)=>b.s-a.s).map(x=>x.n);
+    newTeams = balanceTeams(withNoise, tc, ts);
+  } else {
+    // Ngẫu nhiên hoàn toàn: lệch nhiều nhất, không cân bằng
+    const shuffled = [...all].sort(()=>Math.random()-0.5);
+    newTeams = Array.from({length:tc},(_,i)=>({id:i, members:[]}));
+    shuffled.forEach((n,i)=>newTeams[i%tc].members.push(n));
+  }
+  tCurrentTeams = newTeams;
   showTeamSuggestion(tc, ts);
 }
 
@@ -2740,7 +2757,7 @@ function genTournamentMatches(teams){
 }
 
 function confirmCreateTournament(){if(guardScorer())return;
-  const teamNames=['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6'];
+  const teamNames=TEAM_NAMES_8;
   const builtTeams=tCurrentTeams.map(function(t,i){return {id:i,name:teamNames[i],members:t.members};});
   const matches_t=genTournamentMatches(builtTeams);
 
@@ -2908,6 +2925,30 @@ function advanceBracket(t){
   rounds.push(next);
 }
 
+function getTournamentTopStandings(t){
+  if(t.format==='singleelim'){
+    if(t.status!=='done'||t.championIdx==null) return [];
+    const lastRound = t.bracket.rounds[t.bracket.rounds.length-1];
+    const finalMatch = lastRound[0];
+    const runnerIdx = finalMatch.teamA===t.championIdx ? finalMatch.teamB : finalMatch.teamA;
+    const top=[{name:t.teams[t.championIdx].name}];
+    if(runnerIdx!=null) top.push({name:t.teams[runnerIdx].name});
+    return top;
+  }
+  if(t.format==='roundrobin'){
+    return computeRoundRobinStandings(t).slice(0,3);
+  }
+  // 'teams' (chia team) format
+  const standings=t.teams.map(team=>({name:team.name,w:0,l:0,pts:0}));
+  (t.matches||[]).filter(m=>m.done).forEach(m=>{
+    const winner=m.scoreA>m.scoreB?m.teamA:m.teamB;
+    const loser=m.scoreA>m.scoreB?m.teamB:m.teamA;
+    standings[winner].w++;standings[winner].pts+=2;
+    standings[loser].l++;
+  });
+  return [...standings].sort((a,b)=>b.pts-a.pts||b.w-a.w).slice(0,3);
+}
+
 function renderTournamentList(){
   const el=document.getElementById('tournamentList');
   if(!tournaments.length){
@@ -2915,6 +2956,7 @@ function renderTournamentList(){
     return;
   }
   const sorted=[...tournaments].reverse();
+  const medals=['🥇','🥈','🥉'];
   el.innerHTML=sorted.map(function(t,idx){
     const allMatches = t.bracket ? t.bracket.rounds.flat() : (t.matches||[]);
     const done=allMatches.filter(function(m){return m.done;}).length;
@@ -2924,6 +2966,12 @@ function renderTournamentList(){
     const statusPill=isActive?'<span class="pill p-green">Đang diễn ra</span>':'<span class="pill p-gray">Đã kết thúc</span>';
     // Default: only most recent (idx===0) is expanded
     const expanded=(idx===0);
+    const top = !isActive ? getTournamentTopStandings(t) : [];
+    const podiumSummary = top.length
+      ? '<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;padding:0 1rem .1rem;display:flex;flex-wrap:wrap;gap:.5rem">'
+        + top.map((s,i)=>'<span>'+(medals[i]||'#'+(i+1))+' <strong style="color:var(--text)">'+s.name+'</strong></span>').join('')
+        + '</div>'
+      : '';
     return '<div class="t-accordion" id="tacc_'+t.id+'">'
       +'<div class="t-accordion-header" onclick="toggleTAccordion('+t.id+')">'
       +'<div style="display:flex;align-items:center;gap:.6rem;min-width:0;flex:1">'
@@ -2936,6 +2984,7 @@ function renderTournamentList(){
       +'<span class="t-accordion-arrow" id="tacc_arrow_'+t.id+'" style="color:var(--muted);transition:transform .2s;'+(expanded?'transform:rotate(180deg)':'')+'">▼</span>'
       +'</div>'
       +'</div>'
+      +podiumSummary
       +'<div style="height:3px;background:rgba(255,255,255,.06);border-radius:50px;margin:0 1rem">'
       +'<div style="height:100%;width:'+pct+'%;background:var(--lime);border-radius:50px;transition:width .4s"></div>'
       +'</div>'
@@ -4018,9 +4067,11 @@ init();
     <div class="modal-title-row"><div class="modal-title">⚡ Gợi ý phân bổ team</div><button class="modal-x" onclick="closeModal('teamSuggestionModal')" title="Đóng">✕</button></div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">AI đã cân bằng theo điểm số, phong độ và trình độ.</div>
     <div id="teamSuggestionContent"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="reshuffleTeams()">🔄 Chia lại</button>
-      <button class="btn btn-lime" onclick="confirmTeamStep()">✅ Tạo giải đấu</button>
+    <div class="modal-footer" style="flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="reshuffleTeams('balanced')" title="Snake draft theo điểm, chênh lệch thấp nhất">🎯 Cân bằng nhất</button>
+      <button class="btn btn-ghost btn-sm" onclick="reshuffleTeams('medium')" title="Có xáo trộn nhẹ, chênh lệch vừa phải">⚖️ Cân bằng vừa</button>
+      <button class="btn btn-ghost btn-sm" onclick="reshuffleTeams('random')" title="Chia hoàn toàn ngẫu nhiên, có thể chênh lệch nhiều">🎲 Ngẫu nhiên</button>
+      <button class="btn btn-lime" style="margin-left:auto" onclick="confirmTeamStep()">✅ Tạo giải đấu</button>
     </div>
   </div>
 </div>
