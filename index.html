@@ -356,11 +356,11 @@ window.regSubmit = async () => {
     if(name) await updateProfile(cred.user, {displayName:name});
 
     const today = new Date().toISOString().slice(0,10);
-    await set(ref(db,'clubs/'+regData.id+'/info'), { name: regData.name, createdAt: today, active: false });
+    await set(ref(db,'clubs/'+regData.id+'/info'), { name: regData.name, createdAt: today, active: false, pendingApproval: true });
     await set(ref(db,'user_roles/'+cred.user.uid), {
       role:'admin', clubId: regData.id, clubName: regData.name,
       email, displayName: name||email, username: uname||'',
-      createdAt: today, active: false
+      createdAt: today, active: false, pendingApproval: true
     });
     if(uname){
       await set(ref(db,'usernames/'+uname), cred.user.uid);

@@ -459,7 +459,7 @@ function renderClubs(clubs){
         </div>
       </div>
       <div style="display:flex;gap:.4rem;flex-shrink:0">
-        <span class="pill ${isActive?'p-green':'p-red'}" style="cursor:pointer" onclick="toggleClubActive('${id}',${isActive})" title="Bấm để ${isActive?'tắt':'bật lại'} CLB">${isActive?'Active':'Đã tắt'}</span>
+        <span class="pill ${isActive?'p-green':(c.info&&c.info.pendingApproval?'p-yellow':'p-red')}" style="cursor:pointer" onclick="toggleClubActive('${id}',${isActive})" title="Bấm để ${isActive?'tắt':'bật lại'} CLB">${isActive?'Active':(c.info&&c.info.pendingApproval?'Chờ duyệt':'Đã tắt')}</span>
         <button class="btn btn-ghost btn-sm" onclick="editClubBanner('${id}','${(c.info&&c.info.name)||id}','${(c.info&&c.info.banner)||''}')">🖼</button>
         <button class="btn btn-danger btn-sm" onclick="deleteClub('${id}')">🗑</button>
       </div>
@@ -482,7 +482,7 @@ function renderUsers(users){
       <td style="font-size:.8rem">${u.displayName||u.email||uid.slice(0,8)}${u.username?'<br/><span style="font-size:.7rem;color:#B5F033">@'+u.username+'</span>':''}<br/><span style="font-size:.7rem;color:var(--muted)">${u.email||''}</span></td>
       <td style="font-size:.75rem;color:var(--muted)">${u.clubName||u.clubId||'—'}</td>
       <td><span class="pill ${u.role==='admin'?'p-green':u.role==='scorer'?'p-yellow':'p-gray'}">${roleLabel(u.role)}</span></td>
-      <td><span class="pill ${isActive?'p-green':'p-red'}" style="cursor:pointer" onclick="toggleUserActive('${uid}',${isActive})" title="Bấm để ${isActive?'tắt':'bật lại'} tài khoản">${isActive?'Active':'Đã tắt'}</span></td>
+      <td><span class="pill ${isActive?'p-green':(u.pendingApproval?'p-yellow':'p-red')}" style="cursor:pointer" onclick="toggleUserActive('${uid}',${isActive})" title="Bấm để ${isActive?'tắt':'bật lại'} tài khoản">${isActive?'Active':(u.pendingApproval?'Chờ duyệt':'Đã tắt')}</span></td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" style="margin-right:.3rem" onclick="openEditUser('${uid}','${(u.displayName||'').replace(/'/g,'')}','${u.email||''}','${u.clubId||''}','${u.role||'member'}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteUser('${uid}')">🗑</button>
@@ -626,7 +626,9 @@ window.toggleClubActive = async (id, currentlyActive) => {
   try{
     const snap = await get(ref(db,'clubs/'+id+'/info'));
     const info = snap.val()||{};
-    await set(ref(db,'clubs/'+id+'/info'), {...info, active: willActivate});
+    const updates = {...info, active: willActivate};
+    if(willActivate) updates.pendingApproval = false;
+    await set(ref(db,'clubs/'+id+'/info'), updates);
     notify(willActivate ? '✅ Đã bật lại CLB' : '⛔ Đã tắt CLB');
   }catch(e){ notify('❌ Lỗi: '+e.message); }
 }
@@ -753,7 +755,9 @@ window.toggleUserActive = async (uid, currentlyActive) => {
   try{
     const snap = await get(ref(db,'user_roles/'+uid));
     const u = snap.val()||{};
-    await set(ref(db,'user_roles/'+uid), {...u, active: willActivate});
+    const updates = {...u, active: willActivate};
+    if(willActivate) updates.pendingApproval = false;
+    await set(ref(db,'user_roles/'+uid), updates);
     notify(willActivate ? '✅ Đã bật lại tài khoản' : '⛔ Đã tắt tài khoản');
   }catch(e){ notify('❌ Lỗi: '+e.message); }
 }
