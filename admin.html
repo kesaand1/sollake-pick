@@ -34,6 +34,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;mi
 .pill{display:inline-block;padding:.18rem .5rem;border-radius:50px;font-size:.68rem;font-weight:600}
 .p-green{background:rgba(74,222,128,.15);color:#4ADE80;border:1px solid rgba(74,222,128,.25)}
 .p-gray{background:rgba(100,116,139,.15);color:var(--muted);border:1px solid rgba(100,116,139,.2)}
+.p-red{background:rgba(248,113,113,.15);color:#F87171;border:1px solid rgba(248,113,113,.25)}
+.p-yellow{background:rgba(250,204,21,.15);color:#FACC15;border:1px solid rgba(250,204,21,.25)}
 .stat-card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs);padding:.85rem;text-align:center}
 .stat-val{font-size:1.6rem;font-weight:700;color:var(--lime)}
 .stat-lbl{font-size:.72rem;color:var(--muted);margin-top:.2rem}
@@ -282,58 +284,95 @@ function loadData(){
   });
 }
 
+// ── Pagination ──
+const ADMIN_PAGE_SIZE = 10;
+let _clubPage = 1, _userPage = 1;
+
+function paginateArr(arr, page, size){
+  const totalPages = Math.max(1, Math.ceil(arr.length / size));
+  page = Math.min(Math.max(1, page), totalPages);
+  return { items: arr.slice((page - 1) * size, page * size), page, totalPages };
+}
+function adminPagerHTML(page, totalPages, gotoFn){
+  if(totalPages <= 1) return '';
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:.6rem;margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border)">
+    <button class="btn btn-ghost btn-sm" ${page<=1?'disabled':''} onclick="${gotoFn}(${page-1})">‹ Trước</button>
+    <span style="font-size:.78rem;color:var(--muted)">Trang ${page}/${totalPages}</span>
+    <button class="btn btn-ghost btn-sm" ${page>=totalPages?'disabled':''} onclick="${gotoFn}(${page+1})">Sau ›</button>
+  </div>`;
+}
+window.gotoClubPage = (p) => { _clubPage = p; renderClubs(window._clubs||{}); };
+window.gotoUserPage = (p) => { _userPage = p; renderUsers(window._users||{}); };
+
 function renderClubs(clubs){
   const el = document.getElementById('clubList');
   // Filter out non-club keys
-  const entries = Object.entries(clubs).filter(([id,c])=>c && typeof c === 'object');
-  if(!entries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có CLB nào.</div>'; return; }
-  const baseUrl = window.location.origin + '/app';
-  el.innerHTML = entries.map(([id,c])=>`
-    <div class="club-card">
+  const allEntries = Object.entries(clubs).filter(([id,c])=>c && typeof c === 'object');
+  if(!allEntries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có CLB nào.</div>'; return; }
+  const { items: entries, page, totalPages } = paginateArr(allEntries, _clubPage, ADMIN_PAGE_SIZE);
+  _clubPage = page;
+  const hostParts = window.location.hostname.split('.');
+  const baseDomain = hostParts.length>=3 ? hostParts.slice(1).join('.') : hostParts.join('.');
+  el.innerHTML = entries.map(([id,c])=>{
+    const isActive = !c.info || c.info.active !== false; // default: active if unset
+    const clubUrl = window.location.protocol + '//' + id + '.' + baseDomain + '/app';
+    return `
+    <div class="club-card" style="${isActive?'':'opacity:.55'}">
       <div style="min-width:0;flex:1">
         <div style="display:flex;align-items:center;gap:.5rem">
           ${(c.info&&c.info.banner)?`<img src="${c.info.banner}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'"/>`:''}
           <div style="font-weight:600;font-size:.88rem">${(c.info&&c.info.name)||id}</div>
         </div>
         <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">ID: ${id} · Tạo: ${(c.info&&c.info.createdAt)||'—'}</div>
-        <div style="font-size:.7rem;margin-top:.2rem">
+        <div style="font-size:.7rem;margin-top:.2rem;display:flex;gap:.75rem;flex-wrap:wrap">
           <span style="color:${((window._memberCounts&&window._memberCounts[id])||0)>=3?'#F87171':'#4ADE80'}">
             👥 ${(window._memberCounts&&window._memberCounts[id])||0}/3 thành viên
           </span>
+          <span style="color:var(--muted)">
+            🏓 ${Array.isArray(c.players) ? c.players.filter(p=>p).length : (c.players && typeof c.players==='object' ? Object.keys(c.players).length : 0)} người chơi
+          </span>
         </div>
         <div style="margin-top:.3rem;display:flex;align-items:center;gap:.35rem">
-          <a href="${baseUrl}?club=${id}" target="_blank"
+          <a href="${clubUrl}" target="_blank"
             style="font-size:.7rem;color:#60A5FA;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px"
-            title="Mở CLB">🔗 ${baseUrl}?club=${id}</a>
-          <button onclick="navigator.clipboard.writeText('${baseUrl}?club=${id}');notify('✅ Đã copy link!')"
+            title="Mở CLB">🔗 ${clubUrl}</a>
+          <button onclick="navigator.clipboard.writeText('${clubUrl}');notify('✅ Đã copy link!')"
             style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;flex-shrink:0"
             title="Copy link">📋</button>
         </div>
       </div>
       <div style="display:flex;gap:.4rem;flex-shrink:0">
-        <span class="pill p-green">Active</span>
+        <span class="pill ${isActive?'p-green':'p-red'}" style="cursor:pointer" onclick="toggleClubActive('${id}',${isActive})" title="Bấm để ${isActive?'tắt':'bật lại'} CLB">${isActive?'Active':'Đã tắt'}</span>
         <button class="btn btn-ghost btn-sm" onclick="editClubBanner('${id}','${(c.info&&c.info.name)||id}','${(c.info&&c.info.banner)||''}')">🖼</button>
         <button class="btn btn-danger btn-sm" onclick="deleteClub('${id}')">🗑</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('') + adminPagerHTML(page, totalPages, 'gotoClubPage');
 }
 
 function renderUsers(users){
   const el = document.getElementById('userList');
-  const entries = Object.entries(users);
-  if(!entries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có tài khoản.</div>'; return; }
+  const allEntries = Object.entries(users);
+  if(!allEntries.length){ el.innerHTML='<div style="color:var(--muted);font-size:.82rem">Chưa có tài khoản.</div>'; return; }
+  const { items: entries, page, totalPages } = paginateArr(allEntries, _userPage, ADMIN_PAGE_SIZE);
+  _userPage = page;
+  const roleLabel = r => r==='admin' ? 'Admin' : r==='scorer' ? 'Ghi trận' : 'Member';
   el.innerHTML = `<table>
-    <thead><tr><th>Tên</th><th>CLB</th><th>Vai trò</th><th></th></tr></thead>
-    <tbody>${entries.map(([uid,u])=>`<tr>
+    <thead><tr><th>Tên</th><th>CLB</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
+    <tbody>${entries.map(([uid,u])=>{
+      const isActive = u.active !== false; // default active if unset
+      return `<tr style="${isActive?'':'opacity:.5'}">
       <td style="font-size:.8rem">${u.displayName||u.email||uid.slice(0,8)}${u.username?'<br/><span style="font-size:.7rem;color:#B5F033">@'+u.username+'</span>':''}<br/><span style="font-size:.7rem;color:var(--muted)">${u.email||''}</span></td>
       <td style="font-size:.75rem;color:var(--muted)">${u.clubName||u.clubId||'—'}</td>
-      <td><span class="pill ${u.role==='admin'?'p-green':'p-gray'}">${u.role==='admin'?'Admin':'Member'}</span></td>
+      <td><span class="pill ${u.role==='admin'?'p-green':u.role==='scorer'?'p-yellow':'p-gray'}">${roleLabel(u.role)}</span></td>
+      <td><span class="pill ${isActive?'p-green':'p-red'}" style="cursor:pointer" onclick="toggleUserActive('${uid}',${isActive})" title="Bấm để ${isActive?'tắt':'bật lại'} tài khoản">${isActive?'Active':'Đã tắt'}</span></td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" style="margin-right:.3rem" onclick="openEditUser('${uid}','${(u.displayName||'').replace(/'/g,'')}','${u.email||''}','${u.clubId||''}','${u.role||'member'}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteUser('${uid}')">🗑</button>
       </td>
-    </tr>`).join('')}</tbody>
-  </table>`;
+    </tr>`;
+    }).join('')}</tbody>
+  </table>` + adminPagerHTML(page, totalPages, 'gotoUserPage');
 }
 
 function populateClubSelect(clubs){
@@ -464,6 +503,17 @@ window.doCreateUser = async () => {
   }
 }
 
+window.toggleClubActive = async (id, currentlyActive) => {
+  const willActivate = !currentlyActive;
+  if(!willActivate && !confirm('Tắt CLB này? Thành viên và khách sẽ không truy cập được cho đến khi bật lại.')) return;
+  try{
+    const snap = await get(ref(db,'clubs/'+id+'/info'));
+    const info = snap.val()||{};
+    await set(ref(db,'clubs/'+id+'/info'), {...info, active: willActivate});
+    notify(willActivate ? '✅ Đã bật lại CLB' : '⛔ Đã tắt CLB');
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
+}
+
 window.editClubBanner = async (id, name, currentBanner) => {
   const newBanner = prompt(`Nhập URL/tên file ảnh banner cho CLB "${name}":
 (Để trống để xóa banner)`, currentBanner);
@@ -578,6 +628,17 @@ window.deleteUser = async (uid) => {
   if(!confirm('Xóa tài khoản này?')) return;
   await set(ref(db,'user_roles/'+uid), null);
   notify('🗑 Đã xóa tài khoản');
+}
+
+window.toggleUserActive = async (uid, currentlyActive) => {
+  const willActivate = !currentlyActive;
+  if(!willActivate && !confirm('Tắt tài khoản này? Người dùng sẽ không đăng nhập được cho đến khi bật lại.')) return;
+  try{
+    const snap = await get(ref(db,'user_roles/'+uid));
+    const u = snap.val()||{};
+    await set(ref(db,'user_roles/'+uid), {...u, active: willActivate});
+    notify(willActivate ? '✅ Đã bật lại tài khoản' : '⛔ Đã tắt tài khoản');
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
 }
 
 window.doLogin = async () => {
