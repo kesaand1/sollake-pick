@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
-<title>Sollake Pick</title>
+<title>11Points.co - Hệ thống quản lý CLB Pickleball</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -2892,7 +2892,7 @@ function hideLoginScreen(){
   const h=document.getElementById('clubNameHeader');
   const name=window._clubName||'';
   if(h&&name) h.textContent=name;
-  if(name) document.title = name + ' — Sollake Pick';
+  if(name) document.title = name + ' — 11Points.co';
   // Show logout button only when logged in
   const logoutBtn=document.getElementById('logoutBtn');
   if(logoutBtn&&window._userRole!=='guest') logoutBtn.style.display='';
