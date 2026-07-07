@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>11Points.co - Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -22,6 +23,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;mi
 @media(max-width:600px){.grid2{grid-template-columns:1fr}}
 .btn{display:inline-flex;align-items:center;border:none;border-radius:var(--rs);padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s}
 .btn-lime{background:var(--lime);color:#0B1929}
+.growth-period-btn{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)}
+.growth-period-btn.active{background:var(--lime);color:#0B1929;border-color:var(--lime)}
 .btn-ghost{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--border)}
 .btn-danger{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.2)}
 .btn-sm{padding:.3rem .65rem;font-size:.75rem}
@@ -97,7 +100,22 @@ tr:last-child td{border-bottom:none}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem" id="statsRow">
       <div class="stat-card"><div class="stat-val" id="statClubs">—</div><div class="stat-lbl">CLB</div></div>
       <div class="stat-card"><div class="stat-val" id="statUsers">—</div><div class="stat-lbl">Tài khoản</div></div>
-      <div class="stat-card"><div class="stat-val" id="statActive">—</div><div class="stat-lbl">Đang hoạt động</div></div>
+      <div class="stat-card"><div class="stat-val" id="statPlayers">—</div><div class="stat-lbl">Tổng người chơi</div></div>
+    </div>
+
+    <!-- Growth chart -->
+    <div class="panel" style="margin-bottom:1.25rem">
+      <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+        <span>📈 Tăng trưởng CLB & Người chơi</span>
+        <div style="display:flex;gap:.35rem">
+          <button class="btn btn-sm growth-period-btn active" data-period="week" onclick="setGrowthPeriod('week')">Tuần</button>
+          <button class="btn btn-sm growth-period-btn" data-period="month" onclick="setGrowthPeriod('month')">Tháng</button>
+          <button class="btn btn-sm growth-period-btn" data-period="year" onclick="setGrowthPeriod('year')">Năm</button>
+        </div>
+      </div>
+      <div style="position:relative;height:260px">
+        <canvas id="growthChart"></canvas>
+      </div>
     </div>
 
     <div class="grid2">
@@ -262,6 +280,14 @@ function loadData(){
     populateClubSelect(clubs);
     const validClubs = Object.entries(clubs).filter(([id,c])=>c&&typeof c==='object');
     document.getElementById('statClubs').textContent = validClubs.length;
+    // Total players across all clubs
+    let totalPlayers = 0;
+    validClubs.forEach(([id,c])=>{
+      if(Array.isArray(c.players)) totalPlayers += c.players.filter(p=>p).length;
+      else if(c.players && typeof c.players==='object') totalPlayers += Object.keys(c.players).length;
+    });
+    document.getElementById('statPlayers').textContent = totalPlayers;
+    renderGrowthChart();
   }, err => {
     document.getElementById('clubList').innerHTML = '<div style="color:#F87171;font-size:.82rem">⚠️ Lỗi đọc dữ liệu: '+err.message+'<br/>Kiểm tra Firebase Rules — cần thêm ".read" cho node clubs.</div>';
   });
@@ -279,8 +305,6 @@ function loadData(){
       }
     });
     window._memberCounts = memberCounts;
-    const active = Object.values(users).filter(u=>u.role).length;
-    document.getElementById('statActive').textContent = active;
   });
 }
 
@@ -303,6 +327,79 @@ function adminPagerHTML(page, totalPages, gotoFn){
 }
 window.gotoClubPage = (p) => { _clubPage = p; renderClubs(window._clubs||{}); };
 window.gotoUserPage = (p) => { _userPage = p; renderUsers(window._users||{}); };
+
+// ── Growth chart ──
+let _growthPeriod = 'week';
+let _growthChartInstance = null;
+
+window.setGrowthPeriod = (period) => {
+  _growthPeriod = period;
+  document.querySelectorAll('.growth-period-btn').forEach(b=>b.classList.toggle('active', b.dataset.period===period));
+  renderGrowthChart();
+};
+
+function bucketLabel(date, period){
+  if(period==='week') return String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0');
+  if(period==='month') return (date.getMonth()+1)+'/'+date.getFullYear();
+  return String(date.getFullYear());
+}
+
+function buildBuckets(period){
+  const now = new Date();
+  const n = period==='week' ? 12 : period==='month' ? 12 : 5;
+  const buckets = [];
+  for(let i=n-1;i>=0;i--){
+    const d = new Date(now);
+    if(period==='week') d.setDate(now.getDate()-i*7);
+    if(period==='month') d.setMonth(now.getMonth()-i);
+    if(period==='year') d.setFullYear(now.getFullYear()-i);
+    buckets.push(d);
+  }
+  return buckets;
+}
+
+function renderGrowthChart(){
+  if(typeof Chart === 'undefined') return; // Chart.js not loaded yet, will retry on next data update
+  const clubs = window._clubs || {};
+  const validClubs = Object.entries(clubs).filter(([id,c])=>c&&typeof c==='object');
+
+  // Collect creation dates
+  const clubDates = validClubs
+    .map(([id,c])=>c.info&&c.info.createdAt).filter(Boolean).map(s=>new Date(s));
+  const playerDates = [];
+  validClubs.forEach(([id,c])=>{
+    const plist = Array.isArray(c.players) ? c.players.filter(p=>p) : (c.players && typeof c.players==='object' ? Object.values(c.players) : []);
+    plist.forEach(p=>{ if(p&&p.joined) playerDates.push(new Date(p.joined)); });
+  });
+
+  const buckets = buildBuckets(_growthPeriod);
+  const labels = buckets.map(d=>bucketLabel(d,_growthPeriod));
+  const clubSeries = buckets.map(d=>clubDates.filter(cd=>cd<=d).length);
+  const playerSeries = buckets.map(d=>playerDates.filter(pd=>pd<=d).length);
+
+  const ctx = document.getElementById('growthChart').getContext('2d');
+  if(_growthChartInstance) _growthChartInstance.destroy();
+  _growthChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'CLB', data:clubSeries, borderColor:'#B5F033', backgroundColor:'rgba(181,240,51,.12)', fill:true, tension:.3 },
+        { label:'Người chơi', data:playerSeries, borderColor:'#60A5FA', backgroundColor:'rgba(96,165,250,.12)', fill:true, tension:.3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#F1F5F9', font:{size:11} } } },
+      scales:{
+        x:{ ticks:{ color:'#64748B', font:{size:10} }, grid:{ color:'rgba(255,255,255,.05)' } },
+        y:{ beginAtZero:true, ticks:{ color:'#64748B', font:{size:10}, precision:0 }, grid:{ color:'rgba(255,255,255,.05)' } }
+      }
+    }
+  });
+}
+
+window.addEventListener('load', renderGrowthChart);
 
 function renderClubs(clubs){
   const el = document.getElementById('clubList');
