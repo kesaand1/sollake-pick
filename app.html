@@ -563,7 +563,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="tab-btn" onclick="showPage('settings')" data-admin-only style="display:none">⚙️ Cài đặt</button>
   </div>
   <div style="display:flex;align-items:center;gap:.6rem">
-    <span id="syncDot" onclick="manualSync()" title="Nhấn để đồng bộ lên Firebase" style="width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s;cursor:pointer"></span>
+    <span id="syncDot" onclick="manualSync()" title="Tự động đồng bộ lên Firebase sau mỗi thay đổi. Bấm để đồng bộ lại thủ công nếu cần." style="width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .4s;cursor:pointer"></span>
     <button class="btn-log" onclick="openModal('matchModal')">+ Ghi trận</button>
     <button id="logoutBtn" onclick="doLogout()" style="display:none;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:.2rem .4rem" title="Đăng xuất">⎋</button>
   </div>
@@ -3646,7 +3646,7 @@ window.applyRoleUI = function applyRoleUI(role){
   const logBtn=document.querySelector('.btn-log');
   if(logBtn){ logBtn.textContent='+ Ghi trận'; logBtn.onclick=function(){ openModal('matchModal'); }; }
   const dot=document.getElementById('syncDot');
-  if(dot){ dot.style.display=''; dot.onclick=function(){ manualSync(); }; dot.title='Nhấn để đồng bộ lên Firebase'; }
+  if(dot){ dot.style.display=''; dot.onclick=function(){ manualSync(); }; dot.title='Tự động đồng bộ lên Firebase sau mỗi thay đổi. Bấm để đồng bộ lại thủ công nếu cần.'; }
   const logoutBtn=document.getElementById('logoutBtn');
   if(logoutBtn) logoutBtn.style.display='';
   if(role === 'member' || role === 'scorer'){
