@@ -151,6 +151,20 @@ tr:last-child td{border-bottom:none}
         </div>
         <div id="userList"><div style="color:var(--muted);font-size:.82rem">Đang tải...</div></div>
       </div>
+
+      <!-- Feedback / Góp ý người dùng -->
+      <div class="panel" style="grid-column:1/-1">
+        <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center">
+          <span>💬 Góp ý người dùng</span>
+          <div style="display:flex;gap:.35rem">
+            <button class="btn btn-ghost btn-sm feedback-filter-btn growth-period-btn active" data-status="all" onclick="setFeedbackFilter('all')">Tất cả</button>
+            <button class="btn btn-ghost btn-sm feedback-filter-btn growth-period-btn" data-status="pending" onclick="setFeedbackFilter('pending')">Chưa xử lý</button>
+            <button class="btn btn-ghost btn-sm feedback-filter-btn growth-period-btn" data-status="rejected" onclick="setFeedbackFilter('rejected')">Reject</button>
+            <button class="btn btn-ghost btn-sm feedback-filter-btn growth-period-btn" data-status="resolved" onclick="setFeedbackFilter('resolved')">Đã xử lý</button>
+          </div>
+        </div>
+        <div id="feedbackList"><div style="color:var(--muted);font-size:.82rem">Đang tải...</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -305,6 +319,12 @@ function loadData(){
       }
     });
     window._memberCounts = memberCounts;
+  });
+
+  // Feedback
+  onValue(ref(db,'feedback'), snap => {
+    window._feedback = snap.val()||{};
+    renderFeedback();
   });
 }
 
@@ -735,6 +755,58 @@ window.toggleUserActive = async (uid, currentlyActive) => {
     const u = snap.val()||{};
     await set(ref(db,'user_roles/'+uid), {...u, active: willActivate});
     notify(willActivate ? '✅ Đã bật lại tài khoản' : '⛔ Đã tắt tài khoản');
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
+}
+
+// ── Feedback (Góp ý người dùng) ──
+let _feedbackFilter = 'all';
+
+window.setFeedbackFilter = (status) => {
+  _feedbackFilter = status;
+  document.querySelectorAll('.feedback-filter-btn').forEach(b=>b.classList.toggle('active', b.dataset.status===status));
+  renderFeedback();
+}
+
+function renderFeedback(){
+  const el = document.getElementById('feedbackList');
+  if(!el) return;
+  const all = window._feedback || {};
+  let entries = Object.entries(all);
+  if(_feedbackFilter !== 'all'){
+    entries = entries.filter(([id,f])=>(f.status||'pending')===_feedbackFilter);
+  }
+  entries.sort((a,b)=>(b[1].createdAt||'').localeCompare(a[1].createdAt||''));
+  if(!entries.length){
+    el.innerHTML = '<div style="color:var(--muted);font-size:.82rem">Chưa có góp ý nào'+(_feedbackFilter!=='all'?' ở trạng thái này':'')+'.</div>';
+    return;
+  }
+  const statusMap = {
+    pending:  {label:'Chưa xử lý', pill:'p-gray'},
+    rejected: {label:'Reject',     pill:'p-red'},
+    resolved: {label:'Đã xử lý',   pill:'p-green'},
+  };
+  el.innerHTML = entries.map(([id,f])=>{
+    const st = statusMap[f.status] || statusMap.pending;
+    const dt = (f.createdAt||'').slice(0,16).replace('T',' ');
+    return '<div style="border:1px solid var(--border);border-radius:var(--rs);padding:.75rem;margin-bottom:.6rem">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem">'
+      +'<span style="font-size:.78rem;color:var(--muted)">'+(f.clubName||f.clubId||'—')+' · '+dt+'</span>'
+      +'<span class="pill '+st.pill+'">'+st.label+'</span>'
+      +'</div>'
+      +'<div style="font-size:.85rem;margin-bottom:.6rem;white-space:pre-wrap">'+(f.content||'').replace(/</g,'&lt;')+'</div>'
+      +(f.image?'<img src="'+f.image+'" style="max-width:220px;border-radius:6px;margin-bottom:.6rem;display:block"/>':'')
+      +'<div style="display:flex;gap:.4rem;flex-wrap:wrap">'
+      +'<button class="btn btn-lime btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'resolved\')">✅ Đã xử lý</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'rejected\')">❌ Reject</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="setFeedbackStatus(\''+id+'\',\'pending\')">↩️ Chưa xử lý</button>'
+      +'</div></div>';
+  }).join('');
+}
+
+window.setFeedbackStatus = async (id, status) => {
+  try{
+    await set(ref(db,'feedback/'+id+'/status'), status);
+    notify('✅ Đã cập nhật trạng thái góp ý');
   }catch(e){ notify('❌ Lỗi: '+e.message); }
 }
 

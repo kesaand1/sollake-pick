@@ -1181,7 +1181,8 @@ function renderPlayers(){
     const e=empty('👥','Chưa có thành viên nào');
     document.getElementById('playerD').innerHTML=e;document.getElementById('playerM').innerHTML=e;return;
   }
-  const rows=list.map(p=>{const lv=getLevel(p.score);return`<tr>
+  const rows=list.map((p,i)=>{const lv=getLevel(p.score);return`<tr>
+    <td class="tm" style="text-align:center;width:32px">${i+1}</td>
     <td>${avW(p.name,p.color,p.visible?'':' <span class="hbadge">Ẩn</span>')}</td>
     <td><span style="font-weight:700;color:var(--lime);font-size:1rem">${p.score.toFixed(2)}</span></td>
     <td><span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span></td>
@@ -1193,11 +1194,11 @@ function renderPlayers(){
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑</button>
     </div></td>
   </tr>`}).join('');
-  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Kèo</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
-  const cards=list.map(p=>{const lv=getLevel(p.score);return`<div class="card-item">
+  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Kèo</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const cards=list.map((p,i)=>{const lv=getLevel(p.score);return`<div class="card-item">
     <div class="card-item-row">
       <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer"><div>
-        <div class="bold" style="text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)">${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
+        <div class="bold" style="text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)"><span class="tm" style="font-weight:400;margin-right:.3rem">${i+1}.</span>${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
         <div class="small tm"><span class="pill ${lv.pill}" style="font-size:.62rem">${lv.icon} ${lv.label}</span> · ${fmtD(p.joined)}</div>
       </div></div>
       <span style="font-weight:700;font-size:1.25rem;color:var(--lime)">${p.score.toFixed(2)}</span>
@@ -3736,6 +3737,53 @@ window.doUploadBanner = async () => {
   btn.disabled=false; btn.textContent=oldTxt;
 };
 
+// ── Góp ý cho hệ thống ──
+let _pendingFeedbackImage = null;
+
+window.previewFeedbackImage = async (event) => {
+  const file = event.target.files[0];
+  const errEl = document.getElementById('feedbackErr');
+  errEl.style.display='none';
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ errEl.textContent='Vui lòng chọn file ảnh.'; errEl.style.display=''; return; }
+  try{
+    const dataUrl = await compressImage(file, 1000, 0.75);
+    _pendingFeedbackImage = dataUrl;
+    const img = document.getElementById('feedbackImagePreview');
+    img.src = dataUrl; img.style.display='block';
+  }catch(e){
+    errEl.textContent='Không thể xử lý ảnh: '+e.message; errEl.style.display='';
+  }
+};
+
+window.submitFeedback = async () => {
+  const errEl = document.getElementById('feedbackErr');
+  errEl.style.display='none';
+  const content = document.getElementById('feedbackContent').value.trim();
+  if(!content){ errEl.textContent='Vui lòng nhập nội dung góp ý.'; errEl.style.display=''; return; }
+  const btn = document.getElementById('feedbackSubmitBtn');
+  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang gửi...';
+  try{
+    const id = 'fb_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    await window._fbSet('feedback/'+id, {
+      content,
+      image: _pendingFeedbackImage || null,
+      clubId: window._clubId || '',
+      clubName: window._clubName || '',
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    });
+    notify('✅ Đã gửi góp ý, cảm ơn bạn!');
+    document.getElementById('feedbackContent').value='';
+    document.getElementById('feedbackImage').value='';
+    document.getElementById('feedbackImagePreview').style.display='none';
+    _pendingFeedbackImage = null;
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message; errEl.style.display='';
+  }
+  btn.disabled=false; btn.textContent=oldTxt;
+};
+
 async function refreshScorerList(){
   const listEl = document.getElementById('scorerList');
   const countEl = document.getElementById('scorerCount');
@@ -3998,6 +4046,32 @@ init();
         <button class="btn btn-lime" id="scorerSubmitBtn" onclick="doCreateScorer()">✅ Tạo tài khoản</button>
       </div>
     </div>
+  </div>
+
+  <!-- Liên hệ Admin hệ thống -->
+  <div class="panel">
+    <div class="panel-hd">📞 Liên hệ với Admin hệ thống</div>
+    <div style="text-align:center;padding:.5rem 0">
+      <img src="zalo-qr.jpg" alt="QR Zalo liên hệ Admin" style="max-width:220px;width:100%;border-radius:var(--rs);margin-bottom:.75rem"/>
+      <div style="font-size:.8rem;color:var(--muted)">Quét mã QR bằng ứng dụng Zalo để liên hệ trực tiếp với quản trị viên hệ thống 11Points.co.</div>
+    </div>
+  </div>
+
+  <!-- Góp ý cho hệ thống -->
+  <div class="panel">
+    <div class="panel-hd">💬 Góp ý cho hệ thống</div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Báo lỗi, đề xuất tính năng mới, hoặc chia sẻ bất kỳ điều gì bạn muốn hệ thống cải thiện.</div>
+    <div class="fgroup">
+      <label>Nội dung góp ý</label>
+      <textarea class="finput" id="feedbackContent" rows="4" style="resize:vertical;font-family:inherit" placeholder="Chia sẻ góp ý, báo lỗi, hoặc đề xuất của bạn..."></textarea>
+    </div>
+    <div class="fgroup">
+      <label>Đính kèm ảnh (tùy chọn)</label>
+      <input type="file" class="finput" id="feedbackImage" accept="image/*" onchange="previewFeedbackImage(event)"/>
+      <img id="feedbackImagePreview" src="" alt="" style="max-width:100%;max-height:180px;margin-top:.6rem;border-radius:var(--rs);display:none"/>
+    </div>
+    <div id="feedbackErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+    <button class="btn btn-lime" id="feedbackSubmitBtn" onclick="submitFeedback()">📨 Gửi góp ý</button>
   </div>
 </div>
 
