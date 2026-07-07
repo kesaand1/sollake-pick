@@ -352,7 +352,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .c7{background:rgba(249,168,212,.18);color:#F9A8D4}
 
 /* FINANCE ROW */
-.fin-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.62rem .75rem;border-radius:var(--rs);border:1px solid var(--border);margin-bottom:.4rem;background:rgba(255,255,255,.02)}
+.fin-row{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;padding:.62rem .75rem;border-radius:var(--rs);border:1px solid var(--border);margin-bottom:.4rem;background:rgba(255,255,255,.02)}
 .fin-row:hover{background:rgba(255,255,255,.04)}
 .fin-row .fleft{min-width:0;flex:1}
 .fin-row .fright{display:flex;align-items:center;gap:.4rem;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
@@ -391,15 +391,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
   width:100%;
   height:auto;
   display:block;
-  opacity:.9;
   margin:0 auto;
   background:#0B1929;
 }
 .hero-banner-overlay{
-  position:absolute;
-  inset:0;
-  background:linear-gradient(to bottom,rgba(11,25,41,0) 50%,rgba(11,25,41,0.75) 100%);
-  pointer-events:none;
+  display:none;
 }
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 /* TOURNAMENT ACCORDION */
@@ -1775,7 +1771,7 @@ function renderFinance(){
     <div class="sc"><div class="val">${list.length}</div><div class="lbl">Giao dịch</div></div>`;
   if(!list.length){document.getElementById('finList').innerHTML=empty('💰','Chưa có giao dịch nào');return;}
   document.getElementById('finList').innerHTML=list.map(f=>`<div class="fin-row">
-    <div class="fleft"><div class="bold ell">${f.desc}</div><div class="small tm">${f.player||'Quỹ chung'} · ${fmtD(f.date)}</div></div>
+    <div class="fleft"><div class="bold" style="overflow-wrap:break-word">${f.desc}</div><div class="small tm">${f.player||'Quỹ chung'} · ${fmtD(f.date)}</div></div>
     <div class="fright">
       <span class="bold ${f.type==='thu'?'ts':'td'}">${f.type==='thu'?'+':'-'}${fmt(f.amount)}</span>
       <button class="btn btn-danger btn-xs" onclick="delFinance(${f.id})">🗑</button>
@@ -1787,9 +1783,9 @@ function renderFines(){
   if(!list.length){document.getElementById('fineList').innerHTML=empty('⚠️','Chưa có khoản phạt nào');return;}
   document.getElementById('fineList').innerHTML=list.map(f=>`<div class="fin-row">
     <div class="fleft">
-      <div style="display:flex;align-items:center;gap:.4rem">
+      <div style="display:flex;align-items:flex-start;gap:.4rem;min-width:0">
         ${av(f.player,gpc(f.player))}
-        <div><div class="bold">${f.player}</div><div class="small tm ell">${f.reason} · ${fmtD(f.date)}</div></div>
+        <div style="min-width:0"><div class="bold" style="overflow-wrap:break-word">${f.player}</div><div class="small tm" style="overflow-wrap:break-word">${f.reason} · ${fmtD(f.date)}</div></div>
       </div>
     </div>
     <div class="fright">
