@@ -121,7 +121,7 @@ footer{
   <a class="logo" href="/">Sollake <span>Pick</span></a>
   <span class="slogan-text" style="font-size:.85rem;font-weight:700;color:var(--text);letter-spacing:.6px;text-transform:uppercase;text-align:center;white-space:nowrap">Hệ thống quản lý câu lạc bộ Pickleball</span>
   <div class="header-right">
-    <button class="btn btn-lime" style="font-size:.82rem" onclick="openRegister()">✍️ Đăng ký</button>
+    <button class="btn btn-lime" id="registerBtn" style="font-size:.82rem;display:none" onclick="openRegister()">✍️ Đăng ký</button>
   </div>
 </div>
 
@@ -260,6 +260,14 @@ const db   = getDatabase(app);
 const auth = getAuth(app);
 
 let regData = {}; // holds club info between steps
+
+// Show/hide register button based on admin setting (default: enabled if not set)
+get(ref(db,'admin_config/registration_enabled')).then(snap=>{
+  const enabled = snap.exists() ? snap.val() : true;
+  if(enabled) document.getElementById('registerBtn').style.display='';
+}).catch(()=>{
+  document.getElementById('registerBtn').style.display=''; // fail-open on error so feature isn't silently lost
+});
 
 function baseDomain(){
   const parts = location.hostname.split('.');
