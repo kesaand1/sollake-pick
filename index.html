@@ -31,18 +31,19 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;mi
 
 /* HEADER */
 .header{
-  position:fixed;top:0;left:0;right:0;z-index:100;
+  position:sticky;top:0;left:0;right:0;z-index:100;
   background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
   padding:.75rem 1.5rem;
+  gap:.5rem;
 }
 .logo{font-size:1.1rem;font-weight:800;color:var(--lime);letter-spacing:-.5px;text-decoration:none;justify-self:start}
 .logo span{color:var(--text)}
-.header-right{display:flex;align-items:center;gap:.75rem;justify-self:end}
+.header-right{display:flex;align-items:center;gap:.75rem;justify-self:end;flex-wrap:wrap}
 
 /* HERO */
-.hero{position:relative;width:100%;padding-top:56px;background:var(--navy)}
+.hero{position:relative;width:100%;background:var(--navy)}
 .hero img{width:100%;height:auto;display:block;background:var(--navy)}
 .hero-overlay{
   display:none;
