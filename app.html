@@ -2447,6 +2447,8 @@ let tMode   = 'teams';      // 'teams' | 'tournament'
 let tFormat = 'roundrobin'; // 'roundrobin' | 'singleelim'
 let tAssign = 'auto';       // 'auto' | 'manual'
 let tManualAssign = {};     // { playerName: teamIndex } for manual assignment
+let tTeamCandidates = [];   // 3 auto-split candidates sorted by increasing point deviation
+let tCandidateIdx = 0;      // which candidate is currently shown
 let tViewingId       = null;
 
 function openNewTournamentModal(){if(guardScorer())return;
@@ -2540,7 +2542,9 @@ function generateTournamentTeamsAuto(){if(guardScorer())return;
     alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
   }
   tCurrentName = name;
-  tCurrentTeams = balanceTeams(tSelectedPlayers, tc, ts);
+  tTeamCandidates = generateTeamCandidates(tSelectedPlayers, tc, ts);
+  tCandidateIdx = 0;
+  tCurrentTeams = tTeamCandidates[0];
   showTeamSuggestion(tc, ts);
   closeModal('newTournamentModal');
   openModal('teamSuggestionModal');
@@ -2630,10 +2634,35 @@ function generateTeams(){if(guardScorer())return;
     alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
   }
   tCurrentName = name;
-  tCurrentTeams = balanceTeams(tSelectedPlayers, tc, ts);
+  tTeamCandidates = generateTeamCandidates(tSelectedPlayers, tc, ts);
+  tCandidateIdx = 0;
+  tCurrentTeams = tTeamCandidates[0];
   showTeamSuggestion(tc, ts);
   closeModal('newTournamentModal');
   openModal('teamSuggestionModal');
+}
+
+function computeTeamsDiff(teams){
+  const avgs = teams.map(t=>t.members.reduce((s,n)=>s+effectiveScoreT(n),0)/t.members.length);
+  return Math.max(...avgs)-Math.min(...avgs);
+}
+
+function generateTeamCandidates(playerNames, tc, ts){
+  const attempts=[balanceTeams(playerNames, tc, ts)]; // pure snake draft: best possible balance
+  for(let i=0;i<20;i++){
+    const withNoise = playerNames.map(n=>({n,s:effectiveScoreT(n)+(Math.random()-0.5)*(0.15+i*0.05)}))
+      .sort((a,b)=>b.s-a.s).map(x=>x.n);
+    attempts.push(balanceTeams(withNoise, tc, ts));
+  }
+  const seen=new Set(), scored=[];
+  attempts.forEach(teams=>{
+    const key = teams.map(t=>[...t.members].sort().join(',')).sort().join('|');
+    if(seen.has(key)) return;
+    seen.add(key);
+    scored.push({teams, diff: computeTeamsDiff(teams)});
+  });
+  scored.sort((a,b)=>a.diff-b.diff);
+  return scored.slice(0,3).map(s=>s.teams);
 }
 
 function balanceTeams(playerNames, tc, ts){
@@ -2651,27 +2680,11 @@ function balanceTeams(playerNames, tc, ts){
   return teams;
 }
 
-function reshuffleTeams(strategy){if(guardScorer())return;
-  strategy = strategy || 'balanced';
-  const tc = tCurrentTeams.length;
-  const ts = tCurrentTeams[0].members.length;
-  const all = tCurrentTeams.flatMap(t=>t.members);
-  let newTeams;
-  if(strategy==='balanced'){
-    // Ít lệch nhất: snake draft thuần theo điểm, không xáo trộn
-    newTeams = balanceTeams(all, tc, ts);
-  } else if(strategy==='medium'){
-    // Lệch vừa: thêm nhiễu nhẹ trước khi snake draft
-    const withNoise = all.map(n=>({n,s:effectiveScoreT(n)+(Math.random()-0.5)*0.35}))
-      .sort((a,b)=>b.s-a.s).map(x=>x.n);
-    newTeams = balanceTeams(withNoise, tc, ts);
-  } else {
-    // Ngẫu nhiên hoàn toàn: lệch nhiều nhất, không cân bằng
-    const shuffled = [...all].sort(()=>Math.random()-0.5);
-    newTeams = Array.from({length:tc},(_,i)=>({id:i, members:[]}));
-    shuffled.forEach((n,i)=>newTeams[i%tc].members.push(n));
-  }
-  tCurrentTeams = newTeams;
+function nextTeamCandidate(){if(guardScorer())return;
+  if(!tTeamCandidates.length) return;
+  tCandidateIdx = (tCandidateIdx+1) % tTeamCandidates.length;
+  tCurrentTeams = tTeamCandidates[tCandidateIdx];
+  const tc = tCurrentTeams.length, ts = tCurrentTeams[0].members.length;
   showTeamSuggestion(tc, ts);
 }
 
@@ -2688,7 +2701,7 @@ function teamColors(i){
 }
 
 function showTeamSuggestion(tc, ts){
-  const teamNames = ['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6'];
+  const teamNames = TEAM_NAMES_8;
   const content = tCurrentTeams.map((team,i)=>{
     const c = teamColors(i);
     const avgEff = parseFloat((team.members.reduce((s,n)=>s+effectiveScoreT(n),0)/team.members.length).toFixed(2));
@@ -2714,9 +2727,14 @@ function showTeamSuggestion(tc, ts){
   const avgs = tCurrentTeams.map(t=>t.members.reduce((s,n)=>s+effectiveScoreT(n),0)/t.members.length);
   const maxAvg = Math.max(...avgs), minAvg = Math.min(...avgs);
   const diff = (maxAvg-minAvg).toFixed(3);
+  const rankLabels = ['Lệch ít nhất','Lệch ít nhì','Lệch ít thứ 3'];
+  const rankLabel = tTeamCandidates.length>1
+    ? '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">📊 Cách chia hiện tại: <strong style="color:var(--text)">'+(rankLabels[tCandidateIdx]||('Cách '+(tCandidateIdx+1)))+'</strong> ('+(tCandidateIdx+1)+'/'+tTeamCandidates.length+')</div>'
+    : '';
 
   document.getElementById('teamSuggestionContent').innerHTML =
-    '<div class="t-balance">'
+    rankLabel
+    +'<div class="t-balance">'
     +'<div class="t-stat"><div class="val">'+tCurrentTeams.length+'</div><div class="lbl">Teams</div></div>'
     +'<div class="t-stat"><div class="val">'+tCurrentTeams[0].members.length+'</div><div class="lbl">Người/team</div></div>'
     +'<div class="t-stat"><div class="val" style="color:'+(parseFloat(diff)<0.3?'var(--success)':'var(--warn)')+'">'+diff+'</div><div class="lbl">Chênh lệch TB</div></div>'
@@ -2950,22 +2968,26 @@ function getTournamentTopStandings(t){
     const lastRound = t.bracket.rounds[t.bracket.rounds.length-1];
     const finalMatch = lastRound[0];
     const runnerIdx = finalMatch.teamA===t.championIdx ? finalMatch.teamB : finalMatch.teamA;
-    const top=[{name:t.teams[t.championIdx].name}];
-    if(runnerIdx!=null) top.push({name:t.teams[runnerIdx].name});
+    const top=[{idx:t.championIdx, name:t.teams[t.championIdx].name, members:t.teams[t.championIdx].members, label:'Vô địch'}];
+    if(runnerIdx!=null) top.push({idx:runnerIdx, name:t.teams[runnerIdx].name, members:t.teams[runnerIdx].members, label:'Á quân'});
     return top;
   }
   if(t.format==='roundrobin'){
-    return computeRoundRobinStandings(t).slice(0,3);
+    return computeRoundRobinStandings(t).slice(0,3).map(s=>({
+      idx:s.idx, name:s.name, members:s.members, w:s.w, l:s.l,
+      label:(s.pf-s.pa>=0?'+':'')+(s.pf-s.pa)+'đ'
+    }));
   }
   // 'teams' (chia team) format
-  const standings=t.teams.map(team=>({name:team.name,w:0,l:0,pts:0}));
+  const standings=t.teams.map((team,i)=>({idx:i, name:team.name, members:team.members, w:0, l:0, pts:0}));
   (t.matches||[]).filter(m=>m.done).forEach(m=>{
     const winner=m.scoreA>m.scoreB?m.teamA:m.teamB;
     const loser=m.scoreA>m.scoreB?m.teamB:m.teamA;
     standings[winner].w++;standings[winner].pts+=2;
     standings[loser].l++;
   });
-  return [...standings].sort((a,b)=>b.pts-a.pts||b.w-a.w).slice(0,3);
+  return [...standings].sort((a,b)=>b.pts-a.pts||b.w-a.w).slice(0,3)
+    .map(s=>({idx:s.idx, name:s.name, members:s.members, w:s.w, l:s.l, label:'+'+s.pts+'đ'}));
 }
 
 function renderTournamentList(){
@@ -2987,8 +3009,18 @@ function renderTournamentList(){
     const expanded=(idx===0);
     const top = (!isActive && done>0) ? getTournamentTopStandings(t) : [];
     const podiumSummary = top.length
-      ? '<div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;padding:0 1rem .1rem;display:flex;flex-wrap:wrap;gap:.5rem">'
-        + top.map((s,i)=>'<span>'+(medals[i]||'#'+(i+1))+' <strong style="color:var(--text)">'+s.name+'</strong></span>').join('')
+      ? '<div style="display:flex;gap:.5rem;padding:0 1rem .85rem;flex-wrap:wrap">'
+        + '<div style="width:100%;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.15rem">🏆 Bảng xếp hạng</div>'
+        + top.map((s,i)=>{
+            const c = s.idx!=null ? teamColors(s.idx) : {border:'var(--border)',text:'var(--text)'};
+            const wl = (s.w!=null) ? (s.w+'T '+s.l+'B · '+s.label) : s.label;
+            return '<div style="flex:1;min-width:140px;background:rgba(255,255,255,.02);border:1px solid '+c.border+';border-radius:var(--rs);padding:.7rem;text-align:center">'
+              +'<div style="font-size:1.3rem">'+(medals[i]||'#'+(i+1))+'</div>'
+              +'<div style="font-size:.85rem;font-weight:700;color:'+c.text+';margin:.2rem 0">'+s.name+'</div>'
+              +'<div style="font-size:.72rem;color:var(--muted)">'+wl+'</div>'
+              +'<div style="font-size:.7rem;color:var(--muted);margin-top:.15rem">'+s.members.join(', ')+'</div>'
+              +'</div>';
+          }).join('')
         + '</div>'
       : '';
     return '<div class="t-accordion" id="tacc_'+t.id+'">'
@@ -4087,9 +4119,7 @@ init();
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">AI đã cân bằng theo điểm số, phong độ và trình độ.</div>
     <div id="teamSuggestionContent"></div>
     <div class="modal-footer" style="flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm" onclick="reshuffleTeams('balanced')" title="Snake draft theo điểm, chênh lệch thấp nhất">🎯 Cân bằng nhất</button>
-      <button class="btn btn-ghost btn-sm" onclick="reshuffleTeams('medium')" title="Có xáo trộn nhẹ, chênh lệch vừa phải">⚖️ Cân bằng vừa</button>
-      <button class="btn btn-ghost btn-sm" onclick="reshuffleTeams('random')" title="Chia hoàn toàn ngẫu nhiên, có thể chênh lệch nhiều">🎲 Ngẫu nhiên</button>
+      <button class="btn btn-ghost btn-sm" onclick="nextTeamCandidate()" title="Bấm liên tiếp để xem cách chia lệch ít nhất → nhì → thứ 3">🔄 Chọn cách chia khác</button>
       <button class="btn btn-lime" style="margin-left:auto" onclick="confirmTeamStep()">✅ Tạo giải đấu</button>
     </div>
   </div>
