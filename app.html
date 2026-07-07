@@ -332,6 +332,10 @@ body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);min
 .modal{background:var(--navy2);border:1px solid var(--border);border-radius:var(--r) var(--r) 0 0;padding:1.5rem 1.25rem;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;position:relative}
 .modal::before{content:'';display:block;width:36px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 1.1rem}
 .modal-title{font-size:1.05rem;font-weight:700;margin-bottom:1.1rem;color:var(--lime)}
+.modal-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem}
+.modal-title-row .modal-title{margin-bottom:0}
+.modal-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;line-height:1;padding:.2rem .4rem;flex-shrink:0}
+.modal-x:hover{color:var(--text)}
 .modal-footer{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--border)}
 
 /* TABLES */
@@ -806,7 +810,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- MODAL: ADD PLAYER -->
 <div class="modal-bg" id="addPlayerModal">
   <div class="modal">
-    <div class="modal-title">👤 Thêm thành viên mới</div>
+    <div class="modal-title-row"><div class="modal-title">👤 Thêm thành viên mới</div><button class="modal-x" onclick="closeModal('addPlayerModal')" title="Đóng">✕</button></div>
     <div class="fgroup"><label>Họ tên</label><input class="finput" id="pName" placeholder="Nguyễn Văn A"/></div>
     <div class="fgroup">
       <label>Điểm (2.00 – 8.00)</label>
@@ -824,7 +828,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- MODAL: LOG MATCH -->
 <div class="modal-bg" id="matchModal">
   <div class="modal">
-    <div class="modal-title">Ghi trận mới</div>
+    <div class="modal-title-row"><div class="modal-title">Ghi trận mới</div><button class="modal-x" onclick="closeModal('matchModal')" title="Đóng">✕</button></div>
     <div class="fgroup"><label>Ngày thi đấu</label><input class="finput" id="mDate" type="date"/></div>
     <div class="fgroup"><label>Loại trận</label>
       <select class="finput" id="mType" onchange="updateMF()">
@@ -879,7 +883,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- MODAL: FINANCE -->
 <div class="modal-bg" id="finModal">
   <div class="modal">
-    <div class="modal-title">💰 Thêm thu chi</div>
+    <div class="modal-title-row"><div class="modal-title">💰 Thêm thu chi</div><button class="modal-x" onclick="closeModal('finModal')" title="Đóng">✕</button></div>
     <div class="fgroup"><label>Loại</label>
       <select class="finput" id="finType"><option value="thu">Thu (nhận tiền)</option><option value="chi">Chi (thanh toán)</option></select>
     </div>
@@ -897,7 +901,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- MODAL: FINE -->
 <div class="modal-bg" id="fineModal">
   <div class="modal">
-    <div class="modal-title">⚠️ Ghi phạt thành viên</div>
+    <div class="modal-title-row"><div class="modal-title">⚠️ Ghi phạt thành viên</div><button class="modal-x" onclick="closeModal('fineModal')" title="Đóng">✕</button></div>
     <div class="fgroup"><label>Thành viên bị phạt</label><select class="finput" id="finePlayer"></select></div>
     <div class="fgroup">
       <label>Lý do phạt</label>
@@ -923,7 +927,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- MODAL: PAY FINE -->
 <div class="modal-bg" id="payFineModal">
   <div class="modal">
-    <div class="modal-title">✅ Xác nhận nộp phạt</div>
+    <div class="modal-title-row"><div class="modal-title">✅ Xác nhận nộp phạt</div><button class="modal-x" onclick="closeModal('payFineModal')" title="Đóng">✕</button></div>
     <div id="payFineContent"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('payFineModal')">Hủy</button>
@@ -2565,30 +2569,39 @@ function openManualTeamAssign(){if(guardScorer())return;
   renderManualAssign(tc, ts);
 }
 
-function cycleManualPlayer(name, tc){
-  tManualAssign[name] = (tManualAssign[name]+1) % tc;
-  renderManualAssign(tc, parseInt(document.getElementById('tTeamSize').value)||2);
+function setManualPlayerTeam(name, teamIdx){
+  tManualAssign[name] = parseInt(teamIdx);
+  const tc = parseInt(document.getElementById('tTeamCount').value)||4;
+  const ts = parseInt(document.getElementById('tTeamSize').value)||2;
+  renderManualAssign(tc, ts);
 }
 
 function renderManualAssign(tc, ts){
   const teamNames=['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6','Team 7','Team 8'];
   const counts = Array(tc).fill(0);
   Object.values(tManualAssign).forEach(ti=>counts[ti]++);
-  let html = '<div style="display:flex;flex-direction:column;gap:.6rem">';
-  for(let i=0;i<tc;i++){
-    const c = teamColors(i);
-    const members = tSelectedPlayers.filter(n=>tManualAssign[n]===i);
-    html += '<div style="border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.6rem .75rem">'
-      + '<div style="font-size:.75rem;font-weight:700;color:'+c.text+';margin-bottom:.4rem">'+teamNames[i]+' ('+counts[i]+'/'+ts+')</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:.35rem">'
-      + members.map(n=>'<span class="player-chip" style="cursor:pointer" onclick="cycleManualPlayer(\''+n+'\','+tc+')">'+n+'</span>').join('')
-      + '</div></div>';
-  }
-  html += '</div>';
-  document.getElementById('manualAssignContent').innerHTML = html;
+
+  const countsSummary = '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">'
+    + Array.from({length:tc},(_,i)=>{
+        const c=teamColors(i);
+        const full = counts[i]===ts;
+        return '<span class="pill" style="background:'+c.bg+';border:1px solid '+c.border+';color:'+c.text+'">'+teamNames[i]+': '+counts[i]+'/'+ts+(full?' ✓':'')+'</span>';
+      }).join('')
+    + '</div>';
+
+  const rows = tSelectedPlayers.map(n=>{
+    const p=gp(n);
+    const options = Array.from({length:tc},(_,i)=>'<option value="'+i+'"'+(tManualAssign[n]===i?' selected':'')+'>'+teamNames[i]+'</option>').join('');
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem .6rem;border:1px solid var(--border);border-radius:var(--rs);margin-bottom:.4rem">'
+      + '<span style="font-size:.85rem">'+n+(p?' <span style="color:var(--muted);font-size:.72rem">('+p.score.toFixed(2)+')</span>':'')+'</span>'
+      + '<select class="finput" style="width:auto;max-width:140px" onchange="setManualPlayerTeam(\''+n+'\',this.value)">'+options+'</select>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('manualAssignContent').innerHTML = countsSummary + rows;
   const errEl = document.getElementById('manualAssignErr');
   const balanced = counts.every(c=>c===ts);
-  if(!balanced){ errEl.textContent='⚠️ Mỗi team cần đúng '+ts+' người. Bấm vào tên để chuyển team.'; errEl.style.display=''; }
+  if(!balanced){ errEl.textContent='⚠️ Mỗi team cần đúng '+ts+' người. Chọn team cho từng người ở dropdown bên phải.'; errEl.style.display=''; }
   else errEl.style.display='none';
 }
 
@@ -2778,17 +2791,34 @@ function createTournamentFromTeams(rawTeams){
 }
 
 function genRoundRobinMatches(teams){
+  // Circle method: schedule into rounds so every team plays once per round
+  // (interleaved order), instead of grouping all of one team's matches together.
+  const n0 = teams.length;
+  let idx = teams.map((t,i)=>i);
+  if(idx.length % 2 !== 0) idx.push(null); // bye slot for odd team count
+  const n = idx.length;
+  const rounds = [];
+  let arr = [...idx];
+  for(let r=0;r<n-1;r++){
+    const roundPairs=[];
+    for(let i=0;i<n/2;i++){
+      const a=arr[i], b=arr[n-1-i];
+      if(a!==null && b!==null) roundPairs.push([a,b]);
+    }
+    rounds.push(roundPairs);
+    arr = [arr[0], arr[n-1], ...arr.slice(1,n-1)];
+  }
   const matches=[];
   let mid=1;
-  for(let i=0;i<teams.length;i++){
-    for(let j=i+1;j<teams.length;j++){
+  rounds.forEach(roundPairs=>{
+    roundPairs.forEach(([i,j])=>{
       matches.push({
         id:mid++, teamA:i, teamB:j,
         pairA:teams[i].members, pairB:teams[j].members,
         scoreA:null, scoreB:null, done:false
       });
-    }
-  }
+    });
+  });
   return matches;
 }
 
@@ -3103,6 +3133,11 @@ function renderTournamentInlineRoundRobin(t){
       +'<span style="color:var(--muted)">vs</span>'
       +'<span style="color:'+cB.text+';font-weight:600">'+tB.name+'</span>'
       +(isDone?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓</span>':'')
+      +'</div>'
+      +'<div style="font-size:.75rem;margin-bottom:.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:.4rem">'
+      +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.join(' & ')+'</span>'
+      +'<span style="color:var(--border)">|</span>'
+      +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.join(' & ')+'</span>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
       +'<div style="display:flex;align-items:center;gap:.35rem">'
@@ -3892,7 +3927,7 @@ init();
 <!-- MODAL: NEW TOURNAMENT STEP 1 -->
 <div class="modal-bg" id="newTournamentModal">
   <div class="modal">
-    <div class="modal-title">🏅 Tạo giải đấu mới</div>
+    <div class="modal-title-row"><div class="modal-title">🏅 Tạo giải đấu mới</div><button class="modal-x" onclick="closeModal('newTournamentModal')" title="Đóng">✕</button></div>
     <div class="fgroup">
       <label>Tên giải đấu</label>
       <input class="finput" id="tName" placeholder="VD: Giải tháng 7/2026"/>
@@ -3980,7 +4015,7 @@ init();
 <!-- MODAL: TEAM SUGGESTION -->
 <div class="modal-bg" id="teamSuggestionModal">
   <div class="modal" style="max-width:600px">
-    <div class="modal-title">⚡ Gợi ý phân bổ team</div>
+    <div class="modal-title-row"><div class="modal-title">⚡ Gợi ý phân bổ team</div><button class="modal-x" onclick="closeModal('teamSuggestionModal')" title="Đóng">✕</button></div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">AI đã cân bằng theo điểm số, phong độ và trình độ.</div>
     <div id="teamSuggestionContent"></div>
     <div class="modal-footer">
@@ -3993,7 +4028,7 @@ init();
 <!-- MODAL: MANUAL TEAM ASSIGN -->
 <div class="modal-bg" id="manualAssignModal">
   <div class="modal" style="max-width:600px">
-    <div class="modal-title">✋ Chia đội thủ công</div>
+    <div class="modal-title-row"><div class="modal-title">✋ Chia đội thủ công</div><button class="modal-x" onclick="closeModal('manualAssignModal')" title="Đóng">✕</button></div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Bấm vào tên để chuyển người chơi sang team tiếp theo.</div>
     <div id="manualAssignContent"></div>
     <div id="manualAssignErr" style="color:var(--danger);font-size:.78rem;margin-top:.5rem;display:none"></div>
@@ -4011,7 +4046,7 @@ init();
 <div class="modal-bg" id="loginScreen">
   <div class="modal" style="max-width:380px">
     <div style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
-      <button onclick="document.getElementById('loginScreen').classList.remove('open')"
+      <button onclick="hideLoginScreen()"
         style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.3rem;line-height:1;padding:.2rem .4rem"
         title="Đóng">✕</button>
     </div>
