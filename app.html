@@ -2681,8 +2681,10 @@ function renderTournamentInline(t){
       +'<span style="color:'+cB.text+';font-weight:600">'+tB.name+'</span>'
       +(isDone?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓</span>':'')
       +'</div>'
-      +'<div style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem">'
-      +(m.pairA||tA.members).join(' & ')+' <span style="color:var(--border)">|</span> '+(m.pairB||tB.members).join(' & ')
+      +'<div style="font-size:.75rem;margin-bottom:.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:.4rem">'
+      +'<span style="color:'+cA.text+';font-weight:600">'+(m.pairA||tA.members).join(' & ')+'</span>'
+      +'<span style="color:var(--border)">|</span>'
+      +'<span style="color:'+cB.text+';font-weight:600">'+(m.pairB||tB.members).join(' & ')+'</span>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
       +'<div style="display:flex;align-items:center;gap:.35rem">'
