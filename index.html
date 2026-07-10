@@ -285,6 +285,7 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const db   = getDatabase(app);
 const auth = getAuth(app);
+const nowGMT7 = () => new Date(Date.now() + 7*3600000);
 
 let regData = {}; // holds club info between steps
 
@@ -368,7 +369,7 @@ window.regSubmit = async () => {
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     if(name) await updateProfile(cred.user, {displayName:name});
 
-    const today = new Date().toISOString().slice(0,10);
+    const today = nowGMT7().toISOString().slice(0,10);
     let autoApprove = false;
     try{
       const aaSnap = await get(ref(db,'admin_config/auto_approve_registration'));

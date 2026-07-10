@@ -1050,8 +1050,10 @@ function updateLevelPreview(){
   el.innerHTML=`<span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span><span style="font-size:.73rem;color:var(--muted)">Trình độ tự động theo điểm</span>`;
 }
 const fmtD=d=>{if(!d)return'';const[y,m,da]=d.split('-');return`${da}/${m}/${y}`};
-const today=()=>new Date().toISOString().split('T')[0];
-const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0]};
+// All dates/reports use GMT+7 (Vietnam) regardless of the viewer's browser timezone
+const nowGMT7=()=>new Date(Date.now()+7*3600000);
+const today=()=>nowGMT7().toISOString().split('T')[0];
+const ago=n=>{const d=nowGMT7();d.setUTCDate(d.getUTCDate()-n);return d.toISOString().split('T')[0]};
 const ini=n=>n.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();
 const av=(n,c,lg='')=>`<div class="av ${lg} ${c||'c0'}">${ini(n)}</div>`;
 const avW=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${av(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
@@ -1348,9 +1350,9 @@ function calcPairingSingles(){
 function buildRankDropdown(){
   const sel = document.getElementById('rankPeriodSelect');
   if(!sel) return;
-  const now = new Date();
-  const curY = now.getFullYear();
-  const curM = now.getMonth()+1;
+  const now = nowGMT7();
+  const curY = now.getUTCFullYear();
+  const curM = now.getUTCMonth()+1;
   const pad = n=>String(n).padStart(2,'0');
 
   // Collect all months with match data
@@ -3845,7 +3847,7 @@ window.submitFeedback = async () => {
       clubId: window._clubId || '',
       clubName: window._clubName || '',
       status: 'pending',
-      createdAt: new Date().toISOString()
+      createdAt: nowGMT7().toISOString()
     });
     notify('✅ Đã gửi góp ý, cảm ơn bạn!');
     document.getElementById('feedbackContent').value='';
@@ -3934,7 +3936,7 @@ window.doCreateScorer = async () => {
     const cred = await createUser2(auth2, email, pass);
     if(name) await updateProfile2(cred.user, {displayName:name});
 
-    const today = new Date().toISOString().slice(0,10);
+    const today = nowGMT7().toISOString().slice(0,10);
     await window._fbSet('user_roles/'+cred.user.uid, {
       role:'scorer', clubId: window._clubId, clubName: window._clubName,
       email, displayName: name||email, username: uname||'', createdAt: today

@@ -265,6 +265,7 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const db   = getDatabase(app);
 const auth = getAuth(app);
+const nowGMT7 = () => new Date(Date.now() + 7*3600000);
 
 window._auth = auth;
 window._db   = db;
@@ -549,7 +550,7 @@ window.doCreateClub = async () => {
     const banner = document.getElementById('newClubBanner').value.trim();
     await set(ref(db,'clubs/'+id+'/info'), {
       name,
-      createdAt: new Date().toISOString().slice(0,10),
+      createdAt: nowGMT7().toISOString().slice(0,10),
       ...(banner && {banner})
     });
     notify('✅ Đã tạo CLB: '+name);
@@ -617,7 +618,7 @@ window.doCreateUser = async () => {
       role, clubId, clubName,
       email, displayName: name||email,
       username: uname||'',
-      createdAt: new Date().toISOString().slice(0,10)
+      createdAt: nowGMT7().toISOString().slice(0,10)
     });
     if(uname){
       await set(ref(db,'usernames/'+uname), cred.user.uid);
@@ -861,7 +862,7 @@ window.setFeedbackStatus = async (id, status) => {
     const updates = { status };
     if(FEEDBACK_REPLIES[status]){
       updates.reply = FEEDBACK_REPLIES[status];
-      updates.repliedAt = new Date().toISOString();
+      updates.repliedAt = nowGMT7().toISOString();
     } else {
       updates.reply = null;
       updates.repliedAt = null;
