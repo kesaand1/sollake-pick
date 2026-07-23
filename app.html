@@ -2487,8 +2487,12 @@ function openNewTournamentModal(){if(guardScorer())return;
   tMode = 'teams'; tFormat='roundrobin'; tAssign='auto'; tManualAssign={};
   document.getElementById('tModeCardTeams').classList.add('selected');
   document.getElementById('tModeCardTournament').classList.remove('selected');
+  document.getElementById('tModeCardGroups').classList.remove('selected');
   document.getElementById('tFormatGroup').style.display='none';
   document.getElementById('tAssignGroup').style.display='';
+  document.getElementById('tGroupCountGroup').style.display='none';
+  document.getElementById('tTeamCountGroup').style.display='';
+  document.getElementById('tTeamSizeGroup').style.display='';
   renderTPlayersList();
   updateTLabel();
   updatePrimaryBtn();
@@ -2498,8 +2502,14 @@ function setTMode(mode){
   tMode = mode;
   document.getElementById('tModeCardTeams').classList.toggle('selected', mode==='teams');
   document.getElementById('tModeCardTournament').classList.toggle('selected', mode==='tournament');
+  document.getElementById('tModeCardGroups').classList.toggle('selected', mode==='groups');
   document.getElementById('tFormatGroup').style.display = mode==='tournament' ? '' : 'none';
   document.getElementById('tAssignGroup').style.display = '';
+  document.getElementById('tGroupCountGroup').style.display = mode==='groups' ? '' : 'none';
+  document.getElementById('tTeamCountGroup').style.display = mode==='groups' ? 'none' : '';
+  document.getElementById('tTeamSizeGroup').style.display = mode==='groups' ? 'none' : '';
+  if(mode==='groups') document.getElementById('tTeamSize').value='2';
+  updateTLabel();
   updatePrimaryBtn();
 }
 function setTFormat(fmt){
@@ -2517,13 +2527,20 @@ function updatePrimaryBtn(){
   const btn = document.getElementById('tPrimaryBtn');
   if(tAssign==='manual'){ btn.textContent='✋ Chia đội thủ công'; btn.onclick=openManualTeamAssign; }
   else if(tMode==='teams'){ btn.textContent='⚡ Chia đội'; btn.onclick=generateTeams; }
+  else if(tMode==='groups'){ btn.textContent='⚡ Chia đội & Tạo giải'; btn.onclick=generateGroupsTeamsAuto; }
   else { btn.textContent='⚡ Chia đội & Tạo giải'; btn.onclick=generateTournamentTeamsAuto; }
 }
 
 function updateTLabel(){
-  const tc = parseInt(document.getElementById('tTeamCount').value)||4;
-  const ts = parseInt(document.getElementById('tTeamSize').value)||2;
-  const need = tc * ts;
+  let need;
+  if(tMode==='groups'){
+    const gtc = parseInt(document.getElementById('tGroupTeamCount').value)||3;
+    need = gtc * 2 * 2; // 2 groups × teams/group × 2 people/team
+  } else {
+    const tc = parseInt(document.getElementById('tTeamCount').value)||4;
+    const ts = parseInt(document.getElementById('tTeamSize').value)||2;
+    need = tc * ts;
+  }
   document.getElementById('tPlayersLabel').textContent =
     'Chọn thành viên tham gia (cần '+need+' người, đã chọn '+tSelectedPlayers.length+')';
   const vEl = document.getElementById('tValidation');
@@ -2578,15 +2595,31 @@ function generateTournamentTeamsAuto(){if(guardScorer())return;
   openModal('teamSuggestionModal');
 }
 
+function generateGroupsTeamsAuto(){if(guardScorer())return;
+  const gtc = parseInt(document.getElementById('tGroupTeamCount').value)||3;
+  const tc = gtc*2, ts = 2;
+  const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
+  const need = tc*ts;
+  if(tSelectedPlayers.length !== need){
+    alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
+  }
+  tCurrentName = name;
+  tCurrentTeams = balanceTeams(tSelectedPlayers, tc, ts);
+  showTeamSuggestion(tc, ts);
+  closeModal('newTournamentModal');
+  openModal('teamSuggestionModal');
+}
+
 function confirmTeamStep(){
   if(tMode==='teams'){ confirmCreateTournament(); return; }
+  if(tMode==='groups'){ createGroupsFromTeams(tCurrentTeams); closeModal('teamSuggestionModal'); return; }
   createTournamentFromTeams(tCurrentTeams);
   closeModal('teamSuggestionModal');
 }
 
 function openManualTeamAssign(){if(guardScorer())return;
-  const tc = parseInt(document.getElementById('tTeamCount').value)||4;
-  const ts = parseInt(document.getElementById('tTeamSize').value)||2;
+  const tc = tMode==='groups' ? (parseInt(document.getElementById('tGroupTeamCount').value)||3)*2 : (parseInt(document.getElementById('tTeamCount').value)||4);
+  const ts = tMode==='groups' ? 2 : (parseInt(document.getElementById('tTeamSize').value)||2);
   const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
   const need = tc*ts;
   if(tSelectedPlayers.length !== need){
@@ -2603,8 +2636,8 @@ function openManualTeamAssign(){if(guardScorer())return;
 
 function setManualPlayerTeam(name, teamIdx){
   tManualAssign[name] = parseInt(teamIdx);
-  const tc = parseInt(document.getElementById('tTeamCount').value)||4;
-  const ts = parseInt(document.getElementById('tTeamSize').value)||2;
+  const tc = tMode==='groups' ? (parseInt(document.getElementById('tGroupTeamCount').value)||3)*2 : (parseInt(document.getElementById('tTeamCount').value)||4);
+  const ts = tMode==='groups' ? 2 : (parseInt(document.getElementById('tTeamSize').value)||2);
   renderManualAssign(tc, ts);
 }
 
@@ -2638,8 +2671,8 @@ function renderManualAssign(tc, ts){
 }
 
 function confirmManualAssign(){
-  const tc = parseInt(document.getElementById('tTeamCount').value)||4;
-  const ts = parseInt(document.getElementById('tTeamSize').value)||2;
+  const tc = tMode==='groups' ? (parseInt(document.getElementById('tGroupTeamCount').value)||3)*2 : (parseInt(document.getElementById('tTeamCount').value)||4);
+  const ts = tMode==='groups' ? 2 : (parseInt(document.getElementById('tTeamSize').value)||2);
   const counts = Array(tc).fill(0);
   Object.values(tManualAssign).forEach(ti=>counts[ti]++);
   if(!counts.every(c=>c===ts)){ alert('Vui lòng cân bằng đủ số người mỗi team trước khi tạo giải!'); return; }
@@ -2647,6 +2680,8 @@ function confirmManualAssign(){
   if(tMode==='teams'){
     tCurrentTeams = teams;
     confirmCreateTournament();
+  } else if(tMode==='groups'){
+    createGroupsFromTeams(teams);
   } else {
     createTournamentFromTeams(teams);
   }
@@ -2834,6 +2869,173 @@ function createTournamentFromTeams(rawTeams){
   showPage('tournament');
 }
 
+function genGroupRoundRobin(groupTeams){
+  // groupTeams: array of team objects (each has global .id). Returns matches referencing global ids.
+  let idx = groupTeams.map((t,i)=>i);
+  if(idx.length % 2 !== 0) idx.push(null);
+  const n = idx.length;
+  const rounds = [];
+  let arr = [...idx];
+  for(let r=0;r<n-1;r++){
+    const roundPairs=[];
+    for(let i=0;i<n/2;i++){
+      const a=arr[i], b=arr[n-1-i];
+      if(a!==null && b!==null) roundPairs.push([a,b]);
+    }
+    rounds.push(roundPairs);
+    arr = [arr[0], arr[n-1], ...arr.slice(1,n-1)];
+  }
+  const matches=[];
+  rounds.forEach(roundPairs=>{
+    roundPairs.forEach(([li,lj])=>{
+      const teamA=groupTeams[li], teamB=groupTeams[lj];
+      matches.push({ teamA:teamA.id, teamB:teamB.id, pairA:teamA.members, pairB:teamB.members, scoreA:null, scoreB:null, done:false });
+    });
+  });
+  return matches;
+}
+
+function createGroupsFromTeams(rawTeams){
+  // Alternate teams into 2 groups (A/B) for balanced strength across groups
+  const builtTeams = rawTeams.map((t,i)=>({ id:i, name:TEAM_NAMES_8[i]||('Team '+(i+1)), members:t.members, group: i%2 }));
+  const groupA = builtTeams.filter(tm=>tm.group===0);
+  const groupB = builtTeams.filter(tm=>tm.group===1);
+  let mid=1;
+  const groupMatches = [...genGroupRoundRobin(groupA), ...genGroupRoundRobin(groupB)].map(m=>({id:mid++, ...m}));
+  const tournament = {
+    id: nT++, name: tCurrentName, date: today(),
+    format: 'groups', teams: builtTeams,
+    groupMatches, phase: 'groups',
+    semis: [], final: null,
+    championIdx: null, runnerIdx: null, thirdIdx: null, fourthIdx: null,
+    status: 'active'
+  };
+  tournaments.push(tournament);
+  saveAll();
+  renderTournamentList();
+  notify('🏅 Đã tạo giải: '+tCurrentName);
+  showPage('tournament');
+}
+
+function computeGroupStandings(t, groupIdx){
+  const groupTeams = t.teams.filter(tm=>tm.group===groupIdx);
+  const stats = groupTeams.map(tm=>({idx:tm.id, name:tm.name, members:tm.members, w:0, l:0, pf:0, pa:0}));
+  const byIdx = {}; stats.forEach(s=>byIdx[s.idx]=s);
+  t.groupMatches.filter(m=>m.done && byIdx[m.teamA] && byIdx[m.teamB]).forEach(m=>{
+    const A=byIdx[m.teamA], B=byIdx[m.teamB];
+    A.pf+=m.scoreA; A.pa+=m.scoreB;
+    B.pf+=m.scoreB; B.pa+=m.scoreA;
+    if(m.scoreA>m.scoreB){A.w++;B.l++;} else {B.w++;A.l++;}
+  });
+  function h2h(aIdx,bIdx){
+    const m = t.groupMatches.find(mm=>mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
+    if(!m) return 0;
+    const aScore = m.teamA===aIdx?m.scoreA:m.scoreB;
+    const bScore = m.teamA===aIdx?m.scoreB:m.scoreA;
+    return aScore>bScore?1:(aScore<bScore?-1:0);
+  }
+  return [...stats].sort((a,b)=>{
+    if(b.w!==a.w) return b.w-a.w;
+    const diffA=a.pf-a.pa, diffB=b.pf-b.pa;
+    if(diffB!==diffA) return diffB-diffA;
+    const h=h2h(a.idx,b.idx);
+    if(h!==0) return -h;
+    return 0;
+  });
+}
+
+function advanceGroupsPhase(t){
+  if(t.phase==='groups'){
+    if(!t.groupMatches.every(m=>m.done)) return;
+    const standA = computeGroupStandings(t,0);
+    const standB = computeGroupStandings(t,1);
+    if(standA.length<2||standB.length<2) return;
+    t.semis = [
+      { id:1, label:'Bán kết 1 (Nhất A vs Nhì B)', teamA:standA[0].idx, teamB:standB[1].idx,
+        pairA:t.teams[standA[0].idx].members, pairB:t.teams[standB[1].idx].members,
+        scoreA:null, scoreB:null, done:false, winnerIdx:null },
+      { id:2, label:'Bán kết 2 (Nhất B vs Nhì A)', teamA:standB[0].idx, teamB:standA[1].idx,
+        pairA:t.teams[standB[0].idx].members, pairB:t.teams[standA[1].idx].members,
+        scoreA:null, scoreB:null, done:false, winnerIdx:null },
+    ];
+    t.phase='semis';
+    notify('⚔️ Vòng bảng hoàn tất! Đã có lịch bán kết.');
+    return;
+  }
+  if(t.phase==='semis'){
+    if(!t.semis.every(m=>m.done)) return;
+    const w1=t.semis[0].winnerIdx, l1=(t.semis[0].teamA===w1?t.semis[0].teamB:t.semis[0].teamA);
+    const w2=t.semis[1].winnerIdx, l2=(t.semis[1].teamA===w2?t.semis[1].teamB:t.semis[1].teamA);
+    t.final = { teamA:w1, teamB:w2, pairA:t.teams[w1].members, pairB:t.teams[w2].members, scoreA:null, scoreB:null, done:false, winnerIdx:null };
+    // 3rd/4th: rank the 2 semifinal losers by their group-stage record (wins, then point diff)
+    function quality(idx){
+      const grp = t.teams[idx].group;
+      const s = computeGroupStandings(t, grp).find(x=>x.idx===idx);
+      return s ? s.w*1000+(s.pf-s.pa) : 0;
+    }
+    if(quality(l1) >= quality(l2)){ t.thirdIdx=l1; t.fourthIdx=l2; }
+    else { t.thirdIdx=l2; t.fourthIdx=l1; }
+    t.phase='final';
+    notify('🥈 Bán kết hoàn tất! Đã có lịch chung kết.');
+    return;
+  }
+  if(t.phase==='final'){
+    if(!t.final.done) return;
+    t.championIdx = t.final.winnerIdx;
+    t.runnerIdx = (t.final.teamA===t.championIdx ? t.final.teamB : t.final.teamA);
+    t.phase='done';
+    t.status='done';
+    notify('🏆 Vô địch: '+t.teams[t.championIdx].name+'!');
+  }
+}
+
+function saveGroupMatchResult(tId, mId){
+  if(guardScorer())return;
+  const t=tournaments.find(x=>x.id===tId); if(!t||!t.groupMatches) return;
+  const m=t.groupMatches.find(x=>x.id===mId); if(!m) return;
+  const sa=parseInt(document.getElementById('gs_'+tId+'_'+mId+'_a').value);
+  const sb=parseInt(document.getElementById('gs_'+tId+'_'+mId+'_b').value);
+  if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
+  if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+  m.scoreA=sa; m.scoreB=sb; m.done=true;
+  advanceGroupsPhase(t);
+  notify('✅ Đã lưu kết quả trận #'+mId);
+  saveAll();
+  renderTournamentInline(t);
+  renderTournamentList();
+}
+
+function saveSemiResult(tId, sId){
+  if(guardScorer())return;
+  const t=tournaments.find(x=>x.id===tId); if(!t||!t.semis) return;
+  const m=t.semis.find(x=>x.id===sId); if(!m) return;
+  const sa=parseInt(document.getElementById('sf_'+tId+'_'+sId+'_a').value);
+  const sb=parseInt(document.getElementById('sf_'+tId+'_'+sId+'_b').value);
+  if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
+  if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+  m.scoreA=sa; m.scoreB=sb; m.done=true;
+  m.winnerIdx = sa>sb?m.teamA:m.teamB;
+  advanceGroupsPhase(t);
+  saveAll();
+  renderTournamentInline(t);
+  renderTournamentList();
+}
+
+function saveFinalResult(tId){
+  if(guardScorer())return;
+  const t=tournaments.find(x=>x.id===tId); if(!t||!t.final) return;
+  const sa=parseInt(document.getElementById('fn_'+tId+'_a').value);
+  const sb=parseInt(document.getElementById('fn_'+tId+'_b').value);
+  if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
+  if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+  t.final.scoreA=sa; t.final.scoreB=sb; t.final.done=true;
+  t.final.winnerIdx = sa>sb?t.final.teamA:t.final.teamB;
+  advanceGroupsPhase(t);
+  saveAll();
+  renderTournamentInline(t);
+  renderTournamentList();
+}
+
 function genRoundRobinMatches(teams){
   // Circle method: schedule into rounds so every team plays once per round
   // (interleaved order), instead of grouping all of one team's matches together.
@@ -2953,6 +3155,16 @@ function advanceBracket(t){
 }
 
 function getTournamentTopStandings(t){
+  if(t.format==='groups'){
+    if(t.status!=='done'||t.championIdx==null) return [];
+    const top=[
+      {idx:t.championIdx, name:t.teams[t.championIdx].name, members:t.teams[t.championIdx].members, label:'Vô địch'},
+      {idx:t.runnerIdx,   name:t.teams[t.runnerIdx].name,   members:t.teams[t.runnerIdx].members,   label:'Á quân'},
+    ];
+    if(t.thirdIdx!=null)  top.push({idx:t.thirdIdx,  name:t.teams[t.thirdIdx].name,  members:t.teams[t.thirdIdx].members,  label:'Giải 3'});
+    if(t.fourthIdx!=null) top.push({idx:t.fourthIdx, name:t.teams[t.fourthIdx].name, members:t.teams[t.fourthIdx].members, label:'Giải 4'});
+    return top;
+  }
   if(t.format==='singleelim'){
     if(t.status!=='done'||t.championIdx==null) return [];
     const lastRound = t.bracket.rounds[t.bracket.rounds.length-1];
@@ -2987,9 +3199,11 @@ function renderTournamentList(){
     return;
   }
   const sorted=[...tournaments].reverse();
-  const medals=['🥇','🥈','🥉'];
+  const medals=['🥇','🥈','🥉','🏅'];
   el.innerHTML=sorted.map(function(t,idx){
-    const allMatches = t.bracket ? t.bracket.rounds.flat() : (t.matches||[]);
+    const allMatches = t.format==='groups'
+      ? [...(t.groupMatches||[]), ...(t.semis||[]), ...(t.final?[t.final]:[])]
+      : t.bracket ? t.bracket.rounds.flat() : (t.matches||[]);
     const done=allMatches.filter(function(m){return m.done;}).length;
     const total=allMatches.length;
     const pct=total ? Math.round(done/total*100) : 0;
@@ -3062,6 +3276,7 @@ function renderTournamentInline(t){
   tViewingId=t.id;
   if(t.format==='roundrobin') return renderTournamentInlineRoundRobin(t);
   if(t.format==='singleelim') return renderTournamentInlineBracket(t);
+  if(t.format==='groups') return renderTournamentInlineGroups(t);
   return renderTournamentInlineTeams(t);
 }
 
@@ -3326,6 +3541,114 @@ function renderTournamentInlineBracket(t){
     +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.6rem">⚔️ Loại trực tiếp — thua 1 trận sẽ bị loại</div>'
     +championHtml
     +roundsHtml
+    +'</div>';
+}
+
+function renderTournamentInlineGroups(t){
+  const el=document.getElementById('t_content_'+t.id);
+  if(!el) return;
+
+  function scoreCard(m, idPrefix, saveFn, label){
+    const tA=t.teams[m.teamA], tB=t.teams[m.teamB];
+    const cA=teamColors(m.teamA), cB=teamColors(m.teamB);
+    const isDone=m.done;
+    return '<div class="match-card">'
+      +'<div class="match-header">'
+      +(label?'<span class="pill p-gray" style="font-size:.65rem">'+label+'</span>':'')
+      +'<span style="color:'+cA.text+';font-weight:600">'+tA.name+'</span>'
+      +'<span style="color:var(--muted)">vs</span>'
+      +'<span style="color:'+cB.text+';font-weight:600">'+tB.name+'</span>'
+      +(isDone?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓</span>':'')
+      +'</div>'
+      +'<div style="font-size:.75rem;margin-bottom:.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:.4rem">'
+      +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.join(' & ')+'</span>'
+      +'<span style="color:var(--border)">|</span>'
+      +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.join(' & ')+'</span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
+      +'<div style="display:flex;align-items:center;gap:.35rem">'
+      +'<span style="font-size:.75rem;color:'+cA.text+'">'+tA.name+'</span>'
+      +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_a" value="'+(isDone?m.scoreA:'')+'" placeholder="0"/>'
+      +'<span style="color:var(--muted);font-weight:700">:</span>'
+      +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_b" value="'+(isDone?m.scoreB:'')+'" placeholder="0"/>'
+      +'<span style="font-size:.75rem;color:'+cB.text+'">'+tB.name+'</span>'
+      +'</div>'
+      +'<button class="btn '+(isDone?'btn-ghost':'btn-lime')+' btn-sm" style="margin-left:auto" onclick="'+saveFn+'">'
+      +(isDone?'✏️ Sửa':'✅ Xác nhận')+'</button>'
+      +'</div></div>';
+  }
+
+  function groupBlock(groupIdx, groupLabel){
+    const groupTeams = t.teams.filter(tm=>tm.group===groupIdx);
+    const standings = computeGroupStandings(t, groupIdx);
+    const groupMatches = t.groupMatches.filter(m=>groupTeams.some(tm=>tm.id===m.teamA));
+    const medals=['🥇','🥈','🥉','🏅'];
+    const teamsHtml = groupTeams.map(team=>{
+      const c=teamColors(team.id);
+      return '<div style="border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.5rem .7rem;font-size:.78rem">'
+        +'<span style="color:'+c.text+';font-weight:700">'+team.name+'</span>: '+team.members.join(', ')
+        +'</div>';
+    }).join('');
+    const standHtml = standings.map((s,i)=>{
+      const c=teamColors(s.idx);
+      const diff=s.pf-s.pa;
+      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-radius:var(--rs);background:'+(i===0?'rgba(181,240,51,.08)':'rgba(255,255,255,.02)')+';margin-bottom:3px">'
+        +'<span style="font-weight:700;min-width:20px">'+(medals[i]||'#'+(i+1))+'</span>'
+        +'<span style="flex:1;font-size:.8rem;font-weight:600;color:'+c.text+'">'+s.name+'</span>'
+        +'<span style="font-size:.7rem;color:var(--muted)">'+s.w+'T '+s.l+'B</span>'
+        +'<span style="font-weight:700;font-size:.78rem;color:'+(diff>=0?'var(--success)':'var(--danger)')+';min-width:40px;text-align:right">'+(diff>=0?'+':'')+diff+'</span>'
+        +'</div>';
+    }).join('');
+    const matchesHtml = groupMatches.map(m=>scoreCard(m, 'gs_'+t.id+'_'+m.id, 'saveGroupMatchResult('+t.id+','+m.id+')')).join('');
+    return '<div style="margin-bottom:1.1rem">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">📊 Bảng '+groupLabel+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.4rem;margin-bottom:.5rem">'+teamsHtml+'</div>'
+      +standHtml
+      +'<div style="margin-top:.5rem">'+matchesHtml+'</div>'
+      +'</div>';
+  }
+
+  const groupsHtml = groupBlock(0,'A') + groupBlock(1,'B');
+
+  const semisHtml = t.semis && t.semis.length
+    ? '<div style="margin-bottom:1.1rem">'
+      + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">⚔️ Bán kết</div>'
+      + t.semis.map(m=>scoreCard(m, 'sf_'+t.id+'_'+m.id, 'saveSemiResult('+t.id+','+m.id+')', m.label)).join('')
+      + '</div>'
+    : '';
+
+  const finalHtml = t.final
+    ? '<div style="margin-bottom:1.1rem">'
+      + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">🏆 Chung kết</div>'
+      + scoreCard(t.final, 'fn_'+t.id, 'saveFinalResult('+t.id+')')
+      + '</div>'
+    : '';
+
+  const podiumHtml = t.status==='done' && t.championIdx!=null
+    ? '<div style="display:flex;gap:.5rem;margin-bottom:1.1rem;flex-wrap:wrap">'
+      + [
+          {idx:t.championIdx, label:'Vô địch', medal:'🥇'},
+          {idx:t.runnerIdx, label:'Á quân', medal:'🥈'},
+          {idx:t.thirdIdx, label:'Giải 3', medal:'🥉'},
+          {idx:t.fourthIdx, label:'Giải 4', medal:'🏅'},
+        ].filter(p=>p.idx!=null).map(p=>{
+          const team=t.teams[p.idx]; const c=teamColors(p.idx);
+          return '<div style="flex:1;min-width:120px;background:rgba(255,255,255,.03);border:1px solid '+c.border+';border-radius:var(--rs);padding:.7rem;text-align:center">'
+            +'<div style="font-size:1.4rem">'+p.medal+'</div>'
+            +'<div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:.15rem 0">'+p.label+'</div>'
+            +'<div style="font-size:.85rem;font-weight:700;color:'+c.text+'">'+team.name+'</div>'
+            +'<div style="font-size:.68rem;color:var(--muted)">'+team.members.join(', ')+'</div>'
+            +'</div>';
+        }).join('')
+      + '</div>'
+    : '';
+
+  el.innerHTML='<div style="padding:.85rem 1rem;border-top:1px solid var(--border)">'
+    +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.7rem">📊 Chia bảng — vòng bảng tính điểm, sau đó Bán kết (Nhất A - Nhì B, Nhất B - Nhì A) và Chung kết</div>'
+    +podiumHtml
+    +groupsHtml
+    +semisHtml
+    +finalHtml
     +'</div>';
 }
 
@@ -4169,7 +4492,7 @@ init();
 
     <div class="fgroup">
       <label>Loại giải đấu</label>
-      <div style="display:flex;gap:.5rem">
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <div class="t-mode-card selected" id="tModeCardTeams" onclick="setTMode('teams')">
           <div style="font-size:1.3rem">🔀</div>
           <div style="font-weight:700;font-size:.82rem;margin-top:.2rem">Chia team</div>
@@ -4180,7 +4503,24 @@ init();
           <div style="font-weight:700;font-size:.82rem;margin-top:.2rem">Tournament</div>
           <div style="font-size:.68rem;color:var(--muted);margin-top:.15rem">Vòng tròn tính điểm / Loại trực tiếp</div>
         </div>
+        <div class="t-mode-card" id="tModeCardGroups" onclick="setTMode('groups')">
+          <div style="font-size:1.3rem">📊</div>
+          <div style="font-weight:700;font-size:.82rem;margin-top:.2rem">Chia bảng</div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:.15rem">Vòng bảng A/B → Bán kết → Chung kết</div>
+        </div>
       </div>
+    </div>
+
+    <div class="fgroup" id="tGroupCountGroup" style="display:none">
+      <label>Số team mỗi bảng (2 bảng: A, B)</label>
+      <select class="finput" id="tGroupTeamCount" onchange="updateTLabel()">
+        <option value="2">2 team/bảng (4 team tổng)</option>
+        <option value="3" selected>3 team/bảng (6 team tổng)</option>
+        <option value="4">4 team/bảng (8 team tổng)</option>
+        <option value="5">5 team/bảng (10 team tổng)</option>
+        <option value="6">6 team/bảng (12 team tổng)</option>
+      </select>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Mỗi team gồm 2 người. Nhất bảng A gặp Nhì bảng B và ngược lại ở bán kết.</div>
     </div>
 
     <div class="fgroup" id="tFormatGroup" style="display:none">
@@ -4213,7 +4553,7 @@ init();
       </div>
     </div>
 
-    <div class="fgroup">
+    <div class="fgroup" id="tTeamCountGroup">
       <label>Số lượng team</label>
       <select class="finput" id="tTeamCount" onchange="updateTLabel()">
         <option value="2">2 teams</option>
@@ -4225,7 +4565,7 @@ init();
         <option value="8">8 teams</option>
       </select>
     </div>
-    <div class="fgroup">
+    <div class="fgroup" id="tTeamSizeGroup">
       <label>Số người mỗi team</label>
       <select class="finput" id="tTeamSize" onchange="updateTLabel()">
         <option value="1">1 người/team (đơn)</option>
