@@ -3190,7 +3190,6 @@ function getTournamentTopStandings(t){
       {idx:t.runnerIdx,   name:t.teams[t.runnerIdx].name,   members:t.teams[t.runnerIdx].members,   label:'Á quân'},
     ];
     if(t.thirdIdx!=null)  top.push({idx:t.thirdIdx,  name:t.teams[t.thirdIdx].name,  members:t.teams[t.thirdIdx].members,  label:'Giải 3'});
-    if(t.fourthIdx!=null) top.push({idx:t.fourthIdx, name:t.teams[t.fourthIdx].name, members:t.teams[t.fourthIdx].members, label:'Giải 4'});
     return top;
   }
   if(t.format==='singleelim'){
