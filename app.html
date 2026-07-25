@@ -441,6 +441,24 @@ tr:hover td{background:rgba(255,255,255,.02)}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 /* TOURNAMENT ACCORDION */
 .t-mode-card{flex:1;cursor:pointer;text-align:center;padding:.7rem .5rem;border:1px solid var(--border);border-radius:var(--rs);background:rgba(255,255,255,.02);transition:all .15s}
+
+/* KNOCKOUT BRACKET */
+.ko-bracket{display:flex;align-items:center;gap:.5rem;overflow-x:auto;padding:.5rem 0 1rem}
+.ko-round{display:flex;flex-direction:column;justify-content:center;gap:1rem;min-width:170px;flex-shrink:0}
+.ko-round-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);text-align:center;margin-bottom:.2rem}
+.ko-connector{color:var(--muted);font-size:1.1rem;flex-shrink:0;align-self:center}
+.ko-slot{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs);padding:.55rem .65rem;min-height:64px}
+.ko-slot.ko-empty{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.72rem;text-align:center}
+.ko-team{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;padding:.15rem 0}
+.ko-score{font-weight:800;color:var(--text);min-width:20px;text-align:right}
+.ko-input-row{display:flex;align-items:center;gap:.3rem;margin-top:.4rem;padding-top:.4rem;border-top:1px solid var(--border)}
+.ko-input-row .score-input{width:36px;padding:.2rem;text-align:center}
+.ko-champion{background:linear-gradient(160deg,rgba(250,204,21,.16),rgba(250,204,21,.04));border:1.5px solid rgba(250,204,21,.55);border-radius:var(--rs);padding:.9rem .7rem;text-align:center}
+.ko-champion-name{font-size:.95rem;font-weight:800;color:#FACC15;margin-top:.3rem}
+.ko-champion-members{font-size:.7rem;color:var(--muted);margin-top:.15rem}
+@media(max-width:600px){
+  .ko-round{min-width:140px}
+}
 .t-mode-card:hover{background:rgba(255,255,255,.05)}
 .t-mode-card.selected{border-color:var(--lime);background:rgba(181,240,51,.08)}
 .t-accordion{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:.75rem;overflow:hidden}
@@ -3639,25 +3657,59 @@ function renderTournamentInlineGroups(t){
 
   const groupsHtml = groupBlock(0,'A') + groupBlock(1,'B');
 
-  const semisHtml = t.semis && t.semis.length
-    ? '<div style="margin-bottom:1.1rem">'
-      + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">⚔️ Bán kết</div>'
-      + t.semis.map(m=>scoreCard(m, 'sf_'+t.id+'_'+m.id, 'saveSemiResult('+t.id+','+m.id+')', m.label)).join('')
-      + '</div>'
-    : '';
+  function miniMatch(m, idPrefix, saveFn){
+    if(!m) return '<div class="ko-slot ko-empty">Chưa xác định</div>';
+    const tA = t.teams[m.teamA], tB = t.teams[m.teamB];
+    const cA = teamColors(m.teamA), cB = teamColors(m.teamB);
+    const isDone = m.done;
+    const winner = isDone ? m.winnerIdx : null;
+    return '<div class="ko-slot">'
+      + '<div class="ko-team" style="color:'+cA.text+(winner===m.teamA?';font-weight:800':'')+'">'
+        + '<span>'+(winner===m.teamA?'👑 ':'')+tA.name+'</span>'
+        + '<span class="ko-score">'+(isDone?m.scoreA:'–')+'</span>'
+        + '</div>'
+      + '<div class="ko-team" style="color:'+cB.text+(winner===m.teamB?';font-weight:800':'')+'">'
+        + '<span>'+(winner===m.teamB?'👑 ':'')+tB.name+'</span>'
+        + '<span class="ko-score">'+(isDone?m.scoreB:'–')+'</span>'
+        + '</div>'
+      + (!isDone ? '<div class="ko-input-row">'
+          +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_a" placeholder="0"/>'
+          +'<span style="color:var(--muted)">:</span>'
+          +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_b" placeholder="0"/>'
+          +'<button class="btn btn-lime btn-xs" style="margin-left:auto" onclick="'+saveFn+'">✓ Xác nhận</button>'
+        +'</div>' : '')
+      + '</div>';
+  }
 
-  const finalHtml = t.final
-    ? '<div style="margin-bottom:1.1rem">'
-      + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">🏆 Chung kết</div>'
-      + scoreCard(t.final, 'fn_'+t.id, 'saveFinalResult('+t.id+')')
+  const semi1 = t.semis && t.semis[0], semi2 = t.semis && t.semis[1];
+  const champion = t.championIdx!=null ? t.teams[t.championIdx] : null;
+
+  const bracketHtml = (t.semis && t.semis.length) ? (
+    '<div style="margin-bottom:1.1rem">'
+    + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">🏆 Sơ đồ nhánh đấu</div>'
+    + '<div class="ko-bracket">'
+      + '<div class="ko-round"><div class="ko-round-title">Bán kết</div>'
+        + miniMatch(semi1, 'sf_'+t.id+'_'+(semi1?semi1.id:1), semi1?('saveSemiResult('+t.id+','+semi1.id+')'):'')
+        + miniMatch(semi2, 'sf_'+t.id+'_'+(semi2?semi2.id:2), semi2?('saveSemiResult('+t.id+','+semi2.id+')'):'')
       + '</div>'
-    : '';
+      + '<div class="ko-connector">➜</div>'
+      + '<div class="ko-round"><div class="ko-round-title">Chung kết</div>'
+        + (t.final ? miniMatch(t.final, 'fn_'+t.id, 'saveFinalResult('+t.id+')') : '<div class="ko-slot ko-empty">Chờ kết quả bán kết</div>')
+      + '</div>'
+      + '<div class="ko-connector">➜</div>'
+      + '<div class="ko-round"><div class="ko-round-title">Vô địch</div>'
+        + (champion
+            ? '<div class="ko-champion">🏆<div class="ko-champion-name">'+champion.name+'</div><div class="ko-champion-members">'+champion.members.join(' & ')+'</div></div>'
+            : '<div class="ko-slot ko-empty">Chưa có</div>')
+      + '</div>'
+    + '</div>'
+    + '</div>'
+  ) : '';
 
   el.innerHTML='<div style="padding:.85rem 1rem;border-top:1px solid var(--border)">'
     +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.7rem">📊 Chia bảng — vòng bảng tính điểm, sau đó Bán kết (Nhất A - Nhì B, Nhất B - Nhì A) và Chung kết</div>'
     +groupsHtml
-    +semisHtml
-    +finalHtml
+    +bracketHtml
     +'</div>';
 }
 
