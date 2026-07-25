@@ -3241,16 +3241,18 @@ function renderTournamentList(){
     const expanded=(idx===0);
     const top = (!isActive && done>0) ? getTournamentTopStandings(t) : [];
     const podiumSummary = top.length
-      ? '<div style="display:flex;gap:.5rem;padding:0 1rem .85rem;flex-wrap:wrap">'
+      ? '<div style="display:flex;gap:.5rem;padding:0 1rem .85rem;flex-wrap:wrap;align-items:stretch">'
         + '<div style="width:100%;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.15rem">🏆 Bảng xếp hạng</div>'
         + top.map((s,i)=>{
             const c = s.idx!=null ? teamColors(s.idx) : {border:'var(--border)',text:'var(--text)'};
             const wl = (s.w!=null) ? (s.w+'T '+s.l+'B · '+s.label) : s.label;
-            return '<div style="flex:1;min-width:140px;background:rgba(255,255,255,.02);border:1px solid '+c.border+';border-radius:var(--rs);padding:.7rem;text-align:center">'
-              +'<div style="font-size:1.3rem">'+(medals[i]||'#'+(i+1))+'</div>'
-              +'<div style="font-size:.85rem;font-weight:700;color:'+c.text+';margin:.2rem 0">'+s.name+'</div>'
-              +'<div style="font-size:.72rem;color:var(--muted)">'+wl+'</div>'
-              +'<div style="font-size:.7rem;color:var(--muted);margin-top:.15rem">'+s.members.join(', ')+'</div>'
+            const isChamp = i===0;
+            return '<div style="flex:'+(isChamp?'1.4':'1')+';min-width:'+(isChamp?'170px':'140px')+';background:'+(isChamp?'linear-gradient(160deg,rgba(250,204,21,.16),rgba(250,204,21,.04))':'rgba(255,255,255,.02)')+';border:'+(isChamp?'1.5px solid rgba(250,204,21,.55)':'1px solid '+c.border)+';border-radius:var(--rs);padding:'+(isChamp?'1rem .8rem':'.7rem')+';text-align:center;position:relative">'
+              +(isChamp?'<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:.6rem;font-weight:800;letter-spacing:.5px;color:#0B1929;background:#FACC15;padding:.1rem .5rem;border-radius:50px">VÔ ĐỊCH</div>':'')
+              +'<div style="font-size:'+(isChamp?'1.8rem':'1.15rem')+';margin-top:'+(isChamp?'.3rem':'0')+'">'+(medals[i]||'#'+(i+1))+'</div>'
+              +'<div style="font-size:'+(isChamp?'1.05rem':'.85rem')+';font-weight:800;color:'+(isChamp?'#FACC15':c.text)+';margin:.25rem 0">'+s.name+'</div>'
+              +'<div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">'+wl+'</div>'
+              +'<div style="font-size:'+(isChamp?'.8rem':'.72rem')+';font-weight:600;color:'+(isChamp?'var(--text)':'var(--muted)')+';line-height:1.4">👤 '+s.members.join(' & ')+'</div>'
               +'</div>';
           }).join('')
         + '</div>'
@@ -3652,28 +3654,8 @@ function renderTournamentInlineGroups(t){
       + '</div>'
     : '';
 
-  const podiumHtml = t.status==='done' && t.championIdx!=null
-    ? '<div style="display:flex;gap:.5rem;margin-bottom:1.1rem;flex-wrap:wrap">'
-      + [
-          {idx:t.championIdx, label:'Vô địch', medal:'🥇'},
-          {idx:t.runnerIdx, label:'Á quân', medal:'🥈'},
-          {idx:t.thirdIdx, label:'Giải 3', medal:'🥉'},
-          {idx:t.fourthIdx, label:'Giải 4', medal:'🏅'},
-        ].filter(p=>p.idx!=null).map(p=>{
-          const team=t.teams[p.idx]; const c=teamColors(p.idx);
-          return '<div style="flex:1;min-width:120px;background:rgba(255,255,255,.03);border:1px solid '+c.border+';border-radius:var(--rs);padding:.7rem;text-align:center">'
-            +'<div style="font-size:1.4rem">'+p.medal+'</div>'
-            +'<div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:.15rem 0">'+p.label+'</div>'
-            +'<div style="font-size:.85rem;font-weight:700;color:'+c.text+'">'+team.name+'</div>'
-            +'<div style="font-size:.68rem;color:var(--muted)">'+team.members.join(', ')+'</div>'
-            +'</div>';
-        }).join('')
-      + '</div>'
-    : '';
-
   el.innerHTML='<div style="padding:.85rem 1rem;border-top:1px solid var(--border)">'
     +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.7rem">📊 Chia bảng — vòng bảng tính điểm, sau đó Bán kết (Nhất A - Nhì B, Nhất B - Nhì A) và Chung kết</div>'
-    +podiumHtml
     +groupsHtml
     +semisHtml
     +finalHtml
