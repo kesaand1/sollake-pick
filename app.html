@@ -2645,21 +2645,31 @@ function renderManualAssign(tc, ts){
   const teamNames=['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6','Team 7','Team 8'];
   const counts = Array(tc).fill(0);
   Object.values(tManualAssign).forEach(ti=>counts[ti]++);
+  const isGroups = tMode==='groups';
 
-  const countsSummary = '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">'
-    + Array.from({length:tc},(_,i)=>{
-        const c=teamColors(i);
-        const full = counts[i]===ts;
-        return '<span class="pill" style="background:'+c.bg+';border:1px solid '+c.border+';color:'+c.text+'">'+teamNames[i]+': '+counts[i]+'/'+ts+(full?' ✓':'')+'</span>';
+  const countsSummary = isGroups
+    ? ['A','B'].map((label, gi)=>{
+        const pills = Array.from({length:tc},(_,i)=>i).filter(i=>i%2===gi).map(i=>{
+          const c=teamColors(i);
+          const full = counts[i]===ts;
+          return '<span class="pill" style="background:'+c.bg+';border:1px solid '+c.border+';color:'+c.text+'">'+teamNames[i]+': '+counts[i]+'/'+ts+(full?' ✓':'')+'</span>';
+        }).join('');
+        return '<div style="margin-bottom:.5rem"><div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.3rem">📊 Bảng '+label+'</div><div style="display:flex;gap:.5rem;flex-wrap:wrap">'+pills+'</div></div>';
       }).join('')
-    + '</div>';
+    : '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">'
+      + Array.from({length:tc},(_,i)=>{
+          const c=teamColors(i);
+          const full = counts[i]===ts;
+          return '<span class="pill" style="background:'+c.bg+';border:1px solid '+c.border+';color:'+c.text+'">'+teamNames[i]+': '+counts[i]+'/'+ts+(full?' ✓':'')+'</span>';
+        }).join('')
+      + '</div>';
 
   const rows = tSelectedPlayers.map(n=>{
     const p=gp(n);
-    const options = Array.from({length:tc},(_,i)=>'<option value="'+i+'"'+(tManualAssign[n]===i?' selected':'')+'>'+teamNames[i]+'</option>').join('');
+    const options = Array.from({length:tc},(_,i)=>'<option value="'+i+'"'+(tManualAssign[n]===i?' selected':'')+'>'+teamNames[i]+(isGroups?' (Bảng '+(i%2===0?'A':'B')+')':'')+'</option>').join('');
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem .6rem;border:1px solid var(--border);border-radius:var(--rs);margin-bottom:.4rem">'
       + '<span style="font-size:.85rem">'+n+(p?' <span style="color:var(--muted);font-size:.72rem">('+p.score.toFixed(2)+')</span>':'')+'</span>'
-      + '<select class="finput" style="width:auto;max-width:140px" onchange="setManualPlayerTeam(\''+n+'\',this.value)">'+options+'</select>'
+      + '<select class="finput" style="width:auto;max-width:160px" onchange="setManualPlayerTeam(\''+n+'\',this.value)">'+options+'</select>'
       + '</div>';
   }).join('');
 
@@ -2732,7 +2742,7 @@ function teamColors(i){
 
 function showTeamSuggestion(tc, ts){
   const teamNames = TEAM_NAMES_8;
-  const content = tCurrentTeams.map((team,i)=>{
+  function renderTeamCard(team, i){
     const c = teamColors(i);
     const avgEff = parseFloat((team.members.reduce((s,n)=>s+effectiveScoreT(n),0)/team.members.length).toFixed(2));
     const members = team.members.map(n=>{
@@ -2751,7 +2761,25 @@ function showTeamSuggestion(tc, ts){
       +'</div>'
       +members
       +'</div>';
-  }).join('');
+  }
+
+  let content;
+  if(tMode==='groups'){
+    // Group assignment must match createGroupsFromTeams: alternate by index (0,2,4...=A, 1,3,5...=B)
+    const groupACards = tCurrentTeams.map((t,i)=>({t,i})).filter(x=>x.i%2===0).map(x=>renderTeamCard(x.t,x.i)).join('');
+    const groupBCards = tCurrentTeams.map((t,i)=>({t,i})).filter(x=>x.i%2===1).map(x=>renderTeamCard(x.t,x.i)).join('');
+    content =
+      '<div style="margin-bottom:.5rem">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">📊 Bảng A</div>'
+      +groupACards
+      +'</div>'
+      +'<div>'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">📊 Bảng B</div>'
+      +groupBCards
+      +'</div>';
+  } else {
+    content = tCurrentTeams.map((team,i)=>renderTeamCard(team,i)).join('');
+  }
 
   // Balance stats
   const avgs = tCurrentTeams.map(t=>t.members.reduce((s,n)=>s+effectiveScoreT(n),0)/t.members.length);
