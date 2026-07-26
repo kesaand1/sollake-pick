@@ -507,6 +507,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .ov-card-dark{background:#151f2e;border:1px solid var(--border)}
 .ov-card-purple{background:linear-gradient(135deg,#6B3FA0 0%,#9B59B6 100%)}
 .ov-card-green{background:linear-gradient(135deg,#1a7a4a 0%,#27ae60 100%)}
+.ov-card-champion{grid-column:1/-1;background:linear-gradient(135deg,#8a6d1a 0%,#d4af37 55%,#f5d576 100%);border:1px solid rgba(250,204,21,.5);min-height:150px;box-shadow:0 4px 24px rgba(212,175,55,.25)}
+.ov-card-champion .ov-card-label{color:rgba(11,25,41,.75)}
+.ov-card-champion .ov-card-name{color:#0B1929;font-size:1.35rem;font-weight:800}
 .ov-card-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem}
 .ov-card-dark .ov-card-label{color:var(--muted)}
 .ov-card-purple .ov-card-label,.ov-card-green .ov-card-label{color:rgba(255,255,255,.75)}
@@ -1557,16 +1560,16 @@ function renderOverviewCards(){
   const topNopData  = topNopList.length ? topNopList[0][1] : null;
 
   el.innerHTML = `
-    <div class="ov-card ov-card-dark">
+    <div class="ov-card ov-card-champion">
       <div>
-        <div class="ov-card-label">↘ Tốp nộp</div>
-        ${topNopList.length===0
-          ? `<div class="ov-card-name">—</div><div style="font-size:.82rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>`
-          : `<div class="ov-card-name" style="font-size:${topNopList.length>1?'.82rem':'1rem'};line-height:1.5">${topNopNames}</div>
-             <div style="margin-top:.4rem">${balLines(topNopData)}</div>`
-        }
+        <div class="ov-card-label" style="font-weight:700">👑 NHÀ VÔ ĐỊCH</div>
+        ${latestChampion
+          ? `<div class="ov-card-name">👑 ${latestChampion.name}</div>
+             <div style="font-size:1.05rem;font-weight:700;color:#0B1929;margin-top:.5rem;line-height:1.5">${latestChampion.members.join(' & ')}</div>
+             <div style="font-size:.75rem;font-weight:600;color:rgba(11,25,41,.65);margin-top:.4rem">🏅 ${latestT.name}</div>`
+          : `<div class="ov-card-name" style="color:#0B1929">—</div><div style="font-size:.85rem;color:rgba(11,25,41,.6);margin-top:.3rem">Chưa có giải đấu nào kết thúc</div>`}
       </div>
-      <div class="ov-card-bg">↘</div>
+      <div class="ov-card-bg" style="color:rgba(11,25,41,.15)">👑</div>
     </div>
     <div class="ov-card ov-card-purple">
       <div>
@@ -1579,16 +1582,16 @@ function renderOverviewCards(){
       </div>
       <div class="ov-card-bg">📈</div>
     </div>
-    <div class="ov-card ov-card-green">
+    <div class="ov-card ov-card-dark">
       <div>
-        <div class="ov-card-label">👑 Nhà vô địch</div>
-        ${latestChampion
-          ? `<div class="ov-card-name">👑 ${latestChampion.name}</div>
-             <div style="font-size:.8rem;color:rgba(255,255,255,.85);margin-top:.35rem;line-height:1.5">${latestChampion.members.join(' & ')}</div>
-             <div style="font-size:.7rem;color:rgba(255,255,255,.55);margin-top:.3rem">🏅 ${latestT.name}</div>`
-          : `<div class="ov-card-name">—</div><div style="font-size:.82rem;opacity:.5;margin-top:.3rem">Chưa có giải đấu nào kết thúc</div>`}
+        <div class="ov-card-label">↘ Tốp nộp</div>
+        ${topNopList.length===0
+          ? `<div class="ov-card-name">—</div><div style="font-size:.82rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>`
+          : `<div class="ov-card-name" style="font-size:${topNopList.length>1?'.82rem':'1rem'};line-height:1.5">${topNopNames}</div>
+             <div style="margin-top:.4rem">${balLines(topNopData)}</div>`
+        }
       </div>
-      <div class="ov-card-bg">👑</div>
+      <div class="ov-card-bg">↘</div>
     </div>`;
 }
 
