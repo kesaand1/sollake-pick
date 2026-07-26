@@ -2952,7 +2952,7 @@ function createGroupsFromTeams(rawTeams){
     id: nT++, name: tCurrentName, date: today(),
     format: 'groups', teams: builtTeams,
     groupMatches, phase: 'groups',
-    semis: [], final: null,
+    semis: [], final: null, thirdPlaceMatch: null,
     championIdx: null, runnerIdx: null, thirdIdx: null, fourthIdx: null,
     status: 'active'
   };
@@ -3013,26 +3013,36 @@ function advanceGroupsPhase(t){
     const w1=t.semis[0].winnerIdx, l1=(t.semis[0].teamA===w1?t.semis[0].teamB:t.semis[0].teamA);
     const w2=t.semis[1].winnerIdx, l2=(t.semis[1].teamA===w2?t.semis[1].teamB:t.semis[1].teamA);
     t.final = { teamA:w1, teamB:w2, pairA:t.teams[w1].members, pairB:t.teams[w2].members, scoreA:null, scoreB:null, done:false, winnerIdx:null };
-    // 3rd/4th: rank the 2 semifinal losers by their group-stage record (wins, then point diff)
-    function quality(idx){
-      const grp = t.teams[idx].group;
-      const s = computeGroupStandings(t, grp).find(x=>x.idx===idx);
-      return s ? s.w*1000+(s.pf-s.pa) : 0;
-    }
-    if(quality(l1) >= quality(l2)){ t.thirdIdx=l1; t.fourthIdx=l2; }
-    else { t.thirdIdx=l2; t.fourthIdx=l1; }
+    t.thirdPlaceMatch = { teamA:l1, teamB:l2, pairA:t.teams[l1].members, pairB:t.teams[l2].members, scoreA:null, scoreB:null, done:false, winnerIdx:null };
     t.phase='final';
-    notify('🥈 Bán kết hoàn tất! Đã có lịch chung kết.');
+    notify('🥈 Bán kết hoàn tất! Đã có lịch Chung kết và Tranh giải 3-4.');
     return;
   }
   if(t.phase==='final'){
-    if(!t.final.done) return;
+    if(!t.final.done || !t.thirdPlaceMatch.done) return;
     t.championIdx = t.final.winnerIdx;
     t.runnerIdx = (t.final.teamA===t.championIdx ? t.final.teamB : t.final.teamA);
+    t.thirdIdx = t.thirdPlaceMatch.winnerIdx;
+    t.fourthIdx = (t.thirdPlaceMatch.teamA===t.thirdIdx ? t.thirdPlaceMatch.teamB : t.thirdPlaceMatch.teamA);
     t.phase='done';
     t.status='done';
     notify('🏆 Vô địch: '+t.teams[t.championIdx].name+'!');
   }
+}
+
+function saveThirdPlaceResult(tId){
+  if(guardScorer())return;
+  const t=tournaments.find(x=>x.id===tId); if(!t||!t.thirdPlaceMatch) return;
+  const sa=parseInt(document.getElementById('tp_'+tId+'_a').value);
+  const sb=parseInt(document.getElementById('tp_'+tId+'_b').value);
+  if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
+  if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+  t.thirdPlaceMatch.scoreA=sa; t.thirdPlaceMatch.scoreB=sb; t.thirdPlaceMatch.done=true;
+  t.thirdPlaceMatch.winnerIdx = sa>sb?t.thirdPlaceMatch.teamA:t.thirdPlaceMatch.teamB;
+  advanceGroupsPhase(t);
+  saveAll();
+  renderTournamentInline(t);
+  renderTournamentList();
 }
 
 function saveGroupMatchResult(tId, mId){
@@ -3247,7 +3257,7 @@ function renderTournamentList(){
   const medals=['🥇','🥈','🥉','🏅'];
   el.innerHTML=sorted.map(function(t,idx){
     const allMatches = t.format==='groups'
-      ? [...(t.groupMatches||[]), ...(t.semis||[]), ...(t.final?[t.final]:[])]
+      ? [...(t.groupMatches||[]), ...(t.semis||[]), ...(t.final?[t.final]:[]), ...(t.thirdPlaceMatch?[t.thirdPlaceMatch]:[])]
       : t.bracket ? t.bracket.rounds.flat() : (t.matches||[]);
     const done=allMatches.filter(function(m){return m.done;}).length;
     const total=allMatches.length;
@@ -3684,6 +3694,8 @@ function renderTournamentInlineGroups(t){
   const semi1 = t.semis && t.semis[0], semi2 = t.semis && t.semis[1];
   const champion = t.championIdx!=null ? t.teams[t.championIdx] : null;
 
+  const thirdPlaceTeam = t.thirdIdx!=null ? t.teams[t.thirdIdx] : null;
+
   const bracketHtml = (t.semis && t.semis.length) ? (
     '<div style="margin-bottom:1.1rem">'
     + '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">🏆 Sơ đồ nhánh đấu</div>'
@@ -3695,12 +3707,17 @@ function renderTournamentInlineGroups(t){
       + '<div class="ko-connector">➜</div>'
       + '<div class="ko-round"><div class="ko-round-title">Chung kết</div>'
         + (t.final ? miniMatch(t.final, 'fn_'+t.id, 'saveFinalResult('+t.id+')') : '<div class="ko-slot ko-empty">Chờ kết quả bán kết</div>')
+        + '<div class="ko-round-title" style="margin-top:.3rem">Tranh giải 3-4</div>'
+        + (t.thirdPlaceMatch ? miniMatch(t.thirdPlaceMatch, 'tp_'+t.id, 'saveThirdPlaceResult('+t.id+')') : '<div class="ko-slot ko-empty">Chờ kết quả bán kết</div>')
       + '</div>'
       + '<div class="ko-connector">➜</div>'
       + '<div class="ko-round"><div class="ko-round-title">Vô địch</div>'
         + (champion
             ? '<div class="ko-champion">🏆<div class="ko-champion-name">'+champion.name+'</div><div class="ko-champion-members">'+champion.members.join(' & ')+'</div></div>'
             : '<div class="ko-slot ko-empty">Chưa có</div>')
+        + (thirdPlaceTeam
+            ? '<div style="margin-top:.5rem;background:rgba(205,127,50,.1);border:1px solid rgba(205,127,50,.35);border-radius:var(--rs);padding:.55rem .6rem;text-align:center">🥉<div style="font-size:.8rem;font-weight:700;color:#CD7F32;margin-top:.15rem">'+thirdPlaceTeam.name+'</div><div style="font-size:.65rem;color:var(--muted)">'+thirdPlaceTeam.members.join(' & ')+'</div></div>'
+            : '')
       + '</div>'
     + '</div>'
     + '</div>'
