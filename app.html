@@ -507,9 +507,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .ov-card-dark{background:#151f2e;border:1px solid var(--border)}
 .ov-card-purple{background:linear-gradient(135deg,#6B3FA0 0%,#9B59B6 100%)}
 .ov-card-green{background:linear-gradient(135deg,#1a7a4a 0%,#27ae60 100%)}
-.ov-card-champion{grid-column:1/-1;background:linear-gradient(135deg,#8a6d1a 0%,#d4af37 55%,#f5d576 100%);border:1px solid rgba(250,204,21,.5);min-height:150px;box-shadow:0 4px 24px rgba(212,175,55,.25)}
+.ov-card-champion{background:linear-gradient(135deg,#8a6d1a 0%,#d4af37 55%,#f5d576 100%);border:1px solid rgba(250,204,21,.5);box-shadow:0 4px 24px rgba(212,175,55,.25)}
 .ov-card-champion .ov-card-label{color:rgba(11,25,41,.75)}
-.ov-card-champion .ov-card-name{color:#0B1929;font-size:1.35rem;font-weight:800}
+.ov-card-champion .ov-card-name{color:#0B1929;font-size:1.05rem;font-weight:800}
 .ov-card-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem}
 .ov-card-dark .ov-card-label{color:var(--muted)}
 .ov-card-purple .ov-card-label,.ov-card-green .ov-card-label{color:rgba(255,255,255,.75)}
@@ -1519,16 +1519,17 @@ function renderOverviewCards(){
 
   // ── Phong độ đang lên ──
   const phong = {};
-  vis.forEach(p=>{ phong[p.name]={wins:0,delta:0}; });
+  vis.forEach(p=>{ phong[p.name]={wins:0,played:0,delta:0}; });
   filtered.forEach(m=>{
     const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
     const delta=parseFloat(m.elo||0.04);
-    wt.forEach(n=>{ if(phong[n]){phong[n].wins++;phong[n].delta=parseFloat((phong[n].delta+delta).toFixed(2));} });
-    lt.forEach(n=>{ if(phong[n]) phong[n].delta=parseFloat((phong[n].delta-delta).toFixed(2)); });
+    wt.forEach(n=>{ if(phong[n]){phong[n].wins++;phong[n].played++;phong[n].delta=parseFloat((phong[n].delta+delta).toFixed(2));} });
+    lt.forEach(n=>{ if(phong[n]){phong[n].played++;phong[n].delta=parseFloat((phong[n].delta-delta).toFixed(2));} });
   });
   const topPhong = Object.entries(phong)
-    .filter(([,v])=>v.wins>0||v.delta!==0)
-    .sort((a,b)=>(b[1].wins*10+b[1].delta)-(a[1].wins*10+a[1].delta))[0]||null;
+    .filter(([,v])=>v.played>=3) // cần ít nhất 3 trận để tránh 1 trận thắng ăn may chiếm top
+    .map(([n,v])=>[n,{...v,winRate:v.wins/v.played}])
+    .sort((a,b)=>(b[1].winRate*100+b[1].delta)-(a[1].winRate*100+a[1].delta))[0]||null;
 
   // ── Nhà vô địch (giải đấu gần nhất) ──
   const doneTournaments = tournaments.filter(t=>t.status==='done').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -1565,7 +1566,7 @@ function renderOverviewCards(){
         <div class="ov-card-label" style="font-weight:700">👑 NHÀ VÔ ĐỊCH</div>
         ${latestChampion
           ? `<div class="ov-card-name">👑 ${latestChampion.name}</div>
-             <div style="font-size:1.05rem;font-weight:700;color:#0B1929;margin-top:.5rem;line-height:1.5">${latestChampion.members.join(' & ')}</div>
+             <div style="font-size:.85rem;font-weight:700;color:#0B1929;margin-top:.4rem;line-height:1.4;word-break:break-word">${latestChampion.members.join(' & ')}</div>
              <div style="font-size:.75rem;font-weight:600;color:rgba(11,25,41,.65);margin-top:.4rem">🏅 ${latestT.name}</div>`
           : `<div class="ov-card-name" style="color:#0B1929">—</div><div style="font-size:.85rem;color:rgba(11,25,41,.6);margin-top:.3rem">Chưa có giải đấu nào kết thúc</div>`}
       </div>
@@ -1576,7 +1577,7 @@ function renderOverviewCards(){
         <div class="ov-card-label">📈 Phong độ đang lên</div>
         <div class="ov-card-name">${topPhong?topPhong[0]:'—'}</div>
         ${topPhong
-          ? `<div class="ov-card-val">+${topPhong[1].wins}<span class="ov-card-unit">thắng</span></div>
+          ? `<div class="ov-card-val">${Math.round(topPhong[1].winRate*100)}<span class="ov-card-unit">% thắng (${topPhong[1].wins}/${topPhong[1].played})</span></div>
              <div style="font-size:.82rem;color:${topPhong[1].delta>=0?'var(--success)':'var(--danger)'};margin-top:2px">${topPhong[1].delta>=0?'+':''}${topPhong[1].delta.toFixed(2)} điểm</div>`
           : `<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>`}
       </div>
