@@ -409,10 +409,20 @@ window.regSubmit = async () => {
     document.getElementById('regModal2').style.display='none';
     document.getElementById('regModalSuccess').style.display='flex';
   }catch(e){
-    if(e.code==='auth/email-already-in-use') showErr('regErr2','Email đã được sử dụng.');
-    else if(e.code==='auth/weak-password') showErr('regErr2','Mật khẩu quá yếu (tối thiểu 6 ký tự).');
-    else if(e.code==='auth/invalid-email') showErr('regErr2','Email không hợp lệ.');
-    else showErr('regErr2','Lỗi: '+e.message);
+    console.error('Đăng ký thất bại:', e);
+    let msg;
+    switch(e.code){
+      case 'auth/email-already-in-use': msg='Email này đã được đăng ký trước đó. Vui lòng dùng email khác hoặc đăng nhập.'; break;
+      case 'auth/weak-password': msg='Mật khẩu quá yếu (tối thiểu 6 ký tự).'; break;
+      case 'auth/invalid-email': msg='Email không đúng định dạng.'; break;
+      case 'auth/network-request-failed': msg='Lỗi kết nối mạng. Vui lòng kiểm tra Internet và thử lại.'; break;
+      case 'auth/too-many-requests': msg='Bạn đã thử quá nhiều lần. Vui lòng đợi ít phút rồi thử lại.'; break;
+      case 'auth/operation-not-allowed': msg='Đăng ký bằng email/mật khẩu hiện đang bị tắt trên hệ thống. Liên hệ quản trị viên.'; break;
+      case 'PERMISSION_DENIED':
+      case 'permission-denied': msg='Không có quyền ghi dữ liệu (Firebase Rules chặn). Liên hệ quản trị viên hệ thống.'; break;
+      default: msg = (e.message || 'Lỗi không xác định') + (e.code?(' ['+e.code+']'):'');
+    }
+    showErr('regErr2', '❌ Không thể tạo tài khoản: ' + msg);
   }
   btn.disabled=false; btn.textContent=oldTxt;
 };
