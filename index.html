@@ -200,19 +200,19 @@ footer{
     <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:.75rem 0 .5rem">👤 Tài khoản quản lý</div>
     <div class="fgroup">
       <label>Email</label>
-      <input class="finput" id="regEmail" placeholder="user@example.com" type="email"/>
+      <input class="finput" id="regEmail" placeholder="user@example.com" type="email" autocomplete="off" name="reg-email-field"/>
     </div>
     <div class="fgroup">
       <label>Mật khẩu</label>
-      <input class="finput" id="regPass" placeholder="Tối thiểu 6 ký tự" type="password"/>
+      <input class="finput" id="regPass" placeholder="Tối thiểu 6 ký tự" type="password" autocomplete="new-password" name="reg-pass-field"/>
     </div>
     <div class="fgroup">
       <label>Tên hiển thị</label>
-      <input class="finput" id="regName" placeholder="Nguyễn Văn A"/>
+      <input class="finput" id="regName" placeholder="Nguyễn Văn A" autocomplete="off" name="reg-name-field"/>
     </div>
     <div class="fgroup">
       <label>Tên đăng nhập (username)</label>
-      <input class="finput" id="regUsername" placeholder="VD: huy.nguyen (không dấu, không cách)" autocomplete="off"
+      <input class="finput" id="regUsername" placeholder="VD: huy.nguyen (không dấu, không cách)" autocomplete="off" name="reg-username-field"
         oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
       <div class="hint">Có thể đăng nhập bằng username này thay vì email</div>
     </div>
