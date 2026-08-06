@@ -291,7 +291,7 @@ function baseDomain(){
   const parts = location.hostname.split('.');
   return parts.length>=3 ? parts.slice(1).join('.') : parts.join('.');
 }
-function showErr(id, msg){ const el=document.getElementById(id); el.textContent=msg; el.style.display=''; }
+function showErr(id, msg){ const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; }
 function hideErr(id){ document.getElementById(id).style.display='none'; }
 
 window.openRegister = () => {
