@@ -194,33 +194,10 @@ footer{
 <!-- MODAL: STEP 1 - CREATE CLUB -->
 <div class="modal-mask" id="regModal1">
   <div class="modal-box">
-    <div class="step-dots"><span class="on"></span><span></span></div>
-    <div class="modal-title-row"><div class="modal-title">🏸 Tạo câu lạc bộ</div><button class="modal-x" onclick="closeRegister()" title="Đóng">✕</button></div>
-    <div class="modal-sub">Bước 1/2 — Thông tin câu lạc bộ của bạn</div>
-    <div class="fgroup">
-      <label>Tên CLB</label>
-      <input class="finput" id="regClubName" placeholder="VD: Sollake Pick Hà Nội"/>
-    </div>
-    <div class="fgroup">
-      <label>Mã CLB (ID duy nhất, không dấu, không cách)</label>
-      <input class="finput" id="regClubId" placeholder="VD: sollake" autocomplete="off"
-        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"/>
-      <div class="hint">Đây sẽ là địa chỉ web CLB của bạn: <b><span id="regClubIdPreview">xxx</span>.11points.me</b></div>
-    </div>
-    <div class="modal-err" id="regErr1"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeRegister()">Hủy</button>
-      <button class="btn btn-lime" onclick="regGoStep2()">Tiếp tục →</button>
-    </div>
-  </div>
-</div>
+    <div class="modal-title-row"><div class="modal-title">✍️ Đăng ký CLB mới</div><button class="modal-x" onclick="closeRegister()" title="Đóng">✕</button></div>
+    <div class="modal-sub">Tạo tài khoản quản lý và câu lạc bộ của bạn</div>
 
-<!-- MODAL: STEP 2 - CREATE ADMIN ACCOUNT -->
-<div class="modal-mask" id="regModal2">
-  <div class="modal-box">
-    <div class="step-dots"><span class="on"></span><span class="on"></span></div>
-    <div class="modal-title-row"><div class="modal-title">👤 Tạo tài khoản quản lý</div><button class="modal-x" onclick="closeRegister()" title="Đóng">✕</button></div>
-    <div class="modal-sub">Bước 2/2 — Tài khoản này sẽ là <b>Admin</b> của CLB <span id="regClubNamePreview"></span></div>
+    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:.75rem 0 .5rem">👤 Tài khoản quản lý</div>
     <div class="fgroup">
       <label>Email</label>
       <input class="finput" id="regEmail" placeholder="user@example.com" type="email"/>
@@ -239,10 +216,23 @@ footer{
         oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
       <div class="hint">Có thể đăng nhập bằng username này thay vì email</div>
     </div>
+
+    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:1rem 0 .5rem;padding-top:.75rem;border-top:1px solid var(--border)">🏸 Câu lạc bộ</div>
+    <div class="fgroup">
+      <label>Tên CLB</label>
+      <input class="finput" id="regClubName" placeholder="VD: Sollake Pick Hà Nội"/>
+    </div>
+    <div class="fgroup">
+      <label>Mã CLB (ID duy nhất, không dấu, không cách)</label>
+      <input class="finput" id="regClubId" placeholder="VD: sollake" autocomplete="off"
+        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"/>
+      <div class="hint">Đây sẽ là địa chỉ web CLB của bạn: <b><span id="regClubIdPreview">xxx</span>.11points.me</b></div>
+    </div>
+
     <div class="modal-err" id="regErr2"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="regBackStep1()">← Quay lại</button>
-      <button class="btn btn-lime" id="regSubmitBtn" onclick="regSubmit()">✅ Tạo tài khoản quản lý</button>
+      <button class="btn btn-ghost" onclick="closeRegister()">Hủy</button>
+      <button class="btn btn-lime" id="regSubmitBtn" onclick="regSubmit()">✅ Đăng ký</button>
     </div>
   </div>
 </div>
@@ -309,41 +299,11 @@ window.openRegister = () => {
 };
 window.closeRegister = () => {
   document.getElementById('regModal1').style.display='none';
-  document.getElementById('regModal2').style.display='none';
   document.getElementById('regModalSuccess').style.display='none';
 };
 document.getElementById('regClubId').addEventListener('input', function(){
   document.getElementById('regClubIdPreview').textContent = this.value || 'xxx';
 });
-
-window.regGoStep2 = async () => {
-  hideErr('regErr1');
-  const name = document.getElementById('regClubName').value.trim();
-  const id   = document.getElementById('regClubId').value.trim();
-  if(!name || !id){ showErr('regErr1','Vui lòng nhập đầy đủ thông tin.'); return; }
-  if(!/^[a-z0-9_]+$/.test(id)){ showErr('regErr1','Mã CLB chỉ dùng chữ thường, số, dấu gạch dưới.'); return; }
-  const btn = document.querySelector('#regModal1 .btn-lime');
-  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang kiểm tra...';
-  try{
-    const existing = await get(ref(db,'clubs/'+id+'/info'));
-    if(existing.exists()){
-      showErr('regErr1','Mã CLB "'+id+'" đã được sử dụng, vui lòng chọn mã khác.');
-      btn.disabled=false; btn.textContent=oldTxt; return;
-    }
-    regData = { name, id };
-    document.getElementById('regClubNamePreview').textContent = name;
-    document.getElementById('regModal1').style.display='none';
-    document.getElementById('regModal2').style.display='flex';
-  }catch(e){
-    showErr('regErr1','Lỗi kiểm tra mã CLB: '+e.message);
-  }
-  btn.disabled=false; btn.textContent=oldTxt;
-};
-
-window.regBackStep1 = () => {
-  document.getElementById('regModal2').style.display='none';
-  document.getElementById('regModal1').style.display='flex';
-};
 
 window.regSubmit = async () => {
   hideErr('regErr2');
@@ -351,13 +311,23 @@ window.regSubmit = async () => {
   const pass  = document.getElementById('regPass').value;
   const name  = document.getElementById('regName').value.trim();
   const uname = document.getElementById('regUsername').value.trim();
-  if(!email || !pass || !name){ showErr('regErr2','Vui lòng điền đầy đủ thông tin.'); return; }
+  const clubName = document.getElementById('regClubName').value.trim();
+  const clubId   = document.getElementById('regClubId').value.trim();
+
+  if(!email || !pass || !name){ showErr('regErr2','Vui lòng điền đầy đủ thông tin tài khoản quản lý.'); return; }
   if(pass.length < 6){ showErr('regErr2','Mật khẩu tối thiểu 6 ký tự.'); return; }
+  if(!clubName || !clubId){ showErr('regErr2','Vui lòng điền đầy đủ thông tin câu lạc bộ.'); return; }
+  if(!/^[a-z0-9_]+$/.test(clubId)){ showErr('regErr2','Mã CLB chỉ dùng chữ thường, số, dấu gạch dưới.'); return; }
 
   const btn = document.getElementById('regSubmitBtn');
-  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang tạo...';
+  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang kiểm tra...';
 
   try{
+    const existingClub = await get(ref(db,'clubs/'+clubId+'/info'));
+    if(existingClub.exists()){
+      showErr('regErr2','Mã CLB "'+clubId+'" đã được sử dụng, vui lòng chọn mã khác.');
+      btn.disabled=false; btn.textContent=oldTxt; return;
+    }
     if(uname){
       const u = await get(ref(db,'usernames/'+uname));
       if(u.exists()){
@@ -365,6 +335,8 @@ window.regSubmit = async () => {
         btn.disabled=false; btn.textContent=oldTxt; return;
       }
     }
+    regData = { name: clubName, id: clubId };
+    btn.textContent='Đang tạo...';
 
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     if(name) await updateProfile(cred.user, {displayName:name});
@@ -406,7 +378,7 @@ window.regSubmit = async () => {
 
     await signOut(auth); // don't leave this session active on the public homepage
 
-    document.getElementById('regModal2').style.display='none';
+    document.getElementById('regModal1').style.display='none';
     document.getElementById('regModalSuccess').style.display='flex';
   }catch(e){
     console.error('Đăng ký thất bại:', e);
