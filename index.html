@@ -304,6 +304,14 @@ window.closeRegister = () => {
 document.getElementById('regClubId').addEventListener('input', function(){
   document.getElementById('regClubIdPreview').textContent = this.value || 'xxx';
 });
+document.getElementById('regEmail').addEventListener('blur', function(){
+  const v = this.value.trim();
+  if(v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){
+    showErr('regErr2','Email không đúng định dạng. VD: ten@gmail.com');
+  } else {
+    hideErr('regErr2');
+  }
+});
 
 window.regSubmit = async () => {
   hideErr('regErr2');
@@ -315,6 +323,7 @@ window.regSubmit = async () => {
   const clubId   = document.getElementById('regClubId').value.trim();
 
   if(!email || !pass || !name){ showErr('regErr2','Vui lòng điền đầy đủ thông tin tài khoản quản lý.'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showErr('regErr2','Email không đúng định dạng. VD: ten@gmail.com'); return; }
   if(pass.length < 6){ showErr('regErr2','Mật khẩu tối thiểu 6 ký tự.'); return; }
   if(!clubName || !clubId){ showErr('regErr2','Vui lòng điền đầy đủ thông tin câu lạc bộ.'); return; }
   if(!/^[a-z0-9_]+$/.test(clubId)){ showErr('regErr2','Mã CLB chỉ dùng chữ thường, số, dấu gạch dưới.'); return; }
