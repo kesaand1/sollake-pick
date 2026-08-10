@@ -1071,7 +1071,7 @@ const avW=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${av(n,c)}${clickabl
 const gp=n=>players.find(p=>p.name===n);
 const gpc=n=>{const p=gp(n);return p?p.color:'c0'};
 const inR=(d,f,t)=>{if(f&&d<f)return false;if(t&&d>t)return false;return true};
-const empty=(icon,txt)=>`<div class="empty"><div class="ei">${icon}</div><p>${txt}</p></div>`;
+const empty=(icon,txt)=>`<div class="empty">${icon?`<div class="ei">${icon}</div>`:''}<p>${txt}</p></div>`;
 
 function notify(msg){
   const el=document.getElementById('notif');
@@ -1519,7 +1519,7 @@ function renderOverviewCards(){
   const topPhong = Object.entries(phong)
     .filter(([,v])=>v.played>=3) // cần ít nhất 3 trận để tránh 1 trận thắng ăn may chiếm top
     .map(([n,v])=>[n,{...v,winRate:v.wins/v.played}])
-    .sort((a,b)=>(b[1].winRate*100+b[1].delta)-(a[1].winRate*100+a[1].delta))[0]||null;
+    .sort((a,b)=>(b[1].delta-a[1].delta)||(b[1].wins-a[1].wins))[0]||null;
 
   // ── Nhà vô địch (giải đấu gần nhất) ──
   const doneTournaments = tournaments.filter(t=>t.status==='done').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -1567,8 +1567,8 @@ function renderOverviewCards(){
         <div class="ov-card-label">📈 Phong độ đang lên</div>
         <div class="ov-card-name">${topPhong?topPhong[0]:'—'}</div>
         ${topPhong
-          ? `<div class="ov-card-val">${Math.round(topPhong[1].winRate*100)}<span class="ov-card-unit">% thắng (${topPhong[1].wins}/${topPhong[1].played})</span></div>
-             <div style="font-size:.82rem;color:${topPhong[1].delta>=0?'var(--success)':'var(--danger)'};margin-top:2px">${topPhong[1].delta>=0?'+':''}${topPhong[1].delta.toFixed(2)} điểm</div>`
+          ? `<div class="ov-card-val">${topPhong[1].delta>=0?'+':''}${topPhong[1].delta.toFixed(2)}<span class="ov-card-unit">điểm</span></div>
+             <div style="font-size:.82rem;color:var(--muted);margin-top:2px">${topPhong[1].wins} thắng / ${topPhong[1].played} trận</div>`
           : `<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>`}
       </div>
       <div class="ov-card-bg">📈</div>
@@ -1777,7 +1777,7 @@ function renderMatches(){
   else source = [...matches, ...getAllTournamentMatchesFlat()];
   const fullList=source.filter(m=>inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>b.date.localeCompare(a.date));
   if(!fullList.length){
-    const e=empty('🏓','Chưa có trận nào trong khoảng thời gian này');
+    const e=empty('','Chưa có trận nào trong khoảng thời gian này');
     document.getElementById('matchD').innerHTML=e;document.getElementById('matchM').innerHTML=e;
     document.getElementById('matchPager').innerHTML='';
     return;
