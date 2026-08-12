@@ -458,6 +458,15 @@ tr:hover td{background:rgba(255,255,255,.02)}
 /* TOURNAMENT ACCORDION */
 .match-type-btn{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)}
 .match-type-btn.active{background:var(--lime);color:#0B1929;border-color:var(--lime);font-weight:700}
+.guide-item{border:1px solid var(--border);border-radius:var(--rs);padding:.65rem .85rem;background:rgba(255,255,255,.015)}
+.guide-item summary{cursor:pointer;font-weight:700;font-size:.85rem;list-style:none;display:flex;align-items:center;justify-content:space-between}
+.guide-item summary::-webkit-details-marker{display:none}
+.guide-item summary::after{content:'▼';font-size:.65rem;color:var(--muted);transition:transform .2s;margin-left:.5rem}
+.guide-item[open] summary::after{transform:rotate(180deg)}
+.guide-body{margin-top:.6rem;font-size:.8rem;color:var(--muted);line-height:1.6}
+.guide-body p{margin-bottom:.5rem}
+.guide-body p:last-child{margin-bottom:0}
+.guide-body b{color:var(--text)}
 .t-mode-card{flex:1;cursor:pointer;text-align:center;padding:.7rem .5rem;border:1px solid var(--border);border-radius:var(--rs);background:rgba(255,255,255,.02);transition:all .15s}
 
 /* KNOCKOUT BRACKET */
@@ -620,7 +629,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="showPage('ranking')">🏆 Tổng quan</button>
     <button class="tab-btn" onclick="showPage('matches')">Lịch sử</button>
-    <button class="tab-btn" onclick="showPage('pairing')">🎯 Ghép đôi</button>
+    <button class="tab-btn" onclick="showPage('pairing')">🎯 So kèo</button>
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
     <button class="tab-btn" onclick="showPage('tournament')">🏅 Giải đấu</button>
@@ -666,7 +675,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span class="bicon">📋</span><span class="blabel">Lịch sử</span>
     </button>
     <button class="bot-tab" onclick="showPage('pairing');botActive(this)">
-      <span class="bicon">🎯</span><span class="blabel">Ghép đôi</span>
+      <span class="bicon">🎯</span><span class="blabel">So kèo</span>
     </button>
     <button class="bot-tab" onclick="showPage('players');botActive(this)">
       <span class="bicon">👥</span><span class="blabel">Thành viên</span>
@@ -784,7 +793,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- PAGE: PAIRING -->
 <div class="page" id="page-pairing">
-  <div class="sec-title">Ghép đôi & Dự đoán kèo</div>
+  <div class="sec-title">So kèo & Dự đoán kèo</div>
   <div class="panel">
     <div class="panel-hd">Loại ghép
       <div class="right">
@@ -4769,6 +4778,40 @@ init();
         <button class="btn btn-ghost" onclick="closeScorerForm()">Hủy</button>
         <button class="btn btn-lime" id="scorerSubmitBtn" onclick="doCreateScorer()">✅ Tạo tài khoản</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Hướng dẫn sử dụng -->
+  <div class="panel">
+    <div class="panel-hd">📖 Hướng dẫn sử dụng</div>
+    <div style="display:flex;flex-direction:column;gap:.5rem">
+      <details class="guide-item">
+        <summary>🎾 Ghi trận đấu</summary>
+        <div class="guide-body">
+          <p>Vào tab <b>Trận đấu</b> → bấm nút tròn xanh <b>➕</b> ở giữa thanh điều hướng dưới cùng (hoặc "Ghi trận").</p>
+          <p>Chọn ngày, loại trận (Đơn/Đôi), chọn thành viên cho từng bên, nhập tỷ số, chọn kèo nếu có (Nước/Bia/Bóng Pickleball) rồi bấm <b>Lưu trận đấu</b>. Điểm ELO của các thành viên sẽ tự động cập nhật.</p>
+        </div>
+      </details>
+      <details class="guide-item">
+        <summary>🎯 So kèo</summary>
+        <div class="guide-body">
+          <p>Vào tab <b>So kèo</b> — hệ thống tự gợi ý cách chia đội cân bằng dựa trên điểm ELO hiện tại của từng người, kèm dự đoán tỷ lệ thắng trước khi vào trận.</p>
+        </div>
+      </details>
+      <details class="guide-item">
+        <summary>🏅 Tạo giải đấu</summary>
+        <div class="guide-body">
+          <p>Vào tab <b>Giải đấu</b> → bấm <b>+ Tạo giải mới</b>. Chọn 1 trong 3 thể thức: <b>Chia team</b> (đấu vòng tròn nội bộ), <b>Tournament</b> (Vòng tròn tính điểm hoặc Loại trực tiếp), hoặc <b>Chia bảng</b> (2 bảng đấu vòng tròn → Bán kết → Chung kết + Tranh giải 3-4).</p>
+          <p>Chọn số đội, số người/đội, để hệ thống tự chia (⚡) hoặc tự chọn thủ công (✋), rồi chọn đủ thành viên tham gia và tạo giải. Nhập kết quả từng trận ngay trong giải để cập nhật bảng xếp hạng.</p>
+        </div>
+      </details>
+      <details class="guide-item">
+        <summary>💰 Thu chi</summary>
+        <div class="guide-body">
+          <p>Vào tab <b>Thu chi</b> để ghi lại các khoản thu (phí thành viên, quỹ CLB...) và khoản chi (thuê sân, mua dụng cụ...). Có thể lọc theo thời gian và xem tổng quan số dư quỹ.</p>
+          <p>Mục <b>Khoản phạt</b> (trong trang Thành viên) dùng để ghi phạt riêng cho từng người (đi trễ, bỏ buổi...), theo dõi ai đã nộp/chưa nộp.</p>
+        </div>
+      </details>
     </div>
   </div>
 
