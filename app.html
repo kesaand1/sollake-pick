@@ -558,6 +558,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .profile-score{font-size:2rem;font-weight:700;color:var(--lime);line-height:1}
 .profile-score-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-top:.2rem}
 .stat4{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-bottom:1rem}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1rem}
+@media(max-width:500px){.stat3{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:500px){.stat4{grid-template-columns:repeat(2,1fr)}.profile-hero{flex-wrap:wrap}.profile-score{font-size:1.5rem}}
 .back-btn{display:inline-flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:var(--rs);padding:.38rem .8rem;font-size:.78rem;color:var(--muted);cursor:pointer;margin-bottom:1rem;font-family:'Inter',sans-serif;transition:all .2s}
 .back-btn:hover{color:var(--text);background:rgba(255,255,255,.1)}
@@ -726,7 +728,27 @@ tr:hover td{background:rgba(255,255,255,.02)}
     </div>
   </div>
 
-  <div class="stat4" id="profileStats"></div>
+  <div class="stat3" id="profileStats"></div>
+
+  <div class="panel" id="trophyPanel" style="margin-bottom:1rem;display:none">
+    <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🏅 Bộ Sưu Tập Cúp</span>
+    </div>
+    <div id="trophyList" style="display:flex;flex-wrap:wrap;gap:.6rem"></div>
+  </div>
+
+  <div class="panel" id="rivalryPanel" style="margin-bottom:1rem;display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div>
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.6rem">Đối thủ (tiêu biểu)</div>
+        <div id="rivalOpponents" style="display:flex;flex-direction:column;gap:.6rem"></div>
+      </div>
+      <div>
+        <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.6rem">Đồng đội (tiêu biểu)</div>
+        <div id="rivalPartners" style="display:flex;flex-direction:column;gap:.6rem"></div>
+      </div>
+    </div>
+  </div>
 
   <div class="panel" style="margin-bottom:1rem">
     <div class="panel-hd">📈 Phong độ % thắng/thua theo thời gian</div>
@@ -2269,6 +2291,50 @@ function renderProfile(name){
   const singles = myMatches.filter(m=>m.type==='singles').length;
   const doubles = myMatches.filter(m=>m.type==='doubles').length;
 
+  // ── Cúp vô địch: giải đấu đã kết thúc mà player nằm trong đội vô địch ──
+  const myTrophies = tournaments.filter(t=>t.status==='done').map(t=>{
+    const top = typeof getTournamentTopStandings==='function' ? getTournamentTopStandings(t) : [];
+    const champ = top[0];
+    if(!champ || !champ.members || !champ.members.includes(name)) return null;
+    return {tournamentName:t.name, date:t.date};
+  }).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date));
+
+  // ── Đối thủ tiêu biểu (đối đầu trực tiếp, không tính đồng đội) ──
+  const oppStats = {};
+  myMatches.forEach(m=>{
+    const onA=m.a.includes(name), onB=m.b.includes(name);
+    if(!onA&&!onB) return;
+    const oppTeam = onA?m.b:m.a;
+    const isWin=(m.winner==='A'&&onA)||(m.winner==='B'&&onB);
+    oppTeam.forEach(opp=>{
+      if(!oppStats[opp]) oppStats[opp]={matches:0,wins:0,losses:0};
+      oppStats[opp].matches++;
+      if(isWin) oppStats[opp].wins++; else oppStats[opp].losses++;
+    });
+  });
+  const rivalOppEntries = Object.entries(oppStats).filter(([,v])=>v.matches>=3)
+    .map(([n,v])=>[n,{...v,diff:v.wins-v.losses}]);
+  const favoritePrey = rivalOppEntries.length ? [...rivalOppEntries].sort((a,b)=>b[1].diff-a[1].diff)[0] : null;
+  const nemesis = rivalOppEntries.length ? [...rivalOppEntries].sort((a,b)=>a[1].diff-b[1].diff)[0] : null;
+
+  // ── Đồng đội tiêu biểu (chỉ tính trận đôi, cùng phe) ──
+  const partnerStats = {};
+  myMatches.filter(m=>m.type==='doubles').forEach(m=>{
+    const onA=m.a.includes(name), onB=m.b.includes(name);
+    if(!onA&&!onB) return;
+    const myTeam = onA?m.a:m.b;
+    const partner = myTeam.find(n=>n!==name);
+    if(!partner) return;
+    const isWin=(m.winner==='A'&&onA)||(m.winner==='B'&&onB);
+    if(!partnerStats[partner]) partnerStats[partner]={matches:0,wins:0,losses:0};
+    partnerStats[partner].matches++;
+    if(isWin) partnerStats[partner].wins++; else partnerStats[partner].losses++;
+  });
+  const partnerEntries = Object.entries(partnerStats).filter(([,v])=>v.matches>=3)
+    .map(([n,v])=>[n,{...v,winRate:v.wins/v.matches}]);
+  const bestPartner  = partnerEntries.length ? [...partnerEntries].sort((a,b)=>b[1].winRate-a[1].winRate)[0] : null;
+  const worstPartner = partnerEntries.length ? [...partnerEntries].sort((a,b)=>a[1].winRate-b[1].winRate)[0] : null;
+
   // Kèo stats — chia đôi nếu đôi, nguyên nếu đơn
   const keoMatches = myMatches.filter(m=>m.keo&&m.keo!=='none');
   const keoNuocTotal = myMatches.reduce((s,m)=>{
@@ -2292,8 +2358,7 @@ function renderProfile(name){
 
   document.getElementById('profileStats').innerHTML = `
     <div class="sc"><div class="val">${myMatches.length}</div><div class="lbl">Tổng trận</div></div>
-    <div class="sc"><div class="val ts">${wins}</div><div class="lbl">Thắng</div></div>
-    <div class="sc"><div class="val td">${losses}</div><div class="lbl">Thua</div></div>
+    <div class="sc"><div class="val" style="color:#FACC15">🏆 ${myTrophies.length}</div><div class="lbl">Số cúp vô địch</div></div>
     <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>
     ${keoMatches.length?`
     <div class="sc" style="grid-column:span 2">
@@ -2317,6 +2382,58 @@ function renderProfile(name){
       </div>
       <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='bong').length} trận có kèo bóng</div>
     </div>`:''}`;
+
+  // ── Bộ sưu tập cúp ──
+  const trophyPanel = document.getElementById('trophyPanel');
+  const trophyList = document.getElementById('trophyList');
+  if(myTrophies.length){
+    trophyPanel.style.display='';
+    trophyList.innerHTML = myTrophies.map(tr=>{
+      const [y,mo] = (tr.date||'').split('-');
+      return `<div style="flex:1;min-width:180px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:var(--rs);padding:.7rem .9rem;display:flex;align-items:center;gap:.6rem">
+        <div style="width:38px;height:38px;border-radius:50%;background:rgba(74,222,128,.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🏆</div>
+        <div style="min-width:0">
+          <div style="font-size:.85rem;font-weight:700;color:var(--success)">Vô Địch ${tr.tournamentName}</div>
+          <div style="font-size:.72rem;color:var(--muted)">Tháng ${mo}/${y}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    trophyPanel.style.display='none';
+    trophyList.innerHTML='';
+  }
+
+  // ── Đối thủ / Đồng đội tiêu biểu ──
+  const rivalryPanel = document.getElementById('rivalryPanel');
+  function rivalCard(icon, label, personName, valueHtml, subtitle, colorBg, colorBorder){
+    return `<div style="background:${colorBg};border:1px solid ${colorBorder};border-radius:var(--rs);padding:.75rem .9rem">
+      <div style="display:flex;align-items:center;gap:.4rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.5rem">${icon} ${label}</div>
+      <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.4rem">${personName}</div>
+      <div style="font-size:.78rem">${valueHtml} <span style="color:var(--muted)">/ ${subtitle}</span></div>
+    </div>`;
+  }
+  if(favoritePrey || nemesis || bestPartner || worstPartner){
+    rivalryPanel.style.display='';
+    const oppHtml = [];
+    if(favoritePrey) oppHtml.push(rivalCard('🎯','Con mồi quen thuộc', favoritePrey[0],
+      `<span class="pill p-green">+${favoritePrey[1].diff} Hiệu số</span>`, favoritePrey[1].matches+' trận đối đầu',
+      'rgba(74,222,128,.06)','rgba(74,222,128,.25)'));
+    if(nemesis) oppHtml.push(rivalCard('⚠️','Kỵ giơ cứng', nemesis[0],
+      `<span class="pill p-red">${nemesis[1].diff} Hiệu số</span>`, nemesis[1].matches+' trận đối đầu',
+      'rgba(248,113,113,.06)','rgba(248,113,113,.25)'));
+    document.getElementById('rivalOpponents').innerHTML = oppHtml.join('') || '<div class="small tm">Chưa đủ dữ liệu</div>';
+
+    const partHtml = [];
+    if(bestPartner) partHtml.push(rivalCard('🤝','Hảo huynh đệ', bestPartner[0],
+      `<span class="pill p-gray" style="color:#60A5FA;background:rgba(96,165,250,.12)">${Math.round(bestPartner[1].winRate*100)}% Thắng</span>`, bestPartner[1].matches+' trận cùng phe',
+      'rgba(96,165,250,.06)','rgba(96,165,250,.25)'));
+    if(worstPartner) partHtml.push(rivalCard('💔','Buông tay nhau ra', worstPartner[0],
+      `<span class="pill p-gray" style="color:#C084FC;background:rgba(192,132,252,.12)">${Math.round((1-worstPartner[1].winRate)*100)}% Thua</span>`, worstPartner[1].matches+' trận cùng phe',
+      'rgba(192,132,252,.06)','rgba(192,132,252,.25)'));
+    document.getElementById('rivalPartners').innerHTML = partHtml.join('') || '<div class="small tm">Chưa đủ dữ liệu</div>';
+  } else {
+    rivalryPanel.style.display='none';
+  }
 
   // ── % Win rate theo từng ngày có ghi trận (bỏ qua ngày không chơi) ──
   const dayMap = {};
