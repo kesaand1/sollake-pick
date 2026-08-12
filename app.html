@@ -3510,7 +3510,7 @@ function renderTournamentInlineTeams(t){
         +'<div style="font-size:1.5rem">'+medals[i]+'</div>'
         +'<div style="font-size:.82rem;font-weight:700;color:'+s.color.text+';margin:.2rem 0">'+s.name+'</div>'
         +'<div style="font-size:.7rem;color:var(--muted)">'+s.w+'T '+s.l+'B · '+s.pts+'đ</div>'
-        +'<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">'+s.members.join(', ')+'</div>'
+        +'<div style="font-size:.68rem;font-weight:700;color:var(--text);margin-top:.2rem">'+s.members.join(', ')+'</div>'
         +'</div>';
     }).join('')
     +'</div>'
@@ -3601,7 +3601,7 @@ function renderTournamentInlineRoundRobin(t){
         +'<div style="font-size:1.5rem">'+medals[i]+'</div>'
         +'<div style="font-size:.82rem;font-weight:700;color:'+c.text+';margin:.2rem 0">'+s.name+'</div>'
         +'<div style="font-size:.7rem;color:var(--muted)">'+s.w+'T '+s.l+'B · '+(s.pf-s.pa>=0?'+':'')+(s.pf-s.pa)+'đ</div>'
-        +'<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">'+s.members.join(', ')+'</div>'
+        +'<div style="font-size:.68rem;font-weight:700;color:var(--text);margin-top:.2rem">'+s.members.join(', ')+'</div>'
         +'</div>';
     }).join('')+'</div>' : '';
 
