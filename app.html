@@ -1508,6 +1508,7 @@ function onRankPeriodSelect(){
 function renderAll(){
   renderOverviewCards();
   renderRanking();
+  renderPairsStats();
 }
 
 function getRankDateRange(){
@@ -4788,8 +4789,9 @@ init();
       <details class="guide-item">
         <summary>🎾 Ghi trận đấu</summary>
         <div class="guide-body">
-          <p>Vào tab <b>Trận đấu</b> → bấm nút tròn xanh <b>➕</b> ở giữa thanh điều hướng dưới cùng (hoặc "Ghi trận").</p>
+          <p>Bấm nút <b>"+ Ghi trận"</b> (góc trên bên phải màn hình) để mở form ghi trận đấu mới.</p>
           <p>Chọn ngày, loại trận (Đơn/Đôi), chọn thành viên cho từng bên, nhập tỷ số, chọn kèo nếu có (Nước/Bia/Bóng Pickleball) rồi bấm <b>Lưu trận đấu</b>. Điểm ELO của các thành viên sẽ tự động cập nhật.</p>
+          <p>⚠️ Lưu ý: bạn cần <b>đăng nhập</b> (Admin, thành viên, hoặc tài khoản Ghi trận) mới ghi được trận — khách xem (chưa đăng nhập) chỉ xem được dữ liệu, không ghi trận được.</p>
         </div>
       </details>
       <details class="guide-item">
