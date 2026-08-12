@@ -1182,7 +1182,7 @@ function addPlayer(){if(guardScorer())return;
 function togglePlayerVis(id){if(guardScorer())return;const p=players.find(x=>x.id===id);if(p){p.visible=!p.visible;saveAll();renderPlayers();}}
 function toggleHidden(){if(guardScorer())return;
   showHidden=!showHidden;
-  document.getElementById('hiddenBtn').textContent=showHidden?'🙈 Ẩn thành viên ẩn':'👁 Xem thành viên ẩn';
+  document.getElementById('hiddenBtn').textContent=showHidden?'📋 Danh sách thành viên':'👁 Xem thành viên ẩn';
   renderPlayers();
 }
 function editScore(id){if(guardScorer())return;
