@@ -382,6 +382,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .av{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0}
 .av-lg{width:40px;height:40px;font-size:.8rem}
 .av-wrap{display:flex;align-items:center;gap:.55rem;min-width:0;overflow:hidden}
+.av-trophy-wrap{position:relative;flex-shrink:0;display:inline-flex}
+.av-trophy-badge{position:absolute;bottom:-5px;right:-8px;background:#FACC15;color:#0B1929;font-size:.58rem;font-weight:800;padding:1px 5px;border-radius:50px;border:2px solid var(--card);white-space:nowrap;line-height:1.3}
 .av-wrap .aname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* RANK */
@@ -1113,7 +1115,24 @@ const today=()=>nowGMT7().toISOString().split('T')[0];
 const ago=n=>{const d=nowGMT7();d.setUTCDate(d.getUTCDate()-n);return d.toISOString().split('T')[0]};
 const ini=n=>n.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();
 const av=(n,c,lg='')=>`<div class="av ${lg} ${c||'c0'}">${ini(n)}</div>`;
+
+function getTrophyCount(name){
+  let count=0;
+  tournaments.forEach(t=>{
+    if(t.status!=='done') return;
+    const top = typeof getTournamentTopStandings==='function' ? getTournamentTopStandings(t) : [];
+    const champ = top[0];
+    if(champ && champ.members && champ.members.includes(name)) count++;
+  });
+  return count;
+}
+
+const avTrophy=(n,c)=>{
+  const tc = getTrophyCount(n);
+  return `<div class="av-trophy-wrap"><div class="av ${c||'c0'}">${ini(n)}</div>${tc>0?`<span class="av-trophy-badge">🏆 ${tc}</span>`:''}</div>`;
+};
 const avW=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${av(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
+const avWTrophy=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${avTrophy(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
 const gp=n=>players.find(p=>p.name===n);
 const gpc=n=>{const p=gp(n);return p?p.color:'c0'};
 const inR=(d,f,t)=>{if(f&&d<f)return false;if(t&&d>t)return false;return true};
@@ -1252,7 +1271,7 @@ function renderPlayers(){
   }
   const rows=list.map((p,i)=>{const lv=getLevel(p.score);return`<tr>
     <td class="tm" style="text-align:center;width:32px">${i+1}</td>
-    <td>${avW(p.name,p.color,p.visible?'':' <span class="hbadge">Ẩn</span>')}</td>
+    <td>${avWTrophy(p.name,p.color,p.visible?'':' <span class="hbadge">Ẩn</span>')}</td>
     <td><span style="font-weight:700;color:var(--lime);font-size:1rem">${p.score.toFixed(2)}</span></td>
     <td><span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span></td>
     <td class="tm small">${fmtD(p.joined)}</td>
@@ -1266,7 +1285,7 @@ function renderPlayers(){
   document.getElementById('playerD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Kèo</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map((p,i)=>{const lv=getLevel(p.score);return`<div class="card-item">
     <div class="card-item-row">
-      <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer"><div>
+      <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer">${avTrophy(p.name,p.color)}<div>
         <div class="bold" style="text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)"><span class="tm" style="font-weight:400;margin-right:.3rem">${i+1}.</span>${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
         <div class="small tm"><span class="pill ${lv.pill}" style="font-size:.62rem">${lv.icon} ${lv.label}</span> · ${fmtD(p.joined)}</div>
       </div></div>
