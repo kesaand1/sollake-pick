@@ -3091,15 +3091,20 @@ function saveThirdPlaceResult(tId){
   const sb=parseInt(document.getElementById('tp_'+tId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
-  reverseEloIfNeeded(t.thirdPlaceMatch);
-  t.thirdPlaceMatch.scoreA=sa; t.thirdPlaceMatch.scoreB=sb; t.thirdPlaceMatch.done=true;
-  t.thirdPlaceMatch.winnerIdx = sa>sb?t.thirdPlaceMatch.teamA:t.thirdPlaceMatch.teamB;
-  t.thirdPlaceMatch.elo = applyEloDelta(sa>sb?t.thirdPlaceMatch.pairA:t.thirdPlaceMatch.pairB, sa>sb?t.thirdPlaceMatch.pairB:t.thirdPlaceMatch.pairA);
-  notify('✅ Đã lưu kết quả tranh giải 3-4');
-  advanceGroupsPhase(t);
-  saveAll();
-  renderTournamentInline(t);
-  renderTournamentList();
+  try{
+    reverseEloIfNeeded(t.thirdPlaceMatch);
+    t.thirdPlaceMatch.scoreA=sa; t.thirdPlaceMatch.scoreB=sb; t.thirdPlaceMatch.done=true;
+    t.thirdPlaceMatch.winnerIdx = sa>sb?t.thirdPlaceMatch.teamA:t.thirdPlaceMatch.teamB;
+    t.thirdPlaceMatch.elo = applyEloDelta(sa>sb?t.thirdPlaceMatch.pairA:t.thirdPlaceMatch.pairB, sa>sb?t.thirdPlaceMatch.pairB:t.thirdPlaceMatch.pairA);
+    advanceGroupsPhase(t);
+    saveAll();
+    renderTournamentInline(t);
+    renderTournamentList();
+    notify('✅ Đã lưu kết quả tranh giải 3-4');
+  }catch(e){
+    console.error('saveThirdPlaceResult error:', e);
+    alert('❌ Lỗi khi lưu kết quả: '+e.message+'\nVui lòng thử lại.');
+  }
 }
 
 function saveGroupMatchResult(tId, mId){
@@ -3110,14 +3115,19 @@ function saveGroupMatchResult(tId, mId){
   const sb=parseInt(document.getElementById('gs_'+tId+'_'+mId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
-  reverseEloIfNeeded(m);
-  m.scoreA=sa; m.scoreB=sb; m.done=true;
-  m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
-  notify('✅ Đã lưu kết quả trận #'+mId);
-  advanceGroupsPhase(t);
-  saveAll();
-  renderTournamentInline(t);
-  renderTournamentList();
+  try{
+    reverseEloIfNeeded(m);
+    m.scoreA=sa; m.scoreB=sb; m.done=true;
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    advanceGroupsPhase(t);
+    saveAll();
+    renderTournamentInline(t);
+    renderTournamentList();
+    notify('✅ Đã lưu kết quả trận #'+mId);
+  }catch(e){
+    console.error('saveGroupMatchResult error:', e);
+    alert('❌ Lỗi khi lưu kết quả: '+e.message+'\nVui lòng thử lại.');
+  }
 }
 
 function saveSemiResult(tId, sId){
@@ -3135,8 +3145,10 @@ function saveSemiResult(tId, sId){
 
   if(qualifiersChange){
     if(!confirm('Cập nhật kết quả vòng bán kết sẽ hủy kết quả ở Chung kết và Trận tranh giải 3. Bạn có muốn thay đổi không?')) return;
-    if(t.final && t.final.done) reverseEloIfNeeded(t.final);
-    if(t.thirdPlaceMatch && t.thirdPlaceMatch.done) reverseEloIfNeeded(t.thirdPlaceMatch);
+    try{
+      if(t.final && t.final.done) reverseEloIfNeeded(t.final);
+      if(t.thirdPlaceMatch && t.thirdPlaceMatch.done) reverseEloIfNeeded(t.thirdPlaceMatch);
+    }catch(e){ console.error('reverse elo error:', e); }
     t.final = null;
     t.thirdPlaceMatch = null;
     t.championIdx = null; t.runnerIdx = null; t.thirdIdx = null; t.fourthIdx = null;
@@ -3144,15 +3156,20 @@ function saveSemiResult(tId, sId){
     t.phase = 'semis';
   }
 
-  reverseEloIfNeeded(m);
-  m.scoreA=sa; m.scoreB=sb; m.done=true;
-  m.winnerIdx = newWinnerIdx;
-  m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
-  notify('✅ Đã lưu kết quả bán kết');
-  advanceGroupsPhase(t);
-  saveAll();
-  renderTournamentInline(t);
-  renderTournamentList();
+  try{
+    reverseEloIfNeeded(m);
+    m.scoreA=sa; m.scoreB=sb; m.done=true;
+    m.winnerIdx = newWinnerIdx;
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    advanceGroupsPhase(t);
+    saveAll();
+    renderTournamentInline(t);
+    renderTournamentList();
+    notify('✅ Đã lưu kết quả bán kết');
+  }catch(e){
+    console.error('saveSemiResult error:', e);
+    alert('❌ Lỗi khi lưu kết quả: '+e.message+'\nVui lòng thử lại.');
+  }
 }
 
 function saveFinalResult(tId){
@@ -3162,15 +3179,20 @@ function saveFinalResult(tId){
   const sb=parseInt(document.getElementById('fn_'+tId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
-  reverseEloIfNeeded(t.final);
-  t.final.scoreA=sa; t.final.scoreB=sb; t.final.done=true;
-  t.final.winnerIdx = sa>sb?t.final.teamA:t.final.teamB;
-  t.final.elo = applyEloDelta(sa>sb?t.final.pairA:t.final.pairB, sa>sb?t.final.pairB:t.final.pairA);
-  notify('✅ Đã lưu kết quả chung kết');
-  advanceGroupsPhase(t);
-  saveAll();
-  renderTournamentInline(t);
-  renderTournamentList();
+  try{
+    reverseEloIfNeeded(t.final);
+    t.final.scoreA=sa; t.final.scoreB=sb; t.final.done=true;
+    t.final.winnerIdx = sa>sb?t.final.teamA:t.final.teamB;
+    t.final.elo = applyEloDelta(sa>sb?t.final.pairA:t.final.pairB, sa>sb?t.final.pairB:t.final.pairA);
+    advanceGroupsPhase(t);
+    saveAll();
+    renderTournamentInline(t);
+    renderTournamentList();
+    notify('✅ Đã lưu kết quả chung kết');
+  }catch(e){
+    console.error('saveFinalResult error:', e);
+    alert('❌ Lỗi khi lưu kết quả: '+e.message+'\nVui lòng thử lại.');
+  }
 }
 
 function genRoundRobinMatches(teams){
@@ -3898,18 +3920,20 @@ function saveMatchResult(tId, mId){
   const sb=parseInt(document.getElementById('ms_'+tId+'_'+mId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
-  m.scoreA=sa; m.scoreB=sb; m.done=true;
-  m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
-  // Auto-complete tournament if all matches done
-  if(t.status!=='done'&&t.matches.every(function(m){return m.done;})){
-    t.status='done';
-    notify('🏆 Giải đấu hoàn thành! '+t.name);
-  } else {
-    notify('✅ Đã lưu kết quả trận #'+mId);
+  try{
+    m.scoreA=sa; m.scoreB=sb; m.done=true;
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    // Auto-complete tournament if all matches done
+    const justCompleted = t.status!=='done' && t.matches.every(function(m){return m.done;});
+    if(justCompleted) t.status='done';
+    saveAll();
+    renderTournamentInline(t);
+    renderTournamentList();
+    notify(justCompleted ? ('🏆 Giải đấu hoàn thành! '+t.name) : ('✅ Đã lưu kết quả trận #'+mId));
+  }catch(e){
+    console.error('saveMatchResult error:', e);
+    alert('❌ Lỗi khi lưu kết quả: '+e.message+'\nVui lòng thử lại.');
   }
-  saveAll();
-  renderTournamentInline(t);
-  renderTournamentList();
 }
 
 function saveBracketMatchResult(tId, mId){
@@ -3922,18 +3946,21 @@ function saveBracketMatchResult(tId, mId){
   const sb=parseInt(document.getElementById('bs_'+tId+'_'+mId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
-  m.scoreA=sa; m.scoreB=sb; m.done=true;
-  m.winnerIdx = sa>sb ? m.teamA : m.teamB;
-  m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
-  advanceBracket(t);
-  if(t.status==='done'){
-    notify('🏆 Vô địch: '+t.teams[t.championIdx].name+'! Giải "'+t.name+'" đã kết thúc.');
-  } else {
-    notify('✅ Đã lưu kết quả trận #'+mId);
+  try{
+    m.scoreA=sa; m.scoreB=sb; m.done=true;
+    m.winnerIdx = sa>sb ? m.teamA : m.teamB;
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    advanceBracket(t);
+    saveAll();
+    renderTournamentInline(t);
+    renderTournamentList();
+    notify(t.status==='done'
+      ? ('🏆 Vô địch: '+t.teams[t.championIdx].name+'! Giải "'+t.name+'" đã kết thúc.')
+      : ('✅ Đã lưu kết quả trận #'+mId));
+  }catch(e){
+    console.error('saveBracketMatchResult error:', e);
+    alert('❌ Lỗi khi lưu kết quả: '+e.message+'\nVui lòng thử lại.');
   }
-  saveAll();
-  renderTournamentInline(t);
-  renderTournamentList();
 }
 
 function endTournament(){if(guardScorer())return;
