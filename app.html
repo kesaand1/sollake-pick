@@ -2318,23 +2318,19 @@ function renderProfile(name){
       <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='bong').length} trận có kèo bóng</div>
     </div>`:''}`;
 
-  // ── % Win rolling chart (cumulative win rate after each match) ──
-  const sorted = [...myMatches];
-  const wrLabels = [];
-  const wrData   = [];
-  const wrWins   = [];
-  const wrLoss   = [];
-  let cumulW = 0, cumulTotal = 0;
-  for(const m of sorted){
+  // ── % Win rate theo từng ngày có ghi trận (bỏ qua ngày không chơi) ──
+  const dayMap = {};
+  myMatches.forEach(m=>{
     const isWin = (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
-    cumulTotal++;
-    if(isWin) cumulW++;
-    wrLabels.push(fmtD(m.date) + ' #' + cumulTotal);
-    const pct = Math.round(cumulW / cumulTotal * 100);
-    wrData.push(pct);
-    wrWins.push(cumulW);
-    wrLoss.push(cumulTotal - cumulW);
-  }
+    if(!dayMap[m.date]) dayMap[m.date] = {w:0, total:0};
+    dayMap[m.date].total++;
+    if(isWin) dayMap[m.date].w++;
+  });
+  const sortedDates = Object.keys(dayMap).sort();
+  const wrLabels = sortedDates.map(d=>fmtD(d));
+  const wrData   = sortedDates.map(d=>Math.round(dayMap[d].w / dayMap[d].total * 100));
+  const wrWins   = sortedDates.map(d=>dayMap[d].w);
+  const wrLoss   = sortedDates.map(d=>dayMap[d].total - dayMap[d].w);
 
   if(eloChart){ eloChart.destroy(); eloChart=null; }
   const ctxElo = document.getElementById('chartElo').getContext('2d');
