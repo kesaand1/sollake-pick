@@ -233,8 +233,22 @@ function subscribeClubData(){
     },
     tournaments: (val) => {
       if(!val||!Array.isArray(val)) return;
-      tournaments=val;
-      try{localStorage.setItem('sp_tournaments',JSON.stringify(val));}catch{}
+      // Firebase can return sparse arrays (with holes) as arrays containing
+      // null/undefined entries when items were deleted/never set at some index.
+      // Strip those out here, once, so every downstream .every()/.filter() call
+      // on these arrays can't crash with "Cannot read properties of undefined".
+      const clean = val.map(t=>{
+        if(!t) return t;
+        if(Array.isArray(t.groupMatches)) t.groupMatches = t.groupMatches.filter(Boolean);
+        if(Array.isArray(t.semis)) t.semis = t.semis.filter(Boolean);
+        if(Array.isArray(t.matches)) t.matches = t.matches.filter(Boolean);
+        if(t.bracket && Array.isArray(t.bracket.rounds)){
+          t.bracket.rounds = t.bracket.rounds.map(r=>Array.isArray(r)?r.filter(Boolean):r).filter(Boolean);
+        }
+        return t;
+      });
+      tournaments=clean;
+      try{localStorage.setItem('sp_tournaments',JSON.stringify(clean));}catch{}
       nT=tournaments.length?Math.max(...tournaments.map(t=>t.id))+1:1;
       if(typeof renderTournamentList==='function') renderTournamentList();
     },
@@ -3046,7 +3060,7 @@ function computeGroupStandings(t, groupIdx){
 
 function advanceGroupsPhase(t){
   if(t.phase==='groups'){
-    if(!t.groupMatches.every(m=>m.done)) return;
+    if(!t.groupMatches.every(m=>m&&m.done)) return;
     const standA = computeGroupStandings(t,0);
     const standB = computeGroupStandings(t,1);
     if(standA.length<2||standB.length<2) return;
@@ -3063,7 +3077,7 @@ function advanceGroupsPhase(t){
     return;
   }
   if(t.phase==='semis'){
-    if(!t.semis.every(m=>m.done)) return;
+    if(!t.semis.every(m=>m&&m.done)) return;
     const w1=t.semis[0].winnerIdx, l1=(t.semis[0].teamA===w1?t.semis[0].teamB:t.semis[0].teamA);
     const w2=t.semis[1].winnerIdx, l2=(t.semis[1].teamA===w2?t.semis[1].teamB:t.semis[1].teamA);
     t.final = { teamA:w1, teamB:w2, pairA:t.teams[w1].members, pairB:t.teams[w2].members, scoreA:null, scoreB:null, done:false, winnerIdx:null };
@@ -3291,7 +3305,7 @@ function genSingleElimBracket(teams){
 function advanceBracket(t){
   const rounds = t.bracket.rounds;
   const last = rounds[rounds.length-1];
-  const allDone = last.every(m=>m.done);
+  const allDone = last.every(m=>m&&m.done);
   if(!allDone) return;
   if(last.length===1){
     t.status='done';
@@ -3457,7 +3471,7 @@ function renderTournamentInlineTeams(t){
   });
   const sortedS=[...standings].sort(function(a,b){return b.pts-a.pts||b.w-a.w;});
 
-  const allDone=t.matches.length>0&&t.matches.every(function(m){return m.done;});
+  const allDone=t.matches.length>0&&t.matches.every(function(m){return m&&m.done;});
   const medals=['🥇','🥈','🥉'];
   const podiumColors=['var(--warn)','#C0C0C0','#CD7F32'];
 
@@ -3550,7 +3564,7 @@ function renderTournamentInlineRoundRobin(t){
   if(!el) return;
   const standings = computeRoundRobinStandings(t);
   const medals=['🥇','🥈','🥉'];
-  const allDone = t.matches.length>0 && t.matches.every(m=>m.done);
+  const allDone = t.matches.length>0 && t.matches.every(m=>m&&m.done);
 
   const podiumHtml = allDone && standings.length>=2 ?
     '<div style="display:flex;gap:.5rem;margin-bottom:.85rem;flex-wrap:wrap">'
@@ -3924,7 +3938,7 @@ function saveMatchResult(tId, mId){
     m.scoreA=sa; m.scoreB=sb; m.done=true;
     m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
     // Auto-complete tournament if all matches done
-    const justCompleted = t.status!=='done' && t.matches.every(function(m){return m.done;});
+    const justCompleted = t.status!=='done' && t.matches.every(function(m){return m&&m.done;});
     if(justCompleted) t.status='done';
     saveAll();
     renderTournamentInline(t);
