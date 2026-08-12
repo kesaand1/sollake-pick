@@ -719,7 +719,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div class="page" id="page-profile">
   <button class="back-btn" onclick="goBack()">← Quay lại</button>
   <div class="profile-hero">
-    <div class="profile-av" id="profileAv"></div>
+    <div style="position:relative;flex-shrink:0">
+      <div class="profile-av" id="profileAv"></div>
+      <span class="av-trophy-badge" id="profileTrophyBadge" style="display:none;font-size:.72rem;padding:2px 7px;bottom:-6px;right:-10px"></span>
+    </div>
     <div class="profile-info">
       <div class="profile-name" id="profileName"></div>
       <div class="profile-meta" id="profileMeta"></div>
@@ -2290,6 +2293,10 @@ function renderProfile(name){
   // Hero
   document.getElementById('profileAv').className = 'profile-av ' + p.color;
   document.getElementById('profileAv').textContent = ini(name);
+  const profTrophyCount = typeof getTrophyCount==='function' ? getTrophyCount(name) : 0;
+  const profTrophyBadge = document.getElementById('profileTrophyBadge');
+  if(profTrophyCount>0){ profTrophyBadge.textContent='🏆 '+profTrophyCount; profTrophyBadge.style.display=''; }
+  else { profTrophyBadge.style.display='none'; }
   document.getElementById('profileName').textContent = name;
   document.getElementById('profileScore').textContent = p.score.toFixed(2);
   document.getElementById('profileMeta').innerHTML =
