@@ -13,6 +13,7 @@
 <meta property="og:description" content="Hệ thống quản lý câu lạc bộ Pickleball chuyên nghiệp"/>
 <meta property="og:image" content="https://11points.me/banner.png"/>
 <meta property="og:image:width" content="1200"/>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <meta property="og:image:height" content="630"/>
 
 <!-- Twitter Card -->
@@ -277,6 +278,31 @@ const db   = getDatabase(app);
 const auth = getAuth(app);
 const nowGMT7 = () => new Date(Date.now() + 7*3600000);
 
+// ── EmailJS config — gửi email chào mừng chứa username/password/link CLB sau khi đăng ký thành công ──
+// Anh cần đăng ký tài khoản miễn phí tại https://www.emailjs.com, kết nối 1 email gửi đi (Gmail/Outlook...),
+// tạo 1 Email Template, rồi điền đúng 3 giá trị bên dưới lấy từ dashboard EmailJS:
+const EMAILJS_PUBLIC_KEY  = 'dZiiPUmS85JQb_sch';   // Account → General → Public Key
+const EMAILJS_SERVICE_ID  = 'service_tyfuebd';   // Email Services → Service ID
+const EMAILJS_TEMPLATE_ID = 'template_7n7soag';  // Email Templates → Template ID
+if(window.emailjs && EMAILJS_PUBLIC_KEY!=='YOUR_PUBLIC_KEY'){
+  emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+}
+
+function sendWelcomeEmail({ toEmail, toName, clubName, clubUrl, username, password }){
+  if(!window.emailjs || EMAILJS_PUBLIC_KEY==='YOUR_PUBLIC_KEY'){
+    console.warn('EmailJS chưa được cấu hình — bỏ qua gửi email chào mừng.');
+    return Promise.resolve(false);
+  }
+  return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    to_email: toEmail,
+    to_name: toName || toEmail,
+    club_name: clubName,
+    club_url: clubUrl,
+    username: username || toEmail,
+    password: password,
+  }).then(()=>true).catch(e=>{ console.error('Gửi email chào mừng thất bại:', e); return false; });
+}
+
 let regData = {}; // holds club info between steps
 
 // Show/hide register button based on admin setting (default: enabled if not set)
@@ -374,6 +400,12 @@ window.regSubmit = async () => {
     window._regClubUrl = url;
     document.getElementById('regSuccessUsername').textContent = uname || email;
     document.getElementById('regSuccessPassword').textContent = pass;
+
+    // Gửi email chào mừng kèm username/mật khẩu/link CLB (không chặn luồng nếu gửi thất bại)
+    sendWelcomeEmail({
+      toEmail: email, toName: name, clubName: clubName, clubUrl: url,
+      username: uname || email, password: pass
+    });
 
     if(autoApprove){
       document.getElementById('regSuccessSub').textContent = 'CLB và tài khoản quản trị của bạn đã được tạo và kích hoạt. Bạn có thể vào CLB ngay bây giờ:';
