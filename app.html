@@ -1199,7 +1199,7 @@ function delPlayer(id){if(guardScorer())return;
   players=players.filter(x=>x.id!==id);saveAll();renderPlayers();notify('🗑 Đã xóa '+p.name);
 }
 function renderPlayers(){
-  const list=showHidden?players:players.filter(p=>p.visible);
+  const list=showHidden?players.filter(p=>!p.visible):players.filter(p=>p.visible);
   if(!list.length){
     const e=empty('👥','Chưa có thành viên nào');
     document.getElementById('playerD').innerHTML=e;document.getElementById('playerM').innerHTML=e;return;
