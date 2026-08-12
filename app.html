@@ -1778,9 +1778,9 @@ function getAllTournamentMatchesFlat(){
   tournaments.forEach(t=>{
     const raw = t.format==='groups'
       ? [...(t.groupMatches||[]), ...(t.semis||[]), ...(t.final?[t.final]:[]), ...(t.thirdPlaceMatch?[t.thirdPlaceMatch]:[])]
-      : t.bracket ? t.bracket.rounds.flat().filter(m=>!m.bye)
+      : t.bracket ? t.bracket.rounds.flat().filter(m=>m&&!m.bye)
       : (t.matches||[]);
-    raw.filter(m=>m.done).forEach(m=>{
+    raw.filter(m=>m&&m.done).forEach(m=>{
       out.push({
         id:'t'+t.id+'_'+(m.id||Math.random()),
         date:t.date, type:m.pairA.length>1?'doubles':'singles',
@@ -3035,14 +3035,14 @@ function computeGroupStandings(t, groupIdx){
   const groupTeams = t.teams.filter(tm=>tm.group===groupIdx);
   const stats = groupTeams.map(tm=>({idx:tm.id, name:tm.name, members:tm.members, w:0, l:0, pf:0, pa:0}));
   const byIdx = {}; stats.forEach(s=>byIdx[s.idx]=s);
-  t.groupMatches.filter(m=>m.done && byIdx[m.teamA] && byIdx[m.teamB]).forEach(m=>{
+  t.groupMatches.filter(m=>m&&m.done && byIdx[m.teamA] && byIdx[m.teamB]).forEach(m=>{
     const A=byIdx[m.teamA], B=byIdx[m.teamB];
     A.pf+=m.scoreA; A.pa+=m.scoreB;
     B.pf+=m.scoreB; B.pa+=m.scoreA;
     if(m.scoreA>m.scoreB){A.w++;B.l++;} else {B.w++;A.l++;}
   });
   function h2h(aIdx,bIdx){
-    const m = t.groupMatches.find(mm=>mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
+    const m = t.groupMatches.find(mm=>mm&&mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
     if(!m) return 0;
     const aScore = m.teamA===aIdx?m.scoreA:m.scoreB;
     const bScore = m.teamA===aIdx?m.scoreB:m.scoreA;
@@ -3087,7 +3087,7 @@ function advanceGroupsPhase(t){
     return;
   }
   if(t.phase==='final' || t.phase==='done'){
-    if(!t.final.done || !t.thirdPlaceMatch.done) return;
+    if(!t.final||!t.thirdPlaceMatch||!t.final.done||!t.thirdPlaceMatch.done) return;
     t.championIdx = t.final.winnerIdx;
     t.runnerIdx = (t.final.teamA===t.championIdx ? t.final.teamB : t.final.teamA);
     t.thirdIdx = t.thirdPlaceMatch.winnerIdx;
@@ -3243,14 +3243,14 @@ function genRoundRobinMatches(teams){
 
 function computeRoundRobinStandings(t){
   const stats = t.teams.map((tm,i)=>({idx:i, name:tm.name, members:tm.members, w:0, l:0, pf:0, pa:0}));
-  t.matches.filter(m=>m.done).forEach(m=>{
+  t.matches.filter(m=>m&&m.done).forEach(m=>{
     const A=stats[m.teamA], B=stats[m.teamB];
     A.pf+=m.scoreA; A.pa+=m.scoreB;
     B.pf+=m.scoreB; B.pa+=m.scoreA;
     if(m.scoreA>m.scoreB){A.w++;B.l++;} else {B.w++;A.l++;}
   });
   function h2h(aIdx,bIdx){
-    const m = t.matches.find(mm=>mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
+    const m = t.matches.find(mm=>mm&&mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
     if(!m) return 0;
     const aScore = m.teamA===aIdx?m.scoreA:m.scoreB;
     const bScore = m.teamA===aIdx?m.scoreB:m.scoreA;
@@ -3354,7 +3354,7 @@ function getTournamentTopStandings(t){
   }
   // 'teams' (chia team) format
   const standings=t.teams.map((team,i)=>({idx:i, name:team.name, members:team.members, w:0, l:0, pts:0}));
-  (t.matches||[]).filter(m=>m.done).forEach(m=>{
+  (t.matches||[]).filter(m=>m&&m.done).forEach(m=>{
     const winner=m.scoreA>m.scoreB?m.teamA:m.teamB;
     const loser=m.scoreA>m.scoreB?m.teamB:m.teamA;
     standings[winner].w++;standings[winner].pts+=2;
@@ -3376,7 +3376,7 @@ function renderTournamentList(){
     const allMatches = t.format==='groups'
       ? [...(t.groupMatches||[]), ...(t.semis||[]), ...(t.final?[t.final]:[]), ...(t.thirdPlaceMatch?[t.thirdPlaceMatch]:[])]
       : t.bracket ? t.bracket.rounds.flat() : (t.matches||[]);
-    const done=allMatches.filter(function(m){return m.done;}).length;
+    const done=allMatches.filter(function(m){return m&&m.done;}).length;
     const total=allMatches.length;
     const pct=total ? Math.round(done/total*100) : 0;
     const isActive=t.status!=='done';
@@ -3463,7 +3463,7 @@ function renderTournamentInlineTeams(t){
   const standings=t.teams.map(function(team){
     return {name:team.name,members:team.members,w:0,l:0,pts:0,color:teamColors(team.id)};
   });
-  t.matches.filter(function(m){return m.done;}).forEach(function(m){
+  t.matches.filter(function(m){return m&&m.done;}).forEach(function(m){
     const winner=m.scoreA>m.scoreB?m.teamA:m.teamB;
     const loser=m.scoreA>m.scoreB?m.teamB:m.teamA;
     standings[winner].w++;standings[winner].pts+=2;
@@ -3512,7 +3512,7 @@ function renderTournamentInlineTeams(t){
   }).join('');
 
   // Matches
-  const matchHtml=t.matches.map(function(m){
+  const matchHtml=t.matches.filter(Boolean).map(function(m){
     const tA=t.teams[m.teamA],tB=t.teams[m.teamB];
     const cA=teamColors(m.teamA),cB=teamColors(m.teamB);
     const isDone=m.done;
@@ -3551,7 +3551,7 @@ function renderTournamentInlineTeams(t){
     +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">🏆 Bảng xếp hạng</div>'
     +standHtml
     +'</div>'
-    +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">📋 Trận đấu ('+t.matches.filter(function(m){return m.done;}).length+'/'+t.matches.length+')</div>'
+    +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">📋 Trận đấu ('+t.matches.filter(function(m){return m&&m.done;}).length+'/'+t.matches.length+')</div>'
     +matchHtml
     +(t.status!=='done'
       ?'<button class="btn btn-danger btn-sm" style="margin-top:.75rem;width:100%;justify-content:center" onclick="endTournament()">🏁 Kết thúc giải</button>'
@@ -3601,7 +3601,7 @@ function renderTournamentInlineRoundRobin(t){
       +'</div>';
   }).join('');
 
-  const matchHtml = t.matches.map(m=>{
+  const matchHtml = t.matches.filter(Boolean).map(m=>{
     const tA=t.teams[m.teamA], tB=t.teams[m.teamB];
     const cA=teamColors(m.teamA), cB=teamColors(m.teamB);
     const isDone=m.done;
@@ -3638,7 +3638,7 @@ function renderTournamentInlineRoundRobin(t){
     +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">🏆 Bảng xếp hạng</div>'
     +podiumHtml+standHtml
     +'</div>'
-    +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">📋 Trận đấu ('+t.matches.filter(m=>m.done).length+'/'+t.matches.length+')</div>'
+    +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">📋 Trận đấu ('+t.matches.filter(m=>m&&m.done).length+'/'+t.matches.length+')</div>'
     +matchHtml
     +(t.status!=='done'
       ?'<button class="btn btn-danger btn-sm" style="margin-top:.75rem;width:100%;justify-content:center" onclick="endTournament()">🏁 Kết thúc giải</button>'
@@ -3666,7 +3666,7 @@ function renderTournamentInlineBracket(t){
       +'</div>' : '';
 
   const roundsHtml = t.bracket.rounds.map((round,ridx)=>{
-    const matchesHtml = round.map(m=>{
+    const matchesHtml = round.filter(Boolean).map(m=>{
       const tA = m.teamA!=null ? t.teams[m.teamA] : null;
       const tB = m.teamB!=null ? t.teams[m.teamB] : null;
       const cA = m.teamA!=null ? teamColors(m.teamA) : {text:'var(--muted)'};
@@ -3755,7 +3755,7 @@ function renderTournamentInlineGroups(t){
   function groupBlock(groupIdx, groupLabel){
     const groupTeams = t.teams.filter(tm=>tm.group===groupIdx);
     const standings = computeGroupStandings(t, groupIdx);
-    const groupMatches = t.groupMatches.filter(m=>groupTeams.some(tm=>tm.id===m.teamA));
+    const groupMatches = t.groupMatches.filter(m=>m && groupTeams.some(tm=>tm.id===m.teamA));
     const medals=['🥇','🥈','🥉','🏅'];
     const teamsHtml = groupTeams.map(team=>{
       const c=teamColors(team.id);
@@ -3773,7 +3773,7 @@ function renderTournamentInlineGroups(t){
         +'<span style="font-weight:700;font-size:.78rem;color:'+(diff>=0?'var(--success)':'var(--danger)')+';min-width:40px;text-align:right">'+(diff>=0?'+':'')+diff+'</span>'
         +'</div>';
     }).join('');
-    const matchesHtml = groupMatches.map(m=>scoreCard(m, 'gs_'+t.id+'_'+m.id, 'saveGroupMatchResult('+t.id+','+m.id+')')).join('');
+    const matchesHtml = groupMatches.filter(Boolean).map(m=>scoreCard(m, 'gs_'+t.id+'_'+m.id, 'saveGroupMatchResult('+t.id+','+m.id+')')).join('');
     return '<div style="margin-bottom:1.1rem">'
       +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">📊 Bảng '+groupLabel+'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.4rem;margin-bottom:.5rem">'+teamsHtml+'</div>'
@@ -3860,7 +3860,7 @@ function renderTournamentView(t){
     w:0,l:0,pts:0,
     color:teamColors(team.id)
   }));
-  t.matches.filter(m=>m.done).forEach(m=>{
+  t.matches.filter(m=>m&&m.done).forEach(m=>{
     const winner=m.scoreA>m.scoreB?m.teamA:m.teamB;
     const loser =m.scoreA>m.scoreB?m.teamB:m.teamA;
     standings[winner].w++; standings[winner].pts+=2;
@@ -3878,7 +3878,7 @@ function renderTournamentView(t){
   }).join('');
 
   // Matches
-  const matchHtml = t.matches.map(m=>{
+  const matchHtml = t.matches.filter(Boolean).map(m=>{
     const tA=t.teams[m.teamA], tB=t.teams[m.teamB];
     const cA=teamColors(m.teamA), cB=teamColors(m.teamB);
     const pAx=m.pairA||tA.members;
@@ -3920,7 +3920,7 @@ function renderTournamentView(t){
     +'<div class="panel-hd" style="margin-bottom:.5rem">🏆 Bảng xếp hạng</div>'
     +standHtml
     +'</div>'
-    +'<div class="panel-hd" style="margin-bottom:.5rem">📋 Danh sách trận ('+t.matches.filter(m=>m.done).length+'/'+t.matches.length+')</div>'
+    +'<div class="panel-hd" style="margin-bottom:.5rem">📋 Danh sách trận ('+t.matches.filter(m=>m&&m.done).length+'/'+t.matches.length+')</div>'
     +matchHtml;
 
   document.getElementById('endTournamentBtn').style.display = t.status==='done'?'none':'';
@@ -3979,7 +3979,7 @@ function saveBracketMatchResult(tId, mId){
 
 function endTournament(){if(guardScorer())return;
   const t=tournaments.find(x=>x.id===tViewingId); if(!t) return;
-  const undone=(t.matches||[]).filter(m=>!m.done).length;
+  const undone=(t.matches||[]).filter(m=>m&&!m.done).length;
   if(undone>0&&!confirm('Còn '+undone+' trận chưa có kết quả. Vẫn kết thúc giải?')) return;
   t.status='done';
   saveAll();
