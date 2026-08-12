@@ -3428,10 +3428,12 @@ function renderTournamentList(){
           }).join('')
         + '</div>'
       : '';
+    const formatLabel = t.format==='groups' ? 'Chia bảng' : t.format==='teams' ? 'Chia team' : 'Tournament';
     return '<div class="t-accordion t-alt-'+(idx%2)+'" id="tacc_'+t.id+'">'
       +'<div class="t-accordion-header" onclick="toggleTAccordion('+t.id+')">'
-      +'<div style="display:flex;align-items:center;gap:.6rem;min-width:0;flex:1">'
+      +'<div style="display:flex;align-items:center;gap:.6rem;min-width:0;flex:1;flex-wrap:wrap">'
       +'<span class="t-name" style="font-size:.85rem;font-weight:700">'+t.name+'</span>'
+      +'<span class="pill p-gray" style="font-size:.62rem">'+formatLabel+'</span>'
       +statusPill
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">'
@@ -3486,45 +3488,6 @@ function renderTournamentInlineTeams(t){
   if(!el) return;
   tViewingId=t.id;
 
-  // Standings
-  const standings=t.teams.map(function(team){
-    return {name:team.name,members:team.members,w:0,l:0,pts:0,color:teamColors(team.id)};
-  });
-  t.matches.filter(function(m){return m&&m.done;}).forEach(function(m){
-    const winner=m.scoreA>m.scoreB?m.teamA:m.teamB;
-    const loser=m.scoreA>m.scoreB?m.teamB:m.teamA;
-    standings[winner].w++;standings[winner].pts+=2;
-    standings[loser].l++;
-  });
-  const sortedS=[...standings].sort(function(a,b){return b.pts-a.pts||b.w-a.w;});
-
-  const allDone=t.matches.length>0&&t.matches.every(function(m){return m&&m.done;});
-  const medals=['🥇','🥈','🥉'];
-  const podiumColors=['var(--warn)','#C0C0C0','#CD7F32'];
-
-  // Podium banner if all matches done
-  const podiumHtml=allDone&&sortedS.length>=2?
-    '<div style="display:flex;gap:.5rem;margin-bottom:.85rem;flex-wrap:wrap">'
-    +sortedS.slice(0,Math.min(3,sortedS.length)).map(function(s,i){
-      return '<div style="flex:1;min-width:100px;background:rgba(255,255,255,.04);border:1px solid '+(i===0?'rgba(252,211,77,.3)':i===1?'rgba(192,192,192,.3)':'rgba(205,127,50,.3)')+';border-radius:var(--rs);padding:.7rem;text-align:center">'
-        +'<div style="font-size:1.5rem">'+medals[i]+'</div>'
-        +'<div style="font-size:.82rem;font-weight:700;color:'+s.color.text+';margin:.2rem 0">'+s.name+'</div>'
-        +'<div style="font-size:.7rem;color:var(--muted)">'+s.w+'T '+s.l+'B · '+s.pts+'đ</div>'
-        +'<div style="font-size:.68rem;font-weight:700;color:var(--text);margin-top:.2rem">'+s.members.join(', ')+'</div>'
-        +'</div>';
-    }).join('')
-    +'</div>'
-    :'';
-
-  const standHtml=podiumHtml+sortedS.map(function(s,i){
-    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:var(--rs);background:'+(i===0?'rgba(181,240,51,.08)':'rgba(255,255,255,.02)')+';margin-bottom:3px">'
-      +'<span style="font-weight:700;color:'+(i===0?'var(--warn)':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--muted)')+';min-width:20px">'+(medals[i]||('#'+(i+1)))+'</span>'
-      +'<span style="flex:1;font-size:.82rem;font-weight:600;color:'+s.color.text+'">'+s.name+'</span>'
-      +'<span style="font-size:.75rem;color:var(--muted)">'+s.w+'T '+s.l+'B</span>'
-      +'<span style="font-weight:700;color:var(--lime);min-width:24px;text-align:right">'+s.pts+'đ</span>'
-      +'</div>';
-  }).join('');
-
   // Teams display
   const teamsHtml=t.teams.map(function(team){
     const c=teamColors(team.id);
@@ -3573,10 +3536,6 @@ function renderTournamentInlineTeams(t){
   el.innerHTML='<div style="padding:.85rem 1rem;border-top:1px solid var(--border)">'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin-bottom:.85rem">'
     +teamsHtml
-    +'</div>'
-    +'<div style="margin-bottom:.85rem">'
-    +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">🏆 Bảng xếp hạng</div>'
-    +standHtml
     +'</div>'
     +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">📋 Trận đấu ('+t.matches.filter(function(m){return m&&m.done;}).length+'/'+t.matches.length+')</div>'
     +matchHtml
@@ -3660,10 +3619,9 @@ function renderTournamentInlineRoundRobin(t){
 
   el.innerHTML='<div style="padding:.85rem 1rem;border-top:1px solid var(--border)">'
     +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.6rem">🔁 Vòng tròn tính điểm — xếp hạng theo: Thắng &gt; Hiệu số điểm &gt; Đối đầu trực tiếp</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin-bottom:.85rem">'+teamsHtml+'</div>'
     +'<div style="margin-bottom:.85rem">'
     +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">🏆 Bảng xếp hạng</div>'
-    +podiumHtml+standHtml
+    +standHtml
     +'</div>'
     +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">📋 Trận đấu ('+t.matches.filter(m=>m&&m.done).length+'/'+t.matches.length+')</div>'
     +matchHtml
