@@ -1692,6 +1692,18 @@ function applyEloDelta(winnerNames, loserNames){
   loserNames.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.max(2,p.score-delta).toFixed(2));});
   return delta;
 }
+
+// Undo a previously-applied ELO delta before allowing a match result to be edited,
+// so re-confirming a corrected score doesn't double-count points.
+function reverseEloIfNeeded(m){
+  if(m.done && m.elo){
+    const oldWinnerIsA = m.scoreA > m.scoreB;
+    const winnerPair = oldWinnerIsA ? m.pairA : m.pairB;
+    const loserPair  = oldWinnerIsA ? m.pairB : m.pairA;
+    winnerPair.forEach(n=>{const p=gp(n); if(p) p.score=parseFloat(Math.max(2,Math.min(8,p.score-m.elo)).toFixed(2));});
+    loserPair.forEach(n=>{const p=gp(n); if(p) p.score=parseFloat(Math.max(2,Math.min(8,p.score+m.elo)).toFixed(2));});
+  }
+}
 function toggleCustomTien(){
   const val=document.getElementById('mTien').value;
   const inp=document.getElementById('mTienCustom');
@@ -3060,7 +3072,7 @@ function advanceGroupsPhase(t){
     notify('🥈 Bán kết hoàn tất! Đã có lịch Chung kết và Tranh giải 3-4.');
     return;
   }
-  if(t.phase==='final'){
+  if(t.phase==='final' || t.phase==='done'){
     if(!t.final.done || !t.thirdPlaceMatch.done) return;
     t.championIdx = t.final.winnerIdx;
     t.runnerIdx = (t.final.teamA===t.championIdx ? t.final.teamB : t.final.teamA);
@@ -3079,6 +3091,7 @@ function saveThirdPlaceResult(tId){
   const sb=parseInt(document.getElementById('tp_'+tId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+  reverseEloIfNeeded(t.thirdPlaceMatch);
   t.thirdPlaceMatch.scoreA=sa; t.thirdPlaceMatch.scoreB=sb; t.thirdPlaceMatch.done=true;
   t.thirdPlaceMatch.winnerIdx = sa>sb?t.thirdPlaceMatch.teamA:t.thirdPlaceMatch.teamB;
   t.thirdPlaceMatch.elo = applyEloDelta(sa>sb?t.thirdPlaceMatch.pairA:t.thirdPlaceMatch.pairB, sa>sb?t.thirdPlaceMatch.pairB:t.thirdPlaceMatch.pairA);
@@ -3096,6 +3109,7 @@ function saveGroupMatchResult(tId, mId){
   const sb=parseInt(document.getElementById('gs_'+tId+'_'+mId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+  reverseEloIfNeeded(m);
   m.scoreA=sa; m.scoreB=sb; m.done=true;
   m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
   advanceGroupsPhase(t);
@@ -3113,8 +3127,25 @@ function saveSemiResult(tId, sId){
   const sb=parseInt(document.getElementById('sf_'+tId+'_'+sId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+
+  const newWinnerIdx = sa>sb?m.teamA:m.teamB;
+  const isReEdit = m.done;
+  const qualifiersChange = isReEdit && m.winnerIdx!==newWinnerIdx && (t.final || t.thirdPlaceMatch);
+
+  if(qualifiersChange){
+    if(!confirm('Cập nhật kết quả vòng bán kết sẽ hủy kết quả ở Chung kết và Trận tranh giải 3. Bạn có muốn thay đổi không?')) return;
+    if(t.final && t.final.done) reverseEloIfNeeded(t.final);
+    if(t.thirdPlaceMatch && t.thirdPlaceMatch.done) reverseEloIfNeeded(t.thirdPlaceMatch);
+    t.final = null;
+    t.thirdPlaceMatch = null;
+    t.championIdx = null; t.runnerIdx = null; t.thirdIdx = null; t.fourthIdx = null;
+    t.status = 'active';
+    t.phase = 'semis';
+  }
+
+  reverseEloIfNeeded(m);
   m.scoreA=sa; m.scoreB=sb; m.done=true;
-  m.winnerIdx = sa>sb?m.teamA:m.teamB;
+  m.winnerIdx = newWinnerIdx;
   m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
   advanceGroupsPhase(t);
   saveAll();
@@ -3129,6 +3160,7 @@ function saveFinalResult(tId){
   const sb=parseInt(document.getElementById('fn_'+tId+'_b').value);
   if(isNaN(sa)||isNaN(sb)){alert('Vui lòng nhập điểm hợp lệ!');return;}
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
+  reverseEloIfNeeded(t.final);
   t.final.scoreA=sa; t.final.scoreB=sb; t.final.done=true;
   t.final.winnerIdx = sa>sb?t.final.teamA:t.final.teamB;
   t.final.elo = applyEloDelta(sa>sb?t.final.pairA:t.final.pairB, sa>sb?t.final.pairB:t.final.pairA);
@@ -3728,12 +3760,12 @@ function renderTournamentInlineGroups(t){
         + '<span>'+(winner===m.teamB?'👑 ':'')+tB.name+'</span>'
         + '<span class="ko-score">'+(isDone?m.scoreB:'–')+'</span>'
         + '</div>'
-      + (!isDone ? '<div class="ko-input-row">'
-          +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_a" placeholder="0"/>'
+      + '<div class="ko-input-row">'
+          +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_a" value="'+(isDone?m.scoreA:'')+'" placeholder="0"/>'
           +'<span style="color:var(--muted)">:</span>'
-          +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_b" placeholder="0"/>'
-          +'<button class="btn btn-lime btn-xs" style="margin-left:auto" onclick="'+saveFn+'">✓ Xác nhận</button>'
-        +'</div>' : '')
+          +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_b" value="'+(isDone?m.scoreB:'')+'" placeholder="0"/>'
+          +'<button class="btn '+(isDone?'btn-ghost':'btn-lime')+' btn-xs" style="margin-left:auto" onclick="'+saveFn+'">'+(isDone?'✏️ Sửa':'✓ Xác nhận')+'</button>'
+        +'</div>'
       + '</div>';
   }
 
