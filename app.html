@@ -4533,10 +4533,13 @@ async function refreshScorerList(){
       listEl.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Chưa có tài khoản Ghi trận nào.</div>';
     } else {
       listEl.innerHTML = scorers.map(([uid,u])=>
-        '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)">'
-        +'<div><div style="font-size:.85rem;font-weight:600">'+(u.displayName||u.email)+'</div>'
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border);gap:.5rem">'
+        +'<div style="min-width:0"><div style="font-size:.85rem;font-weight:600">'+(u.displayName||u.email)+'</div>'
         +'<div style="font-size:.72rem;color:var(--muted)">'+u.email+(u.username?' · @'+u.username:'')+'</div></div>'
+        +'<div style="display:flex;gap:.4rem;flex-shrink:0">'
+        +'<button class="btn btn-ghost btn-sm" onclick="openEditScorer(\''+uid+'\')">✏️ Sửa</button>'
         +'<button class="btn btn-ghost btn-sm" onclick="deleteScorer(\''+uid+'\')">🗑 Xóa</button>'
+        +'</div>'
         +'</div>'
       ).join('');
     }
@@ -4545,6 +4548,97 @@ async function refreshScorerList(){
     listEl.innerHTML = '<div style="color:var(--danger);font-size:.8rem">Lỗi tải danh sách: '+e.message+'</div>';
   }
 }
+
+window.openEditScorer = async (uid) => {
+  if(guardScorer())return;
+  try{
+    const u = await window._fbGet('user_roles/'+uid);
+    if(!u){ notify('❌ Không tìm thấy tài khoản.'); return; }
+    document.getElementById('editScorerUid').value = uid;
+    document.getElementById('editScorerName').value = u.displayName||'';
+    document.getElementById('editScorerUsername').value = u.username||'';
+    document.getElementById('editScorerCurrentEmail').textContent = u.email||'';
+    document.getElementById('editScorerNewEmail').value = '';
+    document.getElementById('editScorerCurrentPass').value = '';
+    document.getElementById('editScorerNewPass').value = '';
+    document.getElementById('editScorerErr').style.display='none';
+    openModal('editScorerModal');
+  }catch(e){ notify('❌ Lỗi: '+e.message); }
+};
+window.closeEditScorer = () => { closeModal('editScorerModal'); };
+
+window.saveScorerEdit = async () => {
+  if(guardScorer())return;
+  const errEl = document.getElementById('editScorerErr');
+  errEl.style.display='none';
+  const uid = document.getElementById('editScorerUid').value;
+  const name = document.getElementById('editScorerName').value.trim();
+  const uname = document.getElementById('editScorerUsername').value.trim();
+  const oldEmail = document.getElementById('editScorerCurrentEmail').textContent;
+  const newEmail = document.getElementById('editScorerNewEmail').value.trim();
+  const currentPass = document.getElementById('editScorerCurrentPass').value;
+  const newPass = document.getElementById('editScorerNewPass').value;
+  if(!name){ errEl.textContent='Vui lòng nhập tên hiển thị.'; errEl.style.display=''; return; }
+  if((newEmail || newPass) && !currentPass){
+    errEl.textContent='Cần nhập đúng "Mật khẩu hiện tại" của tài khoản này để đổi email/mật khẩu (Firebase yêu cầu xác thực lại trước khi thay đổi thông tin đăng nhập).';
+    errEl.style.display=''; return;
+  }
+  if(newPass && newPass.length<6){ errEl.textContent='Mật khẩu mới tối thiểu 6 ký tự.'; errEl.style.display=''; return; }
+
+  const btn = document.getElementById('editScorerSaveBtn');
+  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang lưu...';
+
+  try{
+    // 1) Cập nhật tên/username trong database (luôn thực hiện)
+    const u = (await window._fbGet('user_roles/'+uid)) || {};
+    const oldUname = u.username||'';
+    await window._fbSet('user_roles/'+uid, {...u, displayName:name, username:uname});
+    if(oldUname && oldUname!==uname) await window._fbSet('usernames/'+oldUname, null);
+    if(uname && uname!==oldUname){
+      const uCheck = await window._fbGet('usernames/'+uname);
+      if(uCheck && uCheck!==uid){ throw new Error('Tên đăng nhập "'+uname+'" đã được sử dụng bởi tài khoản khác.'); }
+      await window._fbSet('usernames/'+uname, uid);
+      await window._fbSet('usernames_email/'+uname, newEmail||oldEmail);
+    }
+
+    // 2) Nếu có đổi email/mật khẩu: đăng nhập tạm bằng app phụ để xác thực rồi cập nhật
+    if(newEmail || newPass){
+      const { initializeApp, getApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const { getAuth: getAuth2, signInWithEmailAndPassword, updateEmail, updatePassword } =
+        await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      let secondaryApp;
+      try { secondaryApp = getApp('secondary'); }
+      catch(e){
+        secondaryApp = initializeApp({
+          apiKey: "AIzaSyAF4GMR-pn-7MXbwtKIF9u-hp4azUqbF8E",
+          authDomain: "sollake-pick.firebaseapp.com",
+          projectId: "sollake-pick",
+        }, 'secondary');
+      }
+      const auth2 = getAuth2(secondaryApp);
+      const cred = await signInWithEmailAndPassword(auth2, oldEmail, currentPass);
+      if(newEmail && newEmail!==oldEmail){
+        await updateEmail(cred.user, newEmail);
+        await window._fbSet('user_roles/'+uid+'/email', newEmail);
+        if(uname) await window._fbSet('usernames_email/'+uname, newEmail);
+      }
+      if(newPass) await updatePassword(cred.user, newPass);
+      await auth2.signOut();
+    }
+
+    notify('✅ Đã cập nhật tài khoản Ghi trận');
+    closeEditScorer();
+    refreshScorerList();
+  }catch(e){
+    let msg = e.message;
+    if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential') msg='Mật khẩu hiện tại không đúng.';
+    else if(e.code==='auth/email-already-in-use') msg='Email mới đã được dùng cho tài khoản khác.';
+    else if(e.code==='auth/invalid-email') msg='Email mới không hợp lệ.';
+    else if(e.code==='auth/requires-recent-login') msg='Cần xác thực lại — vui lòng thử lại từ đầu.';
+    errEl.textContent='Lỗi: '+msg; errEl.style.display='';
+  }
+  btn.disabled=false; btn.textContent=oldTxt;
+};
 
 window.openScorerForm = () => { document.getElementById('scorerForm').style.display=''; };
 window.closeScorerForm = () => {
@@ -4778,6 +4872,45 @@ init();
       <div style="display:flex;gap:.5rem;justify-content:flex-end">
         <button class="btn btn-ghost" onclick="closeScorerForm()">Hủy</button>
         <button class="btn btn-lime" id="scorerSubmitBtn" onclick="doCreateScorer()">✅ Tạo tài khoản</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SỬA TÀI KHOẢN GHI TRẬN -->
+  <div class="modal-bg" id="editScorerModal">
+    <div class="modal">
+      <div class="modal-title-row"><div class="modal-title">✏️ Sửa tài khoản Ghi trận</div><button class="modal-x" onclick="closeEditScorer()" title="Đóng">✕</button></div>
+      <input type="hidden" id="editScorerUid"/>
+      <div class="fgroup">
+        <label>Tên hiển thị</label>
+        <input class="finput" id="editScorerName" placeholder="Nguyễn Văn A"/>
+      </div>
+      <div class="fgroup">
+        <label>Tên đăng nhập (username)</label>
+        <input class="finput" id="editScorerUsername" placeholder="VD: huy.nguyen" autocomplete="off"
+          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
+      </div>
+      <div class="fgroup">
+        <label>Email hiện tại</label>
+        <div id="editScorerCurrentEmail" style="font-size:.85rem;color:var(--muted);padding:.5rem 0"></div>
+      </div>
+      <div class="fgroup">
+        <label>Email mới (bỏ trống nếu không đổi)</label>
+        <input class="finput" id="editScorerNewEmail" placeholder="email-moi@example.com" type="email" autocomplete="off"/>
+      </div>
+      <div class="fgroup">
+        <label>Mật khẩu mới (bỏ trống nếu không đổi)</label>
+        <input class="finput" id="editScorerNewPass" placeholder="Tối thiểu 6 ký tự" type="password" autocomplete="new-password"/>
+      </div>
+      <div class="fgroup" style="padding-top:.5rem;border-top:1px solid var(--border)">
+        <label>Mật khẩu hiện tại của tài khoản này <span style="color:var(--muted);font-weight:400">(chỉ cần nhập nếu đổi email hoặc mật khẩu)</span></label>
+        <input class="finput" id="editScorerCurrentPass" placeholder="Mật khẩu hiện tại" type="password" autocomplete="off"/>
+        <div class="hint">Firebase yêu cầu xác thực lại bằng mật khẩu hiện tại trước khi cho phép đổi email/mật khẩu.</div>
+      </div>
+      <div id="editScorerErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeEditScorer()">Hủy</button>
+        <button class="btn btn-lime" id="editScorerSaveBtn" onclick="saveScorerEdit()">✅ Lưu thay đổi</button>
       </div>
     </div>
   </div>
