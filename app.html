@@ -1161,9 +1161,9 @@ function getTrophyCount(name){
   return count;
 }
 
-const avTrophy=(n,c)=>{
+const avTrophy=(n,c,lg='')=>{
   const tc = getTrophyCount(n);
-  return `<div class="av-trophy-wrap"><div class="av ${c||'c0'}">${ini(n)}</div>${tc>0?`<span class="av-trophy-badge">🏆 ${tc}</span>`:''}</div>`;
+  return `<div class="av-trophy-wrap"><div class="av ${lg} ${c||'c0'}">${ini(n)}</div>${tc>0?`<span class="av-trophy-badge">🏆 ${tc}</span>`:''}</div>`;
 };
 const avW=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${av(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
 const avWTrophy=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${avTrophy(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
@@ -1751,7 +1751,7 @@ function renderRanking(){
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
     return`<tr>
       <td><span class="rnum ${rc}">${medal}</span></td>
-      <td>${avW(p.name,p.color)}</td>
+      <td>${avWTrophy(p.name,p.color)}</td>
       <td><span style="font-size:1rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</span></td>
       <td>${s.played}</td><td class="ts">${s.wins}</td><td class="td">${s.losses}</td>
       <td><span class="pill ${wr>=60?'p-green':wr>=40?'p-yellow':'p-red'}">${wr}%</span></td>
@@ -1774,7 +1774,7 @@ function renderRanking(){
       <div class="card-item-row">
         <div class="av-wrap">
           <span class="rnum ${rc}" style="min-width:26px;text-align:center">${medal||('#'+(i+1))}</span>
-          ${av(p.name,p.color,'av-lg')}
+          ${avTrophy(p.name,p.color,'av-lg')}
           <div><div class="bold">${p.name}</div><div class="small tm">${getLevel(p.score).icon} ${getLevel(p.score).label}</div></div>
         </div>
         <div style="text-align:right">
