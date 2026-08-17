@@ -3029,8 +3029,7 @@ function setGroupSplitMethod(method){
   document.getElementById('groupSplitManualCard').classList.toggle('selected', method==='manual');
   if(method==='manual'){
     document.getElementById('groupSplitManualArea').style.display='';
-    tManualGroupAssign = {};
-    tCurrentTeams.forEach((t,i)=>{ tManualGroupAssign[i] = i < tCurrentTeams.length/2 ? 0 : 1; });
+    tManualGroupAssign = {}; // teamIdx -> 0 (Bảng A) | 1 (Bảng B) | chưa có key nghĩa là chưa xếp
     renderGroupSplitManual();
   } else {
     document.getElementById('groupSplitManualArea').style.display='none';
@@ -3038,32 +3037,56 @@ function setGroupSplitMethod(method){
   }
 }
 
-function toggleTeamGroup(teamIdx, group){
+function addTeamToGroup(teamIdx, group){
   tManualGroupAssign[teamIdx] = group;
+  renderGroupSplitManual();
+}
+function removeTeamFromGroup(teamIdx){
+  delete tManualGroupAssign[teamIdx];
   renderGroupSplitManual();
 }
 
 function renderGroupSplitManual(){
   const teamNames = TEAM_NAMES_8;
   const n = tCurrentTeams.length;
-  const html = tCurrentTeams.map((t,i)=>{
-    const c = teamColors(i);
-    const g = tManualGroupAssign[i];
-    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.5rem .7rem;margin-bottom:.4rem">'
-      +'<div><span style="font-weight:700;color:'+c.text+';font-size:.85rem">'+teamNames[i]+'</span> <span style="font-size:.72rem;color:var(--muted)">'+t.members.join(' & ')+'</span></div>'
-      +'<div style="display:flex;gap:.3rem;flex-shrink:0">'
-      +'<button class="btn btn-xs '+(g===0?'btn-lime':'btn-ghost')+'" onclick="toggleTeamGroup('+i+',0)">Bảng A</button>'
-      +'<button class="btn btn-xs '+(g===1?'btn-lime':'btn-ghost')+'" onclick="toggleTeamGroup('+i+',1)">Bảng B</button>'
-      +'</div></div>';
-  }).join('');
-  document.getElementById('groupSplitManualContent').innerHTML = html;
-
-  const countA = Object.values(tManualGroupAssign).filter(g=>g===0).length;
-  const countB = Object.values(tManualGroupAssign).filter(g=>g===1).length;
-  const errEl = document.getElementById('groupSplitErr');
   const half = n/2;
-  if(countA!==half || countB!==half){
-    errEl.textContent = '⚠️ Cần đúng '+half+' team ở mỗi bảng (hiện Bảng A: '+countA+', Bảng B: '+countB+').';
+
+  function teamChip(i, removable){
+    const c = teamColors(i);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.5rem .7rem;margin-bottom:.4rem">'
+      +'<div style="min-width:0"><span style="font-weight:700;color:'+c.text+';font-size:.85rem">'+teamNames[i]+'</span> <span style="font-size:.72rem;color:var(--muted)">'+tCurrentTeams[i].members.join(' & ')+'</span></div>'
+      +(removable
+        ? '<button class="btn btn-xs btn-ghost" style="flex-shrink:0" onclick="removeTeamFromGroup('+i+')">✕</button>'
+        : '<div style="display:flex;gap:.3rem;flex-shrink:0"><button class="btn btn-xs btn-ghost" onclick="addTeamToGroup('+i+',0)">+ Bảng A</button><button class="btn btn-xs btn-ghost" onclick="addTeamToGroup('+i+',1)">+ Bảng B</button></div>')
+      +'</div>';
+  }
+
+  const unassigned = Array.from({length:n},(_,i)=>i).filter(i=>tManualGroupAssign[i]===undefined);
+  const groupA = Array.from({length:n},(_,i)=>i).filter(i=>tManualGroupAssign[i]===0);
+  const groupB = Array.from({length:n},(_,i)=>i).filter(i=>tManualGroupAssign[i]===1);
+
+  const unassignedHtml = unassigned.length
+    ? '<div style="margin-bottom:1rem"><div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem">📋 Chưa xếp bảng ('+unassigned.length+')</div>'+unassigned.map(i=>teamChip(i,false)).join('')+'</div>'
+    : '';
+
+  const columnsHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">'
+    + '<div><div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem">📊 Bảng A ('+groupA.length+'/'+half+')</div>'
+      + (groupA.length ? groupA.map(i=>teamChip(i,true)).join('') : '<div style="font-size:.72rem;color:var(--muted);padding:.5rem;border:1px dashed var(--border);border-radius:var(--rs);text-align:center">Trống</div>')
+      + '</div>'
+    + '<div><div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem">📊 Bảng B ('+groupB.length+'/'+half+')</div>'
+      + (groupB.length ? groupB.map(i=>teamChip(i,true)).join('') : '<div style="font-size:.72rem;color:var(--muted);padding:.5rem;border:1px dashed var(--border);border-radius:var(--rs);text-align:center">Trống</div>')
+      + '</div>'
+    + '</div>';
+
+  document.getElementById('groupSplitManualContent').innerHTML = unassignedHtml + columnsHtml;
+
+  const errEl = document.getElementById('groupSplitErr');
+  if(unassigned.length>0){
+    errEl.textContent = '⚠️ Còn '+unassigned.length+' team chưa được xếp vào bảng nào.';
+    errEl.style.display='';
+    document.getElementById('groupSplitConfirmBtn').disabled = true;
+  } else if(groupA.length!==half || groupB.length!==half){
+    errEl.textContent = '⚠️ Cần đúng '+half+' team ở mỗi bảng (hiện Bảng A: '+groupA.length+', Bảng B: '+groupB.length+').';
     errEl.style.display='';
     document.getElementById('groupSplitConfirmBtn').disabled = true;
   } else {
@@ -4673,7 +4696,7 @@ async function refreshScorerList(){
       listEl.innerHTML = scorers.map(([uid,u])=>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border);gap:.5rem">'
         +'<div style="min-width:0"><div style="font-size:.85rem;font-weight:600">'+(u.displayName||u.email)+'</div>'
-        +'<div style="font-size:.72rem;color:var(--muted)">'+u.email+(u.username?' · @'+u.username:'')+'</div></div>'
+        +'<div style="font-size:.72rem;color:var(--muted)">'+(u.username?'@'+u.username:'—')+'</div></div>'
         +'<div style="display:flex;gap:.4rem;flex-shrink:0">'
         +'<button class="btn btn-ghost btn-sm" onclick="openEditScorer(\''+uid+'\')">✏️ Sửa</button>'
         +'<button class="btn btn-ghost btn-sm" onclick="deleteScorer(\''+uid+'\')">🗑 Xóa</button>'
@@ -5027,11 +5050,11 @@ init();
           oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"/>
       </div>
       <div class="fgroup">
-        <label>Mật khẩu mới (bỏ trống nếu không đổi)</label>
+        <label>Mật khẩu mới</label>
         <input class="finput" id="editScorerNewPass" placeholder="Tối thiểu 6 ký tự" type="password" autocomplete="new-password"/>
       </div>
       <div class="fgroup" style="padding-top:.5rem;border-top:1px solid var(--border)">
-        <label>Mật khẩu hiện tại của tài khoản này <span style="color:var(--muted);font-weight:400">(chỉ cần nhập nếu đổi mật khẩu)</span></label>
+        <label>Mật khẩu hiện tại</label>
         <input class="finput" id="editScorerCurrentPass" placeholder="Mật khẩu hiện tại" type="password" autocomplete="off"/>
       </div>
       <div id="editScorerErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
