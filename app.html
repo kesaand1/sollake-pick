@@ -907,8 +907,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
         </div>
       </div>
       <div class="filter-row">
-        <label>Từ</label><input type="date" class="finput" id="finFrom" onchange="_finPage=1;renderFinance()"/>
-        <label>Đến</label><input type="date" class="finput" id="finTo" onchange="_finPage=1;renderFinance()"/>
+        <label>Từ</label><input type="date" class="finput" id="finFrom" onchange="_finPage=1;renderFinance();renderDebt()"/>
+        <label>Đến</label><input type="date" class="finput" id="finTo" onchange="_finPage=1;renderFinance();renderDebt()"/>
       </div>
       <div id="finList"></div>
       <div id="finPager"></div>
@@ -1179,6 +1179,12 @@ window.notify = notify;
 
 // ══════════════════ PAGINATION (30 records/page) ══════════════════
 const PAGE_SIZE = 30;
+function paginateListSized(list, page, size){
+  const totalPages = Math.max(1, Math.ceil(list.length / size));
+  page = Math.min(Math.max(1, page), totalPages);
+  const start = (page - 1) * size;
+  return { pageItems: list.slice(start, start + size), page, totalPages, total: list.length };
+}
 let _matchPage = 1, _finPage = 1, _finePage = 1;
 
 function paginateList(list, page){
@@ -1982,7 +1988,7 @@ function popFineSel(){
 }
 function setFinPeriod(p){
   document.getElementById('finFrom').value=p==='all'?'':ago(30);
-  document.getElementById('finTo').value=today();renderFinance();
+  document.getElementById('finTo').value=today();renderFinance();renderDebt();
 }
 function addFinance(){if(guardScorer())return;
   const type=document.getElementById('finType').value;
@@ -2054,7 +2060,7 @@ function renderFinance(){
     <div class="sc"><div class="val ${bal>=0?'tl':'td'}">${fmt(Math.abs(bal))}</div><div class="lbl">${bal>=0?'Quỹ hiện có':'Âm quỹ'}</div></div>
     <div class="sc"><div class="val">${fullList.length}</div><div class="lbl">Giao dịch</div></div>`;
   if(!fullList.length){document.getElementById('finList').innerHTML=empty('💰','Chưa có giao dịch nào');document.getElementById('finPager').innerHTML='';return;}
-  const {pageItems:list, page, totalPages} = paginateList(fullList, _finPage);
+  const {pageItems:list, page, totalPages} = paginateListSized(fullList, _finPage, 20);
   _finPage = page;
   document.getElementById('finList').innerHTML=list.map(f=>`<div class="fin-row">
     <div class="fleft"><div class="bold" style="overflow-wrap:break-word">${f.desc}</div><div class="small tm">${f.player||'Quỹ chung'} · ${fmtD(f.date)}</div></div>
@@ -2087,9 +2093,11 @@ function renderFines(){
   document.getElementById('finePager').innerHTML=pagerHTML(page, totalPages, 'gotoFinePage');
 }
 function renderDebt(){
+  const from=document.getElementById('finFrom').value;
+  const to=document.getElementById('finTo').value;
   const dm={};
   players.filter(p=>p.visible).forEach(p=>{dm[p.name]={debt:0,paid:0,count:0}});
-  fines.forEach(f=>{
+  fines.filter(f=>inR(f.date,from,to)).forEach(f=>{
     if(!dm[f.player]) dm[f.player]={debt:0,paid:0,count:0};
     dm[f.player].count++;
     if(!f.paid) dm[f.player].debt+=f.amount;
