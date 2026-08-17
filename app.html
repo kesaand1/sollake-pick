@@ -2769,7 +2769,9 @@ let tCurrentName     = '';
 let tMode   = 'teams';      // 'teams' | 'tournament'
 let tFormat = 'roundrobin'; // 'roundrobin' | 'singleelim'
 let tAssign = 'auto';       // 'auto' | 'manual'
-let tManualAssign = {};     // { playerName: teamIndex } for manual assignment
+let tManualAssign = {};     // { "teamIdx_slotIdx": playerName } for manual assignment
+let tManualGroupAssign = null; // { teamIdx: 0|1 } random Bảng A/B assignment for manual mode
+let tCurrentGroupAssignment = null; // { teamIdx: 0|1 } random Bảng A/B assignment for auto mode
 let tViewingId       = null;
 
 function openNewTournamentModal(){if(guardScorer())return;
@@ -2817,6 +2819,8 @@ function setTAssign(a){
   tAssign = a;
   document.getElementById('tAssignCardAuto').classList.toggle('selected', a==='auto');
   document.getElementById('tAssignCardManual').classList.toggle('selected', a==='manual');
+  document.getElementById('tPlayersSection').style.display = a==='manual' ? 'none' : '';
+  document.getElementById('tManualNote').style.display = a==='manual' ? '' : 'none';
   updatePrimaryBtn();
 }
 function updatePrimaryBtn(){
@@ -2901,6 +2905,7 @@ function generateGroupsTeamsAuto(){if(guardScorer())return;
   }
   tCurrentName = name;
   tCurrentTeams = balanceTeams(tSelectedPlayers, tc, ts);
+  tCurrentGroupAssignment = assignGroupsRandom(tc);
   showTeamSuggestion(tc, ts);
   closeModal('newTournamentModal');
   openModal('teamSuggestionModal');
@@ -2908,7 +2913,7 @@ function generateGroupsTeamsAuto(){if(guardScorer())return;
 
 function confirmTeamStep(){
   if(tMode==='teams'){ confirmCreateTournament(); return; }
-  if(tMode==='groups'){ createGroupsFromTeams(tCurrentTeams); closeModal('teamSuggestionModal'); return; }
+  if(tMode==='groups'){ createGroupsFromTeams(tCurrentTeams, tCurrentGroupAssignment); closeModal('teamSuggestionModal'); return; }
   createTournamentFromTeams(tCurrentTeams);
   closeModal('teamSuggestionModal');
 }
@@ -2917,81 +2922,97 @@ function openManualTeamAssign(){if(guardScorer())return;
   const tc = tMode==='groups' ? (parseInt(document.getElementById('tGroupTeamCount').value)||3)*2 : (parseInt(document.getElementById('tTeamCount').value)||4);
   const ts = tMode==='groups' ? 2 : (parseInt(document.getElementById('tTeamSize').value)||2);
   const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
-  const need = tc*ts;
-  if(tSelectedPlayers.length !== need){
-    alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
-  }
   tCurrentName = name;
-  // Default assignment: fill teams in order
-  tManualAssign = {};
-  tSelectedPlayers.forEach((n,i)=>{ tManualAssign[n] = i % tc; });
+  tManualAssign = {}; // key: "teamIdx_slotIdx" -> player name
+  tManualGroupAssign = tMode==='groups' ? assignGroupsRandom(tc) : null;
   closeModal('newTournamentModal');
   openModal('manualAssignModal');
   renderManualAssign(tc, ts);
 }
 
-function setManualPlayerTeam(name, teamIdx){
-  tManualAssign[name] = parseInt(teamIdx);
+function setManualSlot(teamIdx, slotIdx, name){
+  const key = teamIdx+'_'+slotIdx;
+  if(name) tManualAssign[key] = name; else delete tManualAssign[key];
   const tc = tMode==='groups' ? (parseInt(document.getElementById('tGroupTeamCount').value)||3)*2 : (parseInt(document.getElementById('tTeamCount').value)||4);
   const ts = tMode==='groups' ? 2 : (parseInt(document.getElementById('tTeamSize').value)||2);
   renderManualAssign(tc, ts);
 }
 
 function renderManualAssign(tc, ts){
-  const teamNames=['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6','Team 7','Team 8'];
-  const counts = Array(tc).fill(0);
-  Object.values(tManualAssign).forEach(ti=>counts[ti]++);
+  const teamNames = TEAM_NAMES_8;
   const isGroups = tMode==='groups';
+  const vis = players.filter(p=>p.visible);
+  const chosenNames = Object.values(tManualAssign);
+  const dupes = chosenNames.filter((n,i)=>chosenNames.indexOf(n)!==i);
 
-  const countsSummary = isGroups
-    ? ['A','B'].map((label, gi)=>{
-        const pills = Array.from({length:tc},(_,i)=>i).filter(i=>i%2===gi).map(i=>{
-          const c=teamColors(i);
-          const full = counts[i]===ts;
-          return '<span class="pill" style="background:'+c.bg+';border:1px solid '+c.border+';color:'+c.text+'">'+teamNames[i]+': '+counts[i]+'/'+ts+(full?' ✓':'')+'</span>';
-        }).join('');
-        return '<div style="margin-bottom:.5rem"><div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.3rem">📊 Bảng '+label+'</div><div style="display:flex;gap:.5rem;flex-wrap:wrap">'+pills+'</div></div>';
+  function teamBlock(i){
+    const c = teamColors(i);
+    const slots = Array.from({length:ts},(_,s)=>{
+      const key=i+'_'+s;
+      const current = tManualAssign[key]||'';
+      const options = '<option value="">— Chọn người chơi —</option>' +
+        vis.map(p=>'<option value="'+p.name+'"'+(current===p.name?' selected':'')+'>'+p.name+' ('+p.score.toFixed(2)+')</option>').join('');
+      return '<select class="finput" style="margin-bottom:.35rem" onchange="setManualSlot('+i+','+s+',this.value)">'+options+'</select>';
+    }).join('');
+    const groupLabel = isGroups ? ' · Bảng '+(tManualGroupAssign[i]===0?'A':'B') : '';
+    return '<div style="border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.6rem .7rem;margin-bottom:.6rem">'
+      +'<div style="font-size:.75rem;font-weight:700;color:'+c.text+';margin-bottom:.4rem">'+teamNames[i]+groupLabel+'</div>'
+      +slots
+      +'</div>';
+  }
+
+  const teamsHtml = isGroups
+    ? ['A','B'].map((label,gi)=>{
+        const teamsInGroup = Array.from({length:tc},(_,i)=>i).filter(i=>tManualGroupAssign[i]===gi);
+        return '<div style="margin-bottom:.75rem"><div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem">📊 Bảng '+label+'</div>'+teamsInGroup.map(teamBlock).join('')+'</div>';
       }).join('')
-    : '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">'
-      + Array.from({length:tc},(_,i)=>{
-          const c=teamColors(i);
-          const full = counts[i]===ts;
-          return '<span class="pill" style="background:'+c.bg+';border:1px solid '+c.border+';color:'+c.text+'">'+teamNames[i]+': '+counts[i]+'/'+ts+(full?' ✓':'')+'</span>';
-        }).join('')
-      + '</div>';
+    : Array.from({length:tc},(_,i)=>i).map(teamBlock).join('');
 
-  const rows = tSelectedPlayers.map(n=>{
-    const p=gp(n);
-    const options = Array.from({length:tc},(_,i)=>'<option value="'+i+'"'+(tManualAssign[n]===i?' selected':'')+'>'+teamNames[i]+(isGroups?' (Bảng '+(i%2===0?'A':'B')+')':'')+'</option>').join('');
-    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem .6rem;border:1px solid var(--border);border-radius:var(--rs);margin-bottom:.4rem">'
-      + '<span style="font-size:.85rem">'+n+(p?' <span style="color:var(--muted);font-size:.72rem">('+p.score.toFixed(2)+')</span>':'')+'</span>'
-      + '<select class="finput" style="width:auto;max-width:160px" onchange="setManualPlayerTeam(\''+n+'\',this.value)">'+options+'</select>'
-      + '</div>';
-  }).join('');
+  document.getElementById('manualAssignContent').innerHTML = teamsHtml;
 
-  document.getElementById('manualAssignContent').innerHTML = countsSummary + rows;
+  const filled = Object.keys(tManualAssign).length;
+  const need = tc*ts;
   const errEl = document.getElementById('manualAssignErr');
-  const balanced = counts.every(c=>c===ts);
-  if(!balanced){ errEl.textContent='⚠️ Mỗi team cần đúng '+ts+' người. Chọn team cho từng người ở dropdown bên phải.'; errEl.style.display=''; }
-  else errEl.style.display='none';
+  if(dupes.length){
+    errEl.textContent = '⚠️ Có người chơi bị chọn trùng ở nhiều vị trí: '+[...new Set(dupes)].join(', ');
+    errEl.style.display='';
+  } else if(filled < need){
+    errEl.textContent = '⚠️ Còn thiếu '+(need-filled)+' vị trí chưa chọn người chơi.';
+    errEl.style.display='';
+  } else {
+    errEl.style.display='none';
+  }
 }
 
 function confirmManualAssign(){
   const tc = tMode==='groups' ? (parseInt(document.getElementById('tGroupTeamCount').value)||3)*2 : (parseInt(document.getElementById('tTeamCount').value)||4);
   const ts = tMode==='groups' ? 2 : (parseInt(document.getElementById('tTeamSize').value)||2);
-  const counts = Array(tc).fill(0);
-  Object.values(tManualAssign).forEach(ti=>counts[ti]++);
-  if(!counts.every(c=>c===ts)){ alert('Vui lòng cân bằng đủ số người mỗi team trước khi tạo giải!'); return; }
-  const teams = Array.from({length:tc},(_,i)=>({id:i, members: tSelectedPlayers.filter(n=>tManualAssign[n]===i)}));
+  const need = tc*ts;
+  const filled = Object.keys(tManualAssign).length;
+  const names = Object.values(tManualAssign);
+  const dupes = names.filter((n,i)=>names.indexOf(n)!==i);
+  if(filled < need){ alert('Vui lòng chọn đủ người chơi cho tất cả các vị trí!'); return; }
+  if(dupes.length){ alert('Có người chơi bị chọn trùng ở nhiều vị trí: '+[...new Set(dupes)].join(', ')); return; }
+  const teams = Array.from({length:tc},(_,i)=>({
+    id:i,
+    members: Array.from({length:ts},(_,s)=>tManualAssign[i+'_'+s]),
+    group: isGroupsMode() ? tManualGroupAssign[i] : undefined
+  }));
   if(tMode==='teams'){
     tCurrentTeams = teams;
     confirmCreateTournament();
   } else if(tMode==='groups'){
-    createGroupsFromTeams(teams);
+    createGroupsFromTeams(teams, tManualGroupAssign);
   } else {
     createTournamentFromTeams(teams);
   }
   closeModal('manualAssignModal');
+}
+function isGroupsMode(){ return tMode==='groups'; }
+function backToNewTournamentModal(){
+  closeModal('manualAssignModal');
+  closeModal('teamSuggestionModal');
+  openModal('newTournamentModal');
 }
 
 function generateTeams(){if(guardScorer())return;
@@ -3062,8 +3083,8 @@ function showTeamSuggestion(tc, ts){
   let content;
   if(tMode==='groups'){
     // Group assignment must match createGroupsFromTeams: alternate by index (0,2,4...=A, 1,3,5...=B)
-    const groupACards = tCurrentTeams.map((t,i)=>({t,i})).filter(x=>x.i%2===0).map(x=>renderTeamCard(x.t,x.i)).join('');
-    const groupBCards = tCurrentTeams.map((t,i)=>({t,i})).filter(x=>x.i%2===1).map(x=>renderTeamCard(x.t,x.i)).join('');
+    const groupACards = tCurrentTeams.map((t,i)=>({t,i})).filter(x=>tCurrentGroupAssignment[x.i]===0).map(x=>renderTeamCard(x.t,x.i)).join('');
+    const groupBCards = tCurrentTeams.map((t,i)=>({t,i})).filter(x=>tCurrentGroupAssignment[x.i]===1).map(x=>renderTeamCard(x.t,x.i)).join('');
     content =
       '<div style="margin-bottom:.5rem">'
       +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">📊 Bảng A</div>'
@@ -3219,9 +3240,23 @@ function genGroupRoundRobin(groupTeams){
   return matches;
 }
 
-function createGroupsFromTeams(rawTeams){
-  // Alternate teams into 2 groups (A/B) for balanced strength across groups
-  const builtTeams = rawTeams.map((t,i)=>({ id:i, name:TEAM_NAMES_8[i]||('Team '+(i+1)), members:t.members, group: i%2 }));
+// Randomly split n teams into 2 equal groups (Bảng A / Bảng B) — returns {teamIdx: 0|1}
+function assignGroupsRandom(n){
+  const idxArr = Array.from({length:n},(_,i)=>i);
+  for(let i=idxArr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [idxArr[i],idxArr[j]] = [idxArr[j],idxArr[i]];
+  }
+  const half = Math.floor(n/2);
+  const groupOf = {};
+  idxArr.forEach((teamIdx,pos)=>{ groupOf[teamIdx] = pos<half ? 0 : 1; });
+  return groupOf;
+}
+
+function createGroupsFromTeams(rawTeams, groupAssignment){
+  // Random split into 2 groups (A/B) — reuse a precomputed assignment if given (e.g. from preview), else generate fresh
+  const groupOf = groupAssignment || assignGroupsRandom(rawTeams.length);
+  const builtTeams = rawTeams.map((t,i)=>({ id:i, name:TEAM_NAMES_8[i]||('Team '+(i+1)), members:t.members, group: groupOf[i] }));
   const groupA = builtTeams.filter(tm=>tm.group===0);
   const groupB = builtTeams.filter(tm=>tm.group===1);
   let mid=1;
@@ -5163,11 +5198,14 @@ init();
         <option value="20">20 người/team</option>
       </select>
     </div>
-    <div class="fgroup">
-      <label id="tPlayersLabel">Chọn thành viên tham gia (cần 8 người)</label>
-      <div id="tPlayersList" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem;max-height:200px;overflow-y:auto;padding:.5rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs)"></div>
+    <div id="tPlayersSection">
+      <div class="fgroup">
+        <label id="tPlayersLabel">Chọn thành viên tham gia (cần 8 người)</label>
+        <div id="tPlayersList" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem;max-height:200px;overflow-y:auto;padding:.5rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs)"></div>
+      </div>
+      <div id="tValidation" style="font-size:.78rem;margin-top:.3rem"></div>
     </div>
-    <div id="tValidation" style="font-size:.78rem;margin-top:.3rem"></div>
+    <div id="tManualNote" style="display:none;font-size:.78rem;color:var(--muted);margin-top:.3rem;padding:.6rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs)">✋ Ở chế độ tự chọn thủ công, bạn sẽ chọn trực tiếp từng thành viên vào từng team ở bước tiếp theo — không cần chọn trước danh sách tham gia.</div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('newTournamentModal')">Hủy</button>
       <button class="btn btn-lime" id="tPrimaryBtn" onclick="generateTeams()">⚡ Chia đội</button>
@@ -5182,6 +5220,7 @@ init();
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">AI đã cân bằng theo điểm số, phong độ và trình độ.</div>
     <div id="teamSuggestionContent"></div>
     <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="backToNewTournamentModal()">← Quay lại</button>
       <button class="btn btn-lime" style="margin-left:auto" onclick="confirmTeamStep()">✅ Tạo giải đấu</button>
     </div>
   </div>
@@ -5191,10 +5230,11 @@ init();
 <div class="modal-bg" id="manualAssignModal">
   <div class="modal" style="max-width:600px">
     <div class="modal-title-row"><div class="modal-title">✋ Chia đội thủ công</div><button class="modal-x" onclick="closeModal('manualAssignModal')" title="Đóng">✕</button></div>
-    <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Bấm vào tên để chuyển người chơi sang team tiếp theo.</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Chọn người chơi cho từng vị trí trong mỗi team.</div>
     <div id="manualAssignContent"></div>
     <div id="manualAssignErr" style="color:var(--danger);font-size:.78rem;margin-top:.5rem;display:none"></div>
     <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="backToNewTournamentModal()">← Quay lại</button>
       <button class="btn btn-ghost" onclick="closeModal('manualAssignModal');openModal('newTournamentModal')">← Quay lại</button>
       <button class="btn btn-lime" onclick="confirmManualAssign()">✅ Tạo giải đấu</button>
     </div>
