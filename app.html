@@ -1150,20 +1150,18 @@ const ago=n=>{const d=nowGMT7();d.setUTCDate(d.getUTCDate()-n);return d.toISOStr
 const ini=n=>n.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();
 const av=(n,c,lg='')=>`<div class="av ${lg} ${c||'c0'}">${ini(n)}</div>`;
 
-function getTrophyCount(name){
-  let count=0;
-  tournaments.forEach(t=>{
-    if(t.status!=='done') return;
-    const top = typeof getTournamentTopStandings==='function' ? getTournamentTopStandings(t) : [];
-    const champ = top[0];
-    if(champ && champ.members && champ.members.includes(name)) count++;
-  });
-  return count;
+function isLatestChampion(name){
+  const doneTournaments = tournaments.filter(t=>t.status==='done').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const latestT = doneTournaments[0];
+  if(!latestT) return false;
+  const top = typeof getTournamentTopStandings==='function' ? getTournamentTopStandings(latestT) : [];
+  const champ = top[0];
+  return !!(champ && champ.members && champ.members.includes(name));
 }
 
 const avTrophy=(n,c,lg='')=>{
-  const tc = getTrophyCount(n);
-  return `<div class="av-trophy-wrap"><div class="av ${lg} ${c||'c0'}">${ini(n)}</div>${tc>0?`<span class="av-trophy-badge">🏆 ${tc}</span>`:''}</div>`;
+  const isChamp = isLatestChampion(n);
+  return `<div class="av-trophy-wrap"><div class="av ${lg} ${c||'c0'}">${ini(n)}</div>${isChamp?`<span class="av-trophy-badge">🏆</span>`:''}</div>`;
 };
 const avW=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${av(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
 const avWTrophy=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${avTrophy(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
@@ -1672,10 +1670,7 @@ function renderOverviewCards(){
   const topNopData  = topNopList.length ? topNopList[0][1] : null;
 
   const champMembersHtml = latestChampion
-    ? latestChampion.members.map(n=>{
-        const tc = typeof getTrophyCount==='function' ? getTrophyCount(n) : 0;
-        return n + (tc>0 ? ' <span style="display:inline-flex;align-items:center;gap:2px;background:#FACC15;color:#0B1929;font-size:.65rem;font-weight:800;padding:1px 6px;border-radius:50px;vertical-align:middle">🏆 '+tc+'</span>' : '');
-      }).join(' & ')
+    ? latestChampion.members.map(n=>n + ' <span style="display:inline-flex;align-items:center;gap:2px;background:#FACC15;color:#0B1929;font-size:.65rem;font-weight:800;padding:1px 6px;border-radius:50px;vertical-align:middle">🏆</span>').join(' & ')
     : '';
 
   el.innerHTML = `
@@ -2344,9 +2339,9 @@ function renderProfile(name){
   // Hero
   document.getElementById('profileAv').className = 'profile-av ' + p.color;
   document.getElementById('profileAv').textContent = ini(name);
-  const profTrophyCount = typeof getTrophyCount==='function' ? getTrophyCount(name) : 0;
+  const profIsChamp = typeof isLatestChampion==='function' ? isLatestChampion(name) : false;
   const profTrophyBadge = document.getElementById('profileTrophyBadge');
-  if(profTrophyCount>0){ profTrophyBadge.textContent='🏆 '+profTrophyCount; profTrophyBadge.style.display=''; }
+  if(profIsChamp){ profTrophyBadge.textContent='🏆'; profTrophyBadge.style.display=''; }
   else { profTrophyBadge.style.display='none'; }
   document.getElementById('profileName').textContent = name;
   document.getElementById('profileScore').textContent = p.score.toFixed(2);
