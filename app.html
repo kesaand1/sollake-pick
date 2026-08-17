@@ -729,8 +729,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <button class="back-btn" onclick="goBack()">← Quay lại</button>
   <div class="profile-hero">
     <div style="position:relative;flex-shrink:0">
-      <div class="profile-av" id="profileAv"></div>
+      <div class="profile-av" id="profileAv" style="cursor:pointer" title="Bấm để đổi ảnh đại diện"></div>
       <span class="av-trophy-badge" id="profileTrophyBadge" style="display:none;font-size:.72rem;padding:2px 7px;bottom:-6px;right:-10px"></span>
+      <span id="profileAvEditHint" style="display:none;position:absolute;top:-4px;right:-4px;width:24px;height:24px;border-radius:50%;background:var(--lime);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:.75rem;border:2px solid var(--card);pointer-events:none">📷</span>
     </div>
     <div class="profile-info">
       <div class="profile-name" id="profileName"></div>
@@ -1406,7 +1407,6 @@ function renderPlayers(){
     <td class="tm small">${fmtD(p.joined)}</td>
     <td>${genderLabel(p.gender)}</td>
     <td><div class="gap">
-      <button class="btn btn-ghost btn-xs" onclick="openEditAvatar(${p.id})">🖼️ Ảnh</button>
       <button class="btn btn-ghost btn-xs" onclick="editScore(${p.id})">✏️ Điểm</button>
       <button class="btn btn-ghost btn-xs" onclick="togglePlayerVis(${p.id})">${p.visible?'🙈 Ẩn':'👁 Hiện'}</button>
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑</button>
@@ -1422,7 +1422,6 @@ function renderPlayers(){
       <span style="font-weight:700;font-size:1.25rem;color:var(--lime)">${p.score.toFixed(2)}</span>
     </div>
     <div class="gap mt1">
-      <button class="btn btn-ghost btn-xs" onclick="openEditAvatar(${p.id})">🖼️ Ảnh</button>
       <button class="btn btn-ghost btn-xs" onclick="editScore(${p.id})">✏️ Sửa điểm</button>
       <button class="btn btn-ghost btn-xs" onclick="togglePlayerVis(${p.id})">${p.visible?'🙈 Ẩn':'👁 Hiện'}</button>
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑 Xóa</button>
@@ -2457,12 +2456,16 @@ function renderProfile(name){
   // Hero
   document.getElementById('profileAv').className = 'profile-av ' + p.color;
   if(p.avatarUrl){
-    document.getElementById('profileAv').style.cssText='padding:0;overflow:hidden';
+    document.getElementById('profileAv').style.cssText='cursor:pointer;padding:0;overflow:hidden';
     document.getElementById('profileAv').innerHTML='<img src="'+p.avatarUrl+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt=""/>';
   } else {
-    document.getElementById('profileAv').style.cssText='';
+    document.getElementById('profileAv').style.cssText='cursor:pointer';
     document.getElementById('profileAv').textContent = ini(name);
   }
+  const canEditAvatar = window._userRole==='admin';
+  document.getElementById('profileAv').onclick = canEditAvatar ? (()=>openEditAvatar(p.id)) : null;
+  document.getElementById('profileAv').style.cursor = canEditAvatar ? 'pointer' : 'default';
+  document.getElementById('profileAvEditHint').style.display = canEditAvatar ? '' : 'none';
   const profIsChamp = typeof isLatestChampion==='function' ? isLatestChampion(name) : false;
   const profTrophyBadge = document.getElementById('profileTrophyBadge');
   if(profIsChamp){ profTrophyBadge.textContent='🏆'; profTrophyBadge.style.display=''; }
