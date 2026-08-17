@@ -874,6 +874,19 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="btn btn-lime" onclick="openModal('addPlayerModal')">+ Thêm thành viên</button>
     <button class="btn btn-ghost" onclick="toggleHidden()" id="hiddenBtn">👁 Xem thành viên ẩn</button>
   </div>
+  <div class="filter-row" style="margin-bottom:.85rem">
+    <label>Tìm tên</label>
+    <input class="finput" id="playerSearchName" placeholder="Nhập tên thành viên..." oninput="renderPlayers()" style="flex:1;min-width:160px"/>
+    <label>Trình độ</label>
+    <select class="finput" id="playerFilterLevel" onchange="renderPlayers()" style="min-width:160px">
+      <option value="">— Tất cả —</option>
+      <option value="lv-moi">🌱 Người mới</option>
+      <option value="lv-trungbinh">📈 Trung bình</option>
+      <option value="lv-nangcao">🔥 Nâng cao</option>
+      <option value="lv-tuyenthu">⚡ Tuyển thủ</option>
+      <option value="lv-quocgia">🏅 VĐV Quốc gia</option>
+    </select>
+  </div>
   <div class="panel">
     <div class="desk tbl-wrap" id="playerD"></div>
     <div class="mob" id="playerM"></div>
@@ -925,6 +938,15 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div id="levelPreview" style="margin-top:.5rem;display:flex;align-items:center;gap:.5rem;min-height:24px"></div>
     </div>
     <div class="fgroup"><label>Ghi chú</label><input class="finput" id="pNote" placeholder="Thông tin thêm..."/></div>
+    <div class="fgroup">
+      <label>Giới tính <span style="color:var(--muted);font-weight:400">(không bắt buộc)</span></label>
+      <select class="finput" id="pGender">
+        <option value="">— Không chọn —</option>
+        <option value="male">Nam</option>
+        <option value="female">Nữ</option>
+        <option value="hidden">Ẩn số</option>
+      </select>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('addPlayerModal')">Hủy</button>
       <button class="btn btn-lime" onclick="addPlayer()">Thêm thành viên</button>
@@ -1245,14 +1267,16 @@ function addPlayer(){if(guardScorer())return;
   const name=document.getElementById('pName').value.trim();
   const score=parseFloat(parseFloat(document.getElementById('pScore').value).toFixed(2));
   const note=document.getElementById('pNote').value.trim();
+  const gender=document.getElementById('pGender').value;
   if(!name)return alert('Vui lòng nhập tên');
   if(isNaN(score)||score<2||score>8)return alert('Điểm phải từ 2.00 đến 8.00');
   if(players.find(p=>p.name===name))return alert('Tên đã tồn tại');
   const color=COLORS[players.length%8];
-  players.push({id:nP++,name,score,note,color,visible:true,joined:today()});
+  players.push({id:nP++,name,score,note,gender,color,visible:true,joined:today()});
   saveAll();renderPlayers();closeModal('addPlayerModal');
   ['pName','pNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pScore').value='3.00';
+  document.getElementById('pGender').value='';
   document.getElementById('levelPreview').innerHTML='';
   notify('✅ Đã thêm: '+name);
 }
@@ -1276,9 +1300,19 @@ function delPlayer(id){if(guardScorer())return;
   players=players.filter(x=>x.id!==id);saveAll();renderPlayers();notify('🗑 Đã xóa '+p.name);
 }
 function renderPlayers(){
-  const list=showHidden?players.filter(p=>!p.visible):players.filter(p=>p.visible);
+  let list=showHidden?players.filter(p=>!p.visible):players.filter(p=>p.visible);
+  const searchName=(document.getElementById('playerSearchName')||{}).value||'';
+  const filterLevel=(document.getElementById('playerFilterLevel')||{}).value||'';
+  if(searchName.trim()){
+    const q=searchName.trim().toLowerCase();
+    list=list.filter(p=>p.name.toLowerCase().includes(q));
+  }
+  if(filterLevel){
+    list=list.filter(p=>getLevel(p.score).pill===filterLevel);
+  }
+  const genderLabel=g=>g==='male'?'<span class="pill p-gray" style="color:#60A5FA;background:rgba(96,165,250,.12)">♂ Nam</span>':g==='female'?'<span class="pill p-gray" style="color:#F472B6;background:rgba(244,114,182,.12)">♀ Nữ</span>':g==='hidden'?'<span class="pill p-gray">🙈 Ẩn số</span>':'<span class="tm">—</span>';
   if(!list.length){
-    const e=empty('👥','Chưa có thành viên nào');
+    const e=empty('👥', players.length ? 'Không tìm thấy thành viên phù hợp' : 'Chưa có thành viên nào');
     document.getElementById('playerD').innerHTML=e;document.getElementById('playerM').innerHTML=e;return;
   }
   const rows=list.map((p,i)=>{const lv=getLevel(p.score);return`<tr>
@@ -1287,19 +1321,19 @@ function renderPlayers(){
     <td><span style="font-weight:700;color:var(--lime);font-size:1rem">${p.score.toFixed(2)}</span></td>
     <td><span class="pill ${lv.pill}">${lv.icon} ${lv.label}</span></td>
     <td class="tm small">${fmtD(p.joined)}</td>
-    <td class="tm small ell" style="max-width:120px">${p.note||'—'}</td>
+    <td>${genderLabel(p.gender)}</td>
     <td><div class="gap">
       <button class="btn btn-ghost btn-xs" onclick="editScore(${p.id})">✏️ Điểm</button>
       <button class="btn btn-ghost btn-xs" onclick="togglePlayerVis(${p.id})">${p.visible?'🙈 Ẩn':'👁 Hiện'}</button>
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑</button>
     </div></td>
   </tr>`}).join('');
-  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Kèo</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('playerD').innerHTML=`<table><thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Trình độ</th><th>Ngày vào</th><th>Giới tính</th><th>Thao tác</th></tr></thead><tbody>${rows}</tbody></table>`;
   const cards=list.map((p,i)=>{const lv=getLevel(p.score);return`<div class="card-item">
     <div class="card-item-row">
       <div class="av-wrap" onclick="openProfile('${p.name}')" style="cursor:pointer">${avTrophy(p.name,p.color)}<div>
         <div class="bold" style="text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.25)"><span class="tm" style="font-weight:400;margin-right:.3rem">${i+1}.</span>${p.name}${p.visible?'':' <span class="hbadge">Ẩn</span>'}</div>
-        <div class="small tm"><span class="pill ${lv.pill}" style="font-size:.62rem">${lv.icon} ${lv.label}</span> · ${fmtD(p.joined)}</div>
+        <div class="small tm"><span class="pill ${lv.pill}" style="font-size:.62rem">${lv.icon} ${lv.label}</span> · ${fmtD(p.joined)} ${p.gender?' · '+genderLabel(p.gender):''}</div>
       </div></div>
       <span style="font-weight:700;font-size:1.25rem;color:var(--lime)">${p.score.toFixed(2)}</span>
     </div>
@@ -4643,19 +4677,20 @@ window.saveScorerEdit = async () => {
 window.openScorerForm = () => { document.getElementById('scorerForm').style.display=''; };
 window.closeScorerForm = () => {
   document.getElementById('scorerForm').style.display='none';
-  ['scorerEmail','scorerPass','scorerName','scorerUsername'].forEach(id=>document.getElementById(id).value='');
+  ['scorerPass','scorerPassConfirm','scorerName','scorerUsername'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('scorerFormErr').style.display='none';
 };
 
 window.doCreateScorer = async () => {
   const errEl = document.getElementById('scorerFormErr');
   errEl.style.display='none';
-  const email = document.getElementById('scorerEmail').value.trim();
   const pass  = document.getElementById('scorerPass').value;
+  const passConfirm = document.getElementById('scorerPassConfirm').value;
   const name  = document.getElementById('scorerName').value.trim();
   const uname = document.getElementById('scorerUsername').value.trim();
-  if(!email || !pass || !name){ errEl.textContent='Vui lòng điền đầy đủ thông tin.'; errEl.style.display=''; return; }
+  if(!uname || !pass || !name){ errEl.textContent='Vui lòng điền đầy đủ thông tin.'; errEl.style.display=''; return; }
   if(pass.length<6){ errEl.textContent='Mật khẩu tối thiểu 6 ký tự.'; errEl.style.display=''; return; }
+  if(pass!==passConfirm){ errEl.textContent='Mật khẩu nhập lại không khớp.'; errEl.style.display=''; return; }
 
   const btn = document.getElementById('scorerSubmitBtn');
   const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang tạo...';
@@ -4667,10 +4702,12 @@ window.doCreateScorer = async () => {
       errEl.textContent='CLB đã đủ 3 tài khoản Ghi trận (giới hạn tối đa).'; errEl.style.display='';
       btn.disabled=false; btn.textContent=oldTxt; return;
     }
-    if(uname){
-      const uCheck = await window._fbGet('usernames/'+uname);
-      if(uCheck){ errEl.textContent='Tên đăng nhập đã được sử dụng.'; errEl.style.display=''; btn.disabled=false; btn.textContent=oldTxt; return; }
-    }
+    const uCheck = await window._fbGet('usernames/'+uname);
+    if(uCheck){ errEl.textContent='Tên đăng nhập đã được sử dụng.'; errEl.style.display=''; btn.disabled=false; btn.textContent=oldTxt; return; }
+
+    // Firebase Auth yêu cầu bắt buộc phải có email hợp lệ để tạo tài khoản,
+    // nên tự sinh 1 email nội bộ (không hiển thị, không dùng để nhận thư) từ username + mã CLB.
+    const email = uname + '.' + window._clubId + '@scorer.11points.me';
 
     const { initializeApp, getApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
     const { getAuth: getAuth2, createUserWithEmailAndPassword: createUser2, updateProfile: updateProfile2 } =
@@ -4692,21 +4729,18 @@ window.doCreateScorer = async () => {
     const today = nowGMT7().toISOString().slice(0,10);
     await window._fbSet('user_roles/'+cred.user.uid, {
       role:'scorer', clubId: window._clubId, clubName: window._clubName,
-      email, displayName: name||email, username: uname||'', createdAt: today
+      email, displayName: name, username: uname, createdAt: today
     });
-    if(uname){
-      await window._fbSet('usernames/'+uname, cred.user.uid);
-      await window._fbSet('usernames_email/'+uname, email);
-    }
+    await window._fbSet('usernames/'+uname, cred.user.uid);
+    await window._fbSet('usernames_email/'+uname, email);
     await auth2.signOut();
 
-    notify('✅ Đã tạo tài khoản Ghi trận: '+email);
+    notify('✅ Đã tạo tài khoản Ghi trận: '+uname);
     closeScorerForm();
     refreshScorerList();
   }catch(e){
-    if(e.code==='auth/email-already-in-use') errEl.textContent='Email đã được sử dụng.';
+    if(e.code==='auth/email-already-in-use') errEl.textContent='Tên đăng nhập đã được sử dụng.';
     else if(e.code==='auth/weak-password') errEl.textContent='Mật khẩu quá yếu (tối thiểu 6 ký tự).';
-    else if(e.code==='auth/invalid-email') errEl.textContent='Email không hợp lệ.';
     else errEl.textContent='Lỗi: '+e.message;
     errEl.style.display='';
   }
@@ -4852,21 +4886,21 @@ init();
 
     <div id="scorerForm" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
       <div class="fgroup">
-        <label>Email</label>
-        <input class="finput" id="scorerEmail" placeholder="user@example.com" type="email"/>
+        <label>Tên đăng nhập (username)</label>
+        <input class="finput" id="scorerUsername" placeholder="VD: huy.nguyen" autocomplete="off"
+          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
       </div>
       <div class="fgroup">
         <label>Mật khẩu</label>
-        <input class="finput" id="scorerPass" placeholder="Tối thiểu 6 ký tự" type="password"/>
+        <input class="finput" id="scorerPass" placeholder="Tối thiểu 6 ký tự" type="password" autocomplete="new-password"/>
+      </div>
+      <div class="fgroup">
+        <label>Nhập lại mật khẩu</label>
+        <input class="finput" id="scorerPassConfirm" placeholder="Nhập lại mật khẩu" type="password" autocomplete="new-password"/>
       </div>
       <div class="fgroup">
         <label>Tên hiển thị</label>
         <input class="finput" id="scorerName" placeholder="Nguyễn Văn A"/>
-      </div>
-      <div class="fgroup">
-        <label>Tên đăng nhập (username, tùy chọn)</label>
-        <input class="finput" id="scorerUsername" placeholder="VD: huy.nguyen" autocomplete="off"
-          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
       </div>
       <div id="scorerFormErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
       <div style="display:flex;gap:.5rem;justify-content:flex-end">
@@ -4905,7 +4939,6 @@ init();
       <div class="fgroup" style="padding-top:.5rem;border-top:1px solid var(--border)">
         <label>Mật khẩu hiện tại của tài khoản này <span style="color:var(--muted);font-weight:400">(chỉ cần nhập nếu đổi email hoặc mật khẩu)</span></label>
         <input class="finput" id="editScorerCurrentPass" placeholder="Mật khẩu hiện tại" type="password" autocomplete="off"/>
-        <div class="hint">Firebase yêu cầu xác thực lại bằng mật khẩu hiện tại trước khi cho phép đổi email/mật khẩu.</div>
       </div>
       <div id="editScorerErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
       <div style="display:flex;gap:.5rem;justify-content:flex-end">
