@@ -629,7 +629,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="showPage('ranking')">🏆 Tổng quan</button>
     <button class="tab-btn" onclick="showPage('matches')">Lịch sử</button>
-    <button class="tab-btn" onclick="showPage('pairing')">🎯 So kèo</button>
+    <button class="tab-btn" onclick="showPage('pairing')">🎯 Ghép đôi</button>
     <button class="tab-btn" onclick="showPage('players')">👥 Thành viên</button>
     <button class="tab-btn" onclick="showPage('finance')">💰 Thu chi</button>
     <button class="tab-btn" onclick="showPage('tournament')">🏅 Giải đấu</button>
@@ -675,7 +675,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <span class="bicon">📋</span><span class="blabel">Lịch sử</span>
     </button>
     <button class="bot-tab" onclick="showPage('pairing');botActive(this)">
-      <span class="bicon">🎯</span><span class="blabel">So kèo</span>
+      <span class="bicon">🎯</span><span class="blabel">Ghép đôi</span>
     </button>
     <button class="bot-tab" onclick="showPage('players');botActive(this)">
       <span class="bicon">👥</span><span class="blabel">Thành viên</span>
@@ -793,7 +793,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- PAGE: PAIRING -->
 <div class="page" id="page-pairing">
-  <div class="sec-title">So kèo & Dự đoán kèo</div>
+  <div class="sec-title">Ghép đôi & Dự đoán kèo</div>
   <div class="panel">
     <div class="panel-hd">Loại ghép
       <div class="right">
@@ -2290,6 +2290,34 @@ function calcPairing(){
     ?'<div style="margin-top:.5rem;font-size:.75rem;color:var(--muted)">'+adjustments.map(a=>'⚡ '+a).join('<br/>')+'</div>'
     :'';
 
+  // ── Lịch sử đối đầu giữa 2 cặp này (toàn bộ thời gian) ──
+  const h2hSorted = [...h2h].sort((x,y)=>y.date.localeCompare(x.date));
+  const h2hRows = h2hSorted.map(m=>{
+    const aWon = m.winner==='A';
+    const aIsPairA = m.a.includes(a1n);
+    const pairAWon = (aIsPairA && aWon) || (!aIsPairA && !aWon);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.78rem">'
+      +'<span style="color:var(--muted)">'+fmtD(m.date)+'</span>'
+      +'<span style="font-weight:700;color:'+(pairAWon?'var(--lime)':'#60A5FA')+'">'+(pairAWon?'Cặp A thắng':'Cặp B thắng')+'</span>'
+      +'<span style="font-weight:700;color:var(--text)">'+m.scoreA+' - '+m.scoreB+'</span>'
+      +'</div>';
+  }).join('');
+  const pairAWinsCount = h2h.filter(m=>{
+    const aIsPairA = m.a.includes(a1n);
+    return (aIsPairA && m.winner==='A') || (!aIsPairA && m.winner==='B');
+  }).length;
+  const pairBWinsCount = h2h.length - pairAWinsCount;
+  const h2hHtml = '<div style="margin-top:.75rem;padding:.75rem;background:rgba(255,255,255,.03);border-radius:var(--rs);border:1px solid var(--border)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+    +'<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">🤝 Lịch sử đối đầu 2 cặp này</div>'
+    +'<span class="pill p-gray">'+h2h.length+' lần gặp</span>'
+    +'</div>'
+    + (h2h.length
+        ? '<div style="display:flex;gap:1rem;margin-bottom:.5rem;font-size:.78rem"><span style="color:var(--lime)">Cặp A thắng: <strong>'+pairAWinsCount+'</strong></span><span style="color:#60A5FA">Cặp B thắng: <strong>'+pairBWinsCount+'</strong></span></div>'
+          + h2hRows
+        : '<div style="font-size:.78rem;color:var(--muted)">Chưa từng gặp nhau trước đây.</div>')
+    +'</div>';
+
   el.innerHTML='<div class="pair-result">'
     +'<div class="pair-vs">'
     +'<div class="pair-team" style="border-color:rgba(181,240,51,0.3);background:rgba(181,240,51,0.05)">'
@@ -2313,6 +2341,7 @@ function calcPairing(){
     +playerRow(a1,'var(--lime)')+playerRow(a2,'var(--lime)')
     +playerRow(b1,'#60A5FA')+playerRow(b2,'#60A5FA')
     +'</div>'
+    +h2hHtml
     +'</div>';
 
   document.getElementById('aiKeoWrap').style.display='none';
@@ -5088,9 +5117,9 @@ init();
         </div>
       </details>
       <details class="guide-item">
-        <summary>🎯 So kèo</summary>
+        <summary>🎯 Ghép đôi</summary>
         <div class="guide-body">
-          <p>Vào tab <b>So kèo</b> — hệ thống tự gợi ý cách chia đội cân bằng dựa trên điểm ELO hiện tại của từng người, kèm dự đoán tỷ lệ thắng trước khi vào trận.</p>
+          <p>Vào tab <b>Ghép đôi</b> — hệ thống tự gợi ý cách chia đội cân bằng dựa trên điểm ELO hiện tại của từng người, kèm dự đoán tỷ lệ thắng trước khi vào trận.</p>
         </div>
       </details>
       <details class="guide-item">
