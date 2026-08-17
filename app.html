@@ -1276,8 +1276,8 @@ function openModal(id){
     if(window.requireLogin) window.requireLogin(function(){ openModal(id); });
     return;
   }
-  // Scorer role: can only record matches, nothing else
-  if(window._userRole==='scorer' && id!=='matchModal'){ guardScorer(); return; }
+  // Scorer role: can only record matches and edit member avatars
+  if(window._userRole==='scorer' && id!=='matchModal' && id!=='editAvatarModal'){ guardScorer(); return; }
   document.getElementById(id).classList.add('open');
   if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();document.getElementById('mNuoc').value='1';document.getElementById('mBia').value='1';document.getElementById('mBong').value='1';}
   if(id==='finModal'){popFinSel();document.getElementById('finDate').value=today();}
