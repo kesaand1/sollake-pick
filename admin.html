@@ -462,7 +462,7 @@ function renderClubs(clubs){
             👥 ${(window._memberCounts&&window._memberCounts[id])||0}/3 thành viên
           </span>
           <span style="color:var(--muted)">
-            🏓 ${Array.isArray(c.players) ? c.players.filter(p=>p).length : (c.players && typeof c.players==='object' ? Object.keys(c.players).length : 0)} người chơi
+            <img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> ${Array.isArray(c.players) ? c.players.filter(p=>p).length : (c.players && typeof c.players==='object' ? Object.keys(c.players).length : 0)} người chơi
           </span>
         </div>
         <div style="margin-top:.3rem;display:flex;align-items:center;gap:.35rem">

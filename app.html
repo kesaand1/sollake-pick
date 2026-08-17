@@ -775,7 +775,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   </div>
 
   <div class="panel" style="margin-bottom:1rem">
-    <div class="panel-hd">🏓 Chuỗi trận gần nhất <span id="streakCount" style="color:var(--lime)"></span></div>
+    <div class="panel-hd"><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> Chuỗi trận gần nhất <span id="streakCount" style="color:var(--lime)"></span></div>
     <div class="match-streak" id="profileStreak"></div>
     <div style="margin-top:1rem" id="profileMatchList"></div>
   </div>
@@ -841,7 +841,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="panel">
     <div class="filter-row" style="margin-bottom:.85rem;gap:.4rem">
       <button class="btn btn-sm match-type-btn active" data-type="all" onclick="setMatchTypeFilter('all')">Tất cả</button>
-      <button class="btn btn-sm match-type-btn" data-type="keo" onclick="setMatchTypeFilter('keo')">🎾 Ghi trận</button>
+      <button class="btn btn-sm match-type-btn" data-type="keo" onclick="setMatchTypeFilter('keo')"><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> Ghi trận</button>
       <button class="btn btn-sm match-type-btn" data-type="giai" onclick="setMatchTypeFilter('giai')">🏅 Giải</button>
     </div>
     <div class="panel-hd">Lọc thời gian
@@ -1929,7 +1929,7 @@ function renderMatches(){
       <td style="text-align:center"><div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 4px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>${m.elo?`<div class="small tm">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''}</td>
       <td>${m.b.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
 
-      <td>${m.isTournament?`<span class='pill p-gray'>🏅 ${m.tournamentName}</span>`:(m.keo==='nuoc'?`<span class='pill p-gray'>💧 ${m.keoNuoc} chai</span>`:m.keo==='bia'?`<span class='pill p-yellow'>🍺 ${m.keoBia} cốc</span>`:m.keo==='bong'?`<span class='pill p-green'>🎾 ${m.keoBong} quả</span>`:'<span class="tm">—</span>')}</td>
+      <td>${m.isTournament?`<span class='pill p-gray'>🏅 ${m.tournamentName}</span>`:(m.keo==='nuoc'?`<span class='pill p-gray'>💧 ${m.keoNuoc} chai</span>`:m.keo==='bia'?`<span class='pill p-yellow'>🍺 ${m.keoBia} cốc</span>`:m.keo==='bong'?`<span class='pill p-green'><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> ${m.keoBong} quả</span>`:'<span class="tm">—</span>')}</td>
       <td>${m.isTournament?'':`<button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button>`}</td>
     </tr>`;
   }).join('');
@@ -1971,7 +1971,7 @@ function renderMatches(){
       </div>
       <!-- Kèo / Giải -->
       ${m.isTournament?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">🏅 Giải: <strong style="color:var(--text)">${m.tournamentName}</strong>${m.elo?` · ±${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>`
-        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':'🎾 Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>'}</div>`:'')}
+        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>'}</div>`:'')}
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
@@ -2456,7 +2456,7 @@ function renderProfile(name){
       <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='bia').length} trận có kèo bia</div>
     </div>
     <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem">🎾 Kèo bóng Pickleball</div>
+      <div class="lbl" style="margin-bottom:.4rem"><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> Kèo bóng Pickleball</div>
       <div style="font-size:1.1rem;font-weight:700;color:${keoBongTotal>=0?'var(--success)':'var(--danger)'}">
         ${keoBongTotal>=0?'+':''}${keoBongTotal} quả
       </div>
@@ -2641,7 +2641,7 @@ function renderProfile(name){
   // ── Recent match list ──
   const recentAll = [...myMatches].reverse().slice(0, 8);
   if(!recentAll.length){
-    document.getElementById('profileMatchList').innerHTML = '<div class="empty"><div class="ei">🏓</div><p>Chưa có trận nào</p></div>';
+    document.getElementById('profileMatchList').innerHTML = '<div class="empty"><div class="ei"><img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/></div><p>Chưa có trận nào</p></div>';
     return;
   }
   document.getElementById('profileMatchList').innerHTML = recentAll.map(m => {
@@ -5080,7 +5080,7 @@ init();
     <div class="panel-hd">📖 Hướng dẫn sử dụng</div>
     <div style="display:flex;flex-direction:column;gap:.5rem">
       <details class="guide-item">
-        <summary>🎾 Ghi trận đấu</summary>
+        <summary><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> Ghi trận đấu</summary>
         <div class="guide-body">
           <p>Bấm nút <b>"+ Ghi trận"</b> (góc trên bên phải màn hình) để mở form ghi trận đấu mới.</p>
           <p>Chọn ngày, loại trận (Đơn/Đôi), chọn thành viên cho từng bên, nhập tỷ số, chọn kèo nếu có (Nước/Bia/Bóng Pickleball) rồi bấm <b>Lưu trận đấu</b>. Điểm ELO của các thành viên sẽ tự động cập nhật.</p>
