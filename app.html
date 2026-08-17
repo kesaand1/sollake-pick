@@ -2924,9 +2924,10 @@ function openManualTeamAssign(){if(guardScorer())return;
   const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
   tCurrentName = name;
   tManualAssign = {}; // key: "teamIdx_slotIdx" -> player name
-  tManualGroupAssign = tMode==='groups' ? assignGroupsRandom(tc) : null;
+  tManualGroupAssign = null;
   closeModal('newTournamentModal');
   openModal('manualAssignModal');
+  document.getElementById('manualAssignConfirmBtn').textContent = tMode==='groups' ? 'Tiếp theo →' : '✅ Tạo giải đấu';
   renderManualAssign(tc, ts);
 }
 
@@ -2940,7 +2941,6 @@ function setManualSlot(teamIdx, slotIdx, name){
 
 function renderManualAssign(tc, ts){
   const teamNames = TEAM_NAMES_8;
-  const isGroups = tMode==='groups';
   const vis = players.filter(p=>p.visible);
   const chosenNames = Object.values(tManualAssign);
   const dupes = chosenNames.filter((n,i)=>chosenNames.indexOf(n)!==i);
@@ -2954,20 +2954,13 @@ function renderManualAssign(tc, ts){
         vis.map(p=>'<option value="'+p.name+'"'+(current===p.name?' selected':'')+'>'+p.name+' ('+p.score.toFixed(2)+')</option>').join('');
       return '<select class="finput" style="margin-bottom:.35rem" onchange="setManualSlot('+i+','+s+',this.value)">'+options+'</select>';
     }).join('');
-    const groupLabel = isGroups ? ' · Bảng '+(tManualGroupAssign[i]===0?'A':'B') : '';
     return '<div style="border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.6rem .7rem;margin-bottom:.6rem">'
-      +'<div style="font-size:.75rem;font-weight:700;color:'+c.text+';margin-bottom:.4rem">'+teamNames[i]+groupLabel+'</div>'
+      +'<div style="font-size:.75rem;font-weight:700;color:'+c.text+';margin-bottom:.4rem">'+teamNames[i]+'</div>'
       +slots
       +'</div>';
   }
 
-  const teamsHtml = isGroups
-    ? ['A','B'].map((label,gi)=>{
-        const teamsInGroup = Array.from({length:tc},(_,i)=>i).filter(i=>tManualGroupAssign[i]===gi);
-        return '<div style="margin-bottom:.75rem"><div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem">📊 Bảng '+label+'</div>'+teamsInGroup.map(teamBlock).join('')+'</div>';
-      }).join('')
-    : Array.from({length:tc},(_,i)=>i).map(teamBlock).join('');
-
+  const teamsHtml = Array.from({length:tc},(_,i)=>i).map(teamBlock).join('');
   document.getElementById('manualAssignContent').innerHTML = teamsHtml;
 
   const filled = Object.keys(tManualAssign).length;
@@ -2995,20 +2988,96 @@ function confirmManualAssign(){
   if(dupes.length){ alert('Có người chơi bị chọn trùng ở nhiều vị trí: '+[...new Set(dupes)].join(', ')); return; }
   const teams = Array.from({length:tc},(_,i)=>({
     id:i,
-    members: Array.from({length:ts},(_,s)=>tManualAssign[i+'_'+s]),
-    group: isGroupsMode() ? tManualGroupAssign[i] : undefined
+    members: Array.from({length:ts},(_,s)=>tManualAssign[i+'_'+s])
   }));
   if(tMode==='teams'){
     tCurrentTeams = teams;
     confirmCreateTournament();
+    closeModal('manualAssignModal');
   } else if(tMode==='groups'){
-    createGroupsFromTeams(teams, tManualGroupAssign);
+    tCurrentTeams = teams;
+    closeModal('manualAssignModal');
+    openGroupSplitModal();
   } else {
     createTournamentFromTeams(teams);
+    closeModal('manualAssignModal');
   }
-  closeModal('manualAssignModal');
 }
 function isGroupsMode(){ return tMode==='groups'; }
+
+// ── Bước chia bảng A/B (chỉ áp dụng khi tạo giải "Chia bảng" bằng chọn thủ công) ──
+let tGroupSplitMethod = null; // 'auto' | 'manual'
+
+function openGroupSplitModal(){
+  tGroupSplitMethod = null;
+  tManualGroupAssign = {};
+  document.getElementById('groupSplitAutoCard').classList.remove('selected');
+  document.getElementById('groupSplitManualCard').classList.remove('selected');
+  document.getElementById('groupSplitManualArea').style.display='none';
+  document.getElementById('groupSplitConfirmBtn').disabled = true;
+  openModal('groupSplitModal');
+}
+
+function backToManualAssignModal(){
+  closeModal('groupSplitModal');
+  openModal('manualAssignModal');
+}
+
+function setGroupSplitMethod(method){
+  tGroupSplitMethod = method;
+  document.getElementById('groupSplitAutoCard').classList.toggle('selected', method==='auto');
+  document.getElementById('groupSplitManualCard').classList.toggle('selected', method==='manual');
+  if(method==='manual'){
+    document.getElementById('groupSplitManualArea').style.display='';
+    tManualGroupAssign = {};
+    tCurrentTeams.forEach((t,i)=>{ tManualGroupAssign[i] = i < tCurrentTeams.length/2 ? 0 : 1; });
+    renderGroupSplitManual();
+  } else {
+    document.getElementById('groupSplitManualArea').style.display='none';
+    document.getElementById('groupSplitConfirmBtn').disabled = false;
+  }
+}
+
+function toggleTeamGroup(teamIdx, group){
+  tManualGroupAssign[teamIdx] = group;
+  renderGroupSplitManual();
+}
+
+function renderGroupSplitManual(){
+  const teamNames = TEAM_NAMES_8;
+  const n = tCurrentTeams.length;
+  const html = tCurrentTeams.map((t,i)=>{
+    const c = teamColors(i);
+    const g = tManualGroupAssign[i];
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.5rem .7rem;margin-bottom:.4rem">'
+      +'<div><span style="font-weight:700;color:'+c.text+';font-size:.85rem">'+teamNames[i]+'</span> <span style="font-size:.72rem;color:var(--muted)">'+t.members.join(' & ')+'</span></div>'
+      +'<div style="display:flex;gap:.3rem;flex-shrink:0">'
+      +'<button class="btn btn-xs '+(g===0?'btn-lime':'btn-ghost')+'" onclick="toggleTeamGroup('+i+',0)">Bảng A</button>'
+      +'<button class="btn btn-xs '+(g===1?'btn-lime':'btn-ghost')+'" onclick="toggleTeamGroup('+i+',1)">Bảng B</button>'
+      +'</div></div>';
+  }).join('');
+  document.getElementById('groupSplitManualContent').innerHTML = html;
+
+  const countA = Object.values(tManualGroupAssign).filter(g=>g===0).length;
+  const countB = Object.values(tManualGroupAssign).filter(g=>g===1).length;
+  const errEl = document.getElementById('groupSplitErr');
+  const half = n/2;
+  if(countA!==half || countB!==half){
+    errEl.textContent = '⚠️ Cần đúng '+half+' team ở mỗi bảng (hiện Bảng A: '+countA+', Bảng B: '+countB+').';
+    errEl.style.display='';
+    document.getElementById('groupSplitConfirmBtn').disabled = true;
+  } else {
+    errEl.style.display='none';
+    document.getElementById('groupSplitConfirmBtn').disabled = false;
+  }
+}
+
+function confirmGroupSplit(){
+  if(!tGroupSplitMethod) return;
+  const groupAssignment = tGroupSplitMethod==='auto' ? assignGroupsRandom(tCurrentTeams.length) : tManualGroupAssign;
+  createGroupsFromTeams(tCurrentTeams, groupAssignment);
+  closeModal('groupSplitModal');
+}
 function backToNewTournamentModal(){
   closeModal('manualAssignModal');
   closeModal('teamSuggestionModal');
@@ -5235,8 +5304,37 @@ init();
     <div id="manualAssignErr" style="color:var(--danger);font-size:.78rem;margin-top:.5rem;display:none"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="backToNewTournamentModal()">← Quay lại</button>
-      <button class="btn btn-ghost" onclick="closeModal('manualAssignModal');openModal('newTournamentModal')">← Quay lại</button>
-      <button class="btn btn-lime" onclick="confirmManualAssign()">✅ Tạo giải đấu</button>
+      <button class="btn btn-lime" id="manualAssignConfirmBtn" onclick="confirmManualAssign()">✅ Tạo giải đấu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CHIA BẢNG A/B (chỉ dùng cho Chia bảng + chọn thủ công) -->
+<div class="modal-bg" id="groupSplitModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-title-row"><div class="modal-title">📊 Chia bảng A / B</div><button class="modal-x" onclick="closeModal('groupSplitModal')" title="Đóng">✕</button></div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">Chọn cách chia các team đã tạo vào 2 bảng đấu.</div>
+    <div class="fgroup">
+      <div style="display:flex;gap:.5rem">
+        <div class="t-mode-card" id="groupSplitAutoCard" onclick="setGroupSplitMethod('auto')">
+          <div style="font-size:1.3rem">🎲</div>
+          <div style="font-weight:700;font-size:.82rem;margin-top:.2rem">Tự động</div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:.15rem">Hệ thống random chia đều vào 2 bảng</div>
+        </div>
+        <div class="t-mode-card" id="groupSplitManualCard" onclick="setGroupSplitMethod('manual')">
+          <div style="font-size:1.3rem">✋</div>
+          <div style="font-weight:700;font-size:.82rem;margin-top:.2rem">Thủ công</div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:.15rem">Tự chọn team nào vào Bảng A/B</div>
+        </div>
+      </div>
+    </div>
+    <div id="groupSplitManualArea" style="display:none">
+      <div id="groupSplitManualContent"></div>
+    </div>
+    <div id="groupSplitErr" style="color:var(--danger);font-size:.78rem;margin-top:.3rem;margin-bottom:.5rem;display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="backToManualAssignModal()">← Quay lại</button>
+      <button class="btn btn-lime" id="groupSplitConfirmBtn" onclick="confirmGroupSplit()" disabled>✅ Tạo giải đấu</button>
     </div>
   </div>
 </div>
