@@ -4695,8 +4695,6 @@ window.openEditScorer = async (uid) => {
     document.getElementById('editScorerUid').value = uid;
     document.getElementById('editScorerName').value = u.displayName||'';
     document.getElementById('editScorerUsername').value = u.username||'';
-    document.getElementById('editScorerCurrentEmail').textContent = u.email||'';
-    document.getElementById('editScorerNewEmail').value = '';
     document.getElementById('editScorerCurrentPass').value = '';
     document.getElementById('editScorerNewPass').value = '';
     document.getElementById('editScorerErr').style.display='none';
@@ -4712,13 +4710,13 @@ window.saveScorerEdit = async () => {
   const uid = document.getElementById('editScorerUid').value;
   const name = document.getElementById('editScorerName').value.trim();
   const uname = document.getElementById('editScorerUsername').value.trim();
-  const oldEmail = document.getElementById('editScorerCurrentEmail').textContent;
-  const newEmail = document.getElementById('editScorerNewEmail').value.trim();
   const currentPass = document.getElementById('editScorerCurrentPass').value;
   const newPass = document.getElementById('editScorerNewPass').value;
   if(!name){ errEl.textContent='Vui lòng nhập tên hiển thị.'; errEl.style.display=''; return; }
-  if((newEmail || newPass) && !currentPass){
-    errEl.textContent='Cần nhập đúng "Mật khẩu hiện tại" của tài khoản này để đổi email/mật khẩu (Firebase yêu cầu xác thực lại trước khi thay đổi thông tin đăng nhập).';
+  if(!uname){ errEl.textContent='Vui lòng nhập tên đăng nhập.'; errEl.style.display=''; return; }
+  if(!/^[a-z0-9_]+$/.test(uname)){ errEl.textContent='Tên đăng nhập chỉ được dùng chữ thường (a-z), số (0-9) và dấu gạch dưới (_) — không dùng dấu chấm, khoảng trắng hay ký tự đặc biệt.'; errEl.style.display=''; return; }
+  if(newPass && !currentPass){
+    errEl.textContent='Cần nhập đúng "Mật khẩu hiện tại" của tài khoản này để đổi mật khẩu.';
     errEl.style.display=''; return;
   }
   if(newPass && newPass.length<6){ errEl.textContent='Mật khẩu mới tối thiểu 6 ký tự.'; errEl.style.display=''; return; }
@@ -4729,20 +4727,23 @@ window.saveScorerEdit = async () => {
   try{
     // 1) Cập nhật tên/username trong database (luôn thực hiện)
     const u = (await window._fbGet('user_roles/'+uid)) || {};
+    const oldEmail = u.email||'';
     const oldUname = u.username||'';
-    await window._fbSet('user_roles/'+uid, {...u, displayName:name, username:uname});
-    if(oldUname && oldUname!==uname) await window._fbSet('usernames/'+oldUname, null);
     if(uname && uname!==oldUname){
       const uCheck = await window._fbGet('usernames/'+uname);
       if(uCheck && uCheck!==uid){ throw new Error('Tên đăng nhập "'+uname+'" đã được sử dụng bởi tài khoản khác.'); }
+    }
+    await window._fbSet('user_roles/'+uid, {...u, displayName:name, username:uname});
+    if(oldUname && oldUname!==uname) await window._fbSet('usernames/'+oldUname, null);
+    if(uname && uname!==oldUname){
       await window._fbSet('usernames/'+uname, uid);
-      await window._fbSet('usernames_email/'+uname, newEmail||oldEmail);
+      await window._fbSet('usernames_email/'+uname, oldEmail);
     }
 
-    // 2) Nếu có đổi email/mật khẩu: đăng nhập tạm bằng app phụ để xác thực rồi cập nhật
-    if(newEmail || newPass){
+    // 2) Nếu có đổi mật khẩu: đăng nhập tạm bằng app phụ để xác thực rồi cập nhật
+    if(newPass){
       const { initializeApp, getApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-      const { getAuth: getAuth2, signInWithEmailAndPassword, updateEmail, updatePassword } =
+      const { getAuth: getAuth2, signInWithEmailAndPassword, updatePassword } =
         await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
       let secondaryApp;
       try { secondaryApp = getApp('secondary'); }
@@ -4755,12 +4756,7 @@ window.saveScorerEdit = async () => {
       }
       const auth2 = getAuth2(secondaryApp);
       const cred = await signInWithEmailAndPassword(auth2, oldEmail, currentPass);
-      if(newEmail && newEmail!==oldEmail){
-        await updateEmail(cred.user, newEmail);
-        await window._fbSet('user_roles/'+uid+'/email', newEmail);
-        if(uname) await window._fbSet('usernames_email/'+uname, newEmail);
-      }
-      if(newPass) await updatePassword(cred.user, newPass);
+      await updatePassword(cred.user, newPass);
       await auth2.signOut();
     }
 
@@ -4793,6 +4789,7 @@ window.doCreateScorer = async () => {
   const name  = document.getElementById('scorerName').value.trim();
   const uname = document.getElementById('scorerUsername').value.trim();
   if(!uname || !pass || !name){ errEl.textContent='Vui lòng điền đầy đủ thông tin.'; errEl.style.display=''; return; }
+  if(!/^[a-z0-9_]+$/.test(uname)){ errEl.textContent='Tên đăng nhập chỉ được dùng chữ thường (a-z), số (0-9) và dấu gạch dưới (_) — không dùng dấu chấm, khoảng trắng hay ký tự đặc biệt. VD: huynguyen'; errEl.style.display=''; return; }
   if(pass.length<6){ errEl.textContent='Mật khẩu tối thiểu 6 ký tự.'; errEl.style.display=''; return; }
   if(pass!==passConfirm){ errEl.textContent='Mật khẩu nhập lại không khớp.'; errEl.style.display=''; return; }
 
@@ -4845,6 +4842,7 @@ window.doCreateScorer = async () => {
   }catch(e){
     if(e.code==='auth/email-already-in-use') errEl.textContent='Tên đăng nhập đã được sử dụng.';
     else if(e.code==='auth/weak-password') errEl.textContent='Mật khẩu quá yếu (tối thiểu 6 ký tự).';
+    else if((e.message||'').includes('invalid path')) errEl.textContent='Tên đăng nhập chứa ký tự không hợp lệ. Chỉ dùng chữ thường, số và dấu gạch dưới (VD: huynguyen).';
     else errEl.textContent='Lỗi: '+e.message;
     errEl.style.display='';
   }
@@ -4991,8 +4989,8 @@ init();
     <div id="scorerForm" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
       <div class="fgroup">
         <label>Tên đăng nhập (username)</label>
-        <input class="finput" id="scorerUsername" placeholder="VD: huy.nguyen" autocomplete="off"
-          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
+        <input class="finput" id="scorerUsername" placeholder="VD: huynguyen (chỉ chữ thường, số, dấu gạch dưới)" autocomplete="off"
+          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"/>
       </div>
       <div class="fgroup">
         <label>Mật khẩu</label>
@@ -5025,23 +5023,15 @@ init();
       </div>
       <div class="fgroup">
         <label>Tên đăng nhập (username)</label>
-        <input class="finput" id="editScorerUsername" placeholder="VD: huy.nguyen" autocomplete="off"
-          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'')"/>
-      </div>
-      <div class="fgroup">
-        <label>Email hiện tại</label>
-        <div id="editScorerCurrentEmail" style="font-size:.85rem;color:var(--muted);padding:.5rem 0"></div>
-      </div>
-      <div class="fgroup">
-        <label>Email mới (bỏ trống nếu không đổi)</label>
-        <input class="finput" id="editScorerNewEmail" placeholder="email-moi@example.com" type="email" autocomplete="off"/>
+        <input class="finput" id="editScorerUsername" placeholder="VD: huynguyen (chỉ chữ thường, số, dấu gạch dưới)" autocomplete="off"
+          oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')"/>
       </div>
       <div class="fgroup">
         <label>Mật khẩu mới (bỏ trống nếu không đổi)</label>
         <input class="finput" id="editScorerNewPass" placeholder="Tối thiểu 6 ký tự" type="password" autocomplete="new-password"/>
       </div>
       <div class="fgroup" style="padding-top:.5rem;border-top:1px solid var(--border)">
-        <label>Mật khẩu hiện tại của tài khoản này <span style="color:var(--muted);font-weight:400">(chỉ cần nhập nếu đổi email hoặc mật khẩu)</span></label>
+        <label>Mật khẩu hiện tại của tài khoản này <span style="color:var(--muted);font-weight:400">(chỉ cần nhập nếu đổi mật khẩu)</span></label>
         <input class="finput" id="editScorerCurrentPass" placeholder="Mật khẩu hiện tại" type="password" autocomplete="off"/>
       </div>
       <div id="editScorerErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
