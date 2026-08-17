@@ -2922,7 +2922,8 @@ function effectiveScoreT(name){
 function generateTournamentTeamsAuto(){if(guardScorer())return;
   const tc   = parseInt(document.getElementById('tTeamCount').value)||4;
   const ts   = parseInt(document.getElementById('tTeamSize').value)||2;
-  const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
+  const name = document.getElementById('tName').value.trim();
+  if(!name){ alert('Vui lòng nhập tên giải đấu!'); document.getElementById('tName').focus(); return; }
   const need = tc*ts;
   if(tSelectedPlayers.length !== need){
     alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
@@ -2937,7 +2938,8 @@ function generateTournamentTeamsAuto(){if(guardScorer())return;
 function generateGroupsTeamsAuto(){if(guardScorer())return;
   const gtc = parseInt(document.getElementById('tGroupTeamCount').value)||3;
   const tc = gtc*2, ts = 2;
-  const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
+  const name = document.getElementById('tName').value.trim();
+  if(!name){ alert('Vui lòng nhập tên giải đấu!'); document.getElementById('tName').focus(); return; }
   const need = tc*ts;
   if(tSelectedPlayers.length !== need){
     alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
@@ -2960,7 +2962,8 @@ function confirmTeamStep(){
 function openManualTeamAssign(){if(guardScorer())return;
   const tc = tMode==='groups' ? (parseInt(document.getElementById('tGroupTeamCount').value)||3)*2 : (parseInt(document.getElementById('tTeamCount').value)||4);
   const ts = tMode==='groups' ? 2 : (parseInt(document.getElementById('tTeamSize').value)||2);
-  const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
+  const name = document.getElementById('tName').value.trim();
+  if(!name){ alert('Vui lòng nhập tên giải đấu!'); document.getElementById('tName').focus(); return; }
   tCurrentName = name;
   tManualAssign = {}; // key: "teamIdx_slotIdx" -> player name
   tManualGroupAssign = null;
@@ -3149,7 +3152,8 @@ function backToNewTournamentModal(){
 function generateTeams(){if(guardScorer())return;
   const tc   = parseInt(document.getElementById('tTeamCount').value)||4;
   const ts   = parseInt(document.getElementById('tTeamSize').value)||2;
-  const name = document.getElementById('tName').value.trim()||'Giải đấu '+fmtD(today());
+  const name = document.getElementById('tName').value.trim();
+  if(!name){ alert('Vui lòng nhập tên giải đấu!'); document.getElementById('tName').focus(); return; }
   const need = tc*ts;
   if(tSelectedPlayers.length !== need){
     alert('Vui lòng chọn đúng '+need+' người chơi!'); return;
@@ -5179,8 +5183,8 @@ init();
   <div class="modal">
     <div class="modal-title-row"><div class="modal-title">🏅 Tạo giải đấu mới</div><button class="modal-x" onclick="closeModal('newTournamentModal')" title="Đóng">✕</button></div>
     <div class="fgroup">
-      <label>Tên giải đấu</label>
-      <input class="finput" id="tName" placeholder="VD: Giải tháng 7/2026"/>
+      <label>Tên giải đấu <span style="color:var(--danger)">*</span></label>
+      <input class="finput" id="tName" placeholder="VD: Giải tháng 7/2026" required/>
     </div>
 
     <div class="fgroup">
