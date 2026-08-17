@@ -1330,7 +1330,6 @@ let _editAvatarPlayerId = null;
 let _pendingAvatarUrl = null;
 
 window.openEditAvatar = (id) => {
-  if(guardScorer())return;
   const p = players.find(x=>x.id===id); if(!p) return;
   _editAvatarPlayerId = id;
   _pendingAvatarUrl = p.avatarUrl || null;
@@ -1369,7 +1368,6 @@ window.removePendingAvatar = () => {
 };
 
 window.saveAvatarEdit = () => {
-  if(guardScorer())return;
   const p = players.find(x=>x.id===_editAvatarPlayerId); if(!p) return;
   p.avatarUrl = _pendingAvatarUrl || null;
   saveAll();
@@ -2462,7 +2460,7 @@ function renderProfile(name){
     document.getElementById('profileAv').style.cssText='cursor:pointer';
     document.getElementById('profileAv').textContent = ini(name);
   }
-  const canEditAvatar = window._userRole==='admin';
+  const canEditAvatar = window._userRole==='admin' || window._userRole==='scorer';
   document.getElementById('profileAv').onclick = canEditAvatar ? (()=>openEditAvatar(p.id)) : null;
   document.getElementById('profileAv').style.cursor = canEditAvatar ? 'pointer' : 'default';
   document.getElementById('profileAvEditHint').style.display = canEditAvatar ? '' : 'none';
