@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
-<title>11Points.co - Hệ thống quản lý CLB Pickleball</title>
+<title>11Points.me - Hệ thống quản lý CLB Pickleball</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -4335,7 +4335,7 @@ function hideLoginScreen(){
   const h=document.getElementById('clubNameHeader');
   const name=window._clubName||'';
   if(h&&name) h.textContent=name;
-  if(name) document.title = name + ' — 11Points.co';
+  if(name) document.title = name + ' — 11Points.me';
   // Show logout button only when logged in
   const logoutBtn=document.getElementById('logoutBtn');
   if(logoutBtn&&window._userRole!=='guest') logoutBtn.style.display='';
@@ -5105,7 +5105,7 @@ init();
     <div class="panel-hd">📞 Liên hệ với Admin hệ thống</div>
     <div style="text-align:center;padding:.5rem 0">
       <img src="zalo-qr.jpg" alt="QR Zalo liên hệ Admin" style="max-width:220px;width:100%;border-radius:var(--rs);margin-bottom:.75rem"/>
-      <div style="font-size:.8rem;color:var(--muted)">Quét mã QR bằng ứng dụng Zalo để liên hệ trực tiếp với quản trị viên hệ thống 11Points.co.</div>
+      <div style="font-size:.8rem;color:var(--muted)">Quét mã QR bằng ứng dụng Zalo để liên hệ trực tiếp với quản trị viên hệ thống 11Points.me.</div>
     </div>
   </div>
 
