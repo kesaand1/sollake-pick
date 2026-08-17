@@ -1671,13 +1671,20 @@ function renderOverviewCards(){
   const topNopNames = topNopList.map(e=>e[0]).join(' - ');
   const topNopData  = topNopList.length ? topNopList[0][1] : null;
 
+  const champMembersHtml = latestChampion
+    ? latestChampion.members.map(n=>{
+        const tc = typeof getTrophyCount==='function' ? getTrophyCount(n) : 0;
+        return n + (tc>0 ? ' <span style="display:inline-flex;align-items:center;gap:2px;background:#FACC15;color:#0B1929;font-size:.65rem;font-weight:800;padding:1px 6px;border-radius:50px;vertical-align:middle">🏆 '+tc+'</span>' : '');
+      }).join(' & ')
+    : '';
+
   el.innerHTML = `
     <div class="ov-card ov-card-champion">
       <div>
         <div class="ov-card-label" style="font-weight:700">👑 NHÀ VÔ ĐỊCH</div>
         ${latestChampion
           ? `<div class="ov-card-name">👑 ${latestChampion.name}</div>
-             <div style="font-size:.85rem;font-weight:700;color:#0B1929;margin-top:.4rem;line-height:1.4;word-break:break-word">${latestChampion.members.join(' & ')}</div>
+             <div style="font-size:.85rem;font-weight:700;color:#0B1929;margin-top:.4rem;line-height:1.6;word-break:break-word">${champMembersHtml}</div>
              <div style="font-size:.75rem;font-weight:600;color:rgba(11,25,41,.65);margin-top:.4rem">🏅 ${latestT.name}</div>`
           : `<div class="ov-card-name" style="color:#0B1929">—</div><div style="font-size:.85rem;color:rgba(11,25,41,.6);margin-top:.3rem">Chưa có giải đấu nào kết thúc</div>`}
       </div>
