@@ -1886,15 +1886,27 @@ function updateMF(){
   const d=document.getElementById('mType').value==='doubles'?'':'none';
   document.getElementById('mA2w').style.display=d;document.getElementById('mB2w').style.display=d;
 }
-function calcElo(ws,ls){return parseFloat((0.1*(1-1/(1+Math.pow(10,(ls-ws)/4)))).toFixed(2))}
+function calcElo(ws,ls){return parseFloat((0.1*(1-1/(1+Math.pow(10,(ls-ws)/2)))).toFixed(2))}
+
+// Mức độ áp đảo trong tỷ số thực tế của trận (VD: 11-3 áp đảo hơn 11-9)
+// margin=2 (thắng sát nút, mức tối thiểu) → hệ số 0.85x
+// margin>=11 (áp đảo hoàn toàn) → hệ số 1.30x
+function marginMultiplier(winScore, loseScore){
+  const margin = Math.max(0, (winScore||0) - (loseScore||0));
+  const capped = Math.min(margin, 11);
+  return 0.85 + Math.max(0, capped-2)/9 * 0.45;
+}
 
 // Apply ELO score changes to players based on match result — used by both
 // regular ("kèo") matches and tournament ("giải") matches, so all match types
-// contribute to player ELO consistently.
-function applyEloDelta(winnerNames, loserNames){
+// contribute to player ELO consistently. winScore/loseScore (optional) scale
+// the delta by how lopsided the actual match score was.
+function applyEloDelta(winnerNames, loserNames, winScore, loseScore){
   const avgW=winnerNames.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/winnerNames.length;
   const avgL=loserNames.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/loserNames.length;
-  const delta=calcElo(avgW,avgL);
+  const baseDelta=calcElo(avgW,avgL);
+  const mult = (winScore!=null && loseScore!=null) ? marginMultiplier(winScore, loseScore) : 1;
+  const delta=parseFloat((baseDelta*mult).toFixed(2));
   winnerNames.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.min(8,p.score+delta).toFixed(2));});
   loserNames.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.max(2,p.score-delta).toFixed(2));});
   return delta;
@@ -1938,11 +1950,7 @@ function logMatch(){
   if(new Set([...tA,...tB]).size!==tA.length+tB.length)return alert('Có người chơi bị trùng lặp!');
   const winner=sA>sB?'A':'B';
   const wt=winner==='A'?tA:tB,lt=winner==='A'?tB:tA;
-  const avgW=wt.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/wt.length;
-  const avgL=lt.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/lt.length;
-  const delta=calcElo(avgW,avgL);
-  wt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.min(8,p.score+delta).toFixed(2));});
-  lt.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.max(2,p.score-delta).toFixed(2));});
+  const delta=applyEloDelta(wt, lt, Math.max(sA,sB), Math.min(sA,sB));
   matches.push({id:nM++,date,type,a:tA,b:tB,scoreA:sA,scoreB:sB,keo,keoNuoc,keoBia,keoBong,winner,elo:delta});
   saveAll();closeModal('matchModal');renderMatches();renderRanking();renderPlayers();
   notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
@@ -3577,7 +3585,7 @@ function saveThirdPlaceResult(tId){
     reverseEloIfNeeded(t.thirdPlaceMatch);
     t.thirdPlaceMatch.scoreA=sa; t.thirdPlaceMatch.scoreB=sb; t.thirdPlaceMatch.done=true;
     t.thirdPlaceMatch.winnerIdx = sa>sb?t.thirdPlaceMatch.teamA:t.thirdPlaceMatch.teamB;
-    t.thirdPlaceMatch.elo = applyEloDelta(sa>sb?t.thirdPlaceMatch.pairA:t.thirdPlaceMatch.pairB, sa>sb?t.thirdPlaceMatch.pairB:t.thirdPlaceMatch.pairA);
+    t.thirdPlaceMatch.elo = applyEloDelta(sa>sb?t.thirdPlaceMatch.pairA:t.thirdPlaceMatch.pairB, sa>sb?t.thirdPlaceMatch.pairB:t.thirdPlaceMatch.pairA, Math.max(sa,sb), Math.min(sa,sb));
     advanceGroupsPhase(t);
     saveAll();
     renderTournamentInline(t);
@@ -3600,7 +3608,7 @@ function saveGroupMatchResult(tId, mId){
   try{
     reverseEloIfNeeded(m);
     m.scoreA=sa; m.scoreB=sb; m.done=true;
-    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA, Math.max(sa,sb), Math.min(sa,sb));
     advanceGroupsPhase(t);
     saveAll();
     renderTournamentInline(t);
@@ -3642,7 +3650,7 @@ function saveSemiResult(tId, sId){
     reverseEloIfNeeded(m);
     m.scoreA=sa; m.scoreB=sb; m.done=true;
     m.winnerIdx = newWinnerIdx;
-    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA, Math.max(sa,sb), Math.min(sa,sb));
     advanceGroupsPhase(t);
     saveAll();
     renderTournamentInline(t);
@@ -3665,7 +3673,7 @@ function saveFinalResult(tId){
     reverseEloIfNeeded(t.final);
     t.final.scoreA=sa; t.final.scoreB=sb; t.final.done=true;
     t.final.winnerIdx = sa>sb?t.final.teamA:t.final.teamB;
-    t.final.elo = applyEloDelta(sa>sb?t.final.pairA:t.final.pairB, sa>sb?t.final.pairB:t.final.pairA);
+    t.final.elo = applyEloDelta(sa>sb?t.final.pairA:t.final.pairB, sa>sb?t.final.pairB:t.final.pairA, Math.max(sa,sb), Math.min(sa,sb));
     advanceGroupsPhase(t);
     saveAll();
     renderTournamentInline(t);
@@ -4362,7 +4370,7 @@ function saveMatchResult(tId, mId){
   if(sa===sb){alert('Không thể hòa! Nhập điểm khác nhau.');return;}
   try{
     m.scoreA=sa; m.scoreB=sb; m.done=true;
-    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA, Math.max(sa,sb), Math.min(sa,sb));
     // Auto-complete tournament if all matches done
     const justCompleted = t.status!=='done' && t.matches.every(function(m){return m&&m.done;});
     if(justCompleted) t.status='done';
@@ -4389,7 +4397,7 @@ function saveBracketMatchResult(tId, mId){
   try{
     m.scoreA=sa; m.scoreB=sb; m.done=true;
     m.winnerIdx = sa>sb ? m.teamA : m.teamB;
-    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA);
+    m.elo = applyEloDelta(sa>sb?m.pairA:m.pairB, sa>sb?m.pairB:m.pairA, Math.max(sa,sb), Math.min(sa,sb));
     advanceBracket(t);
     saveAll();
     renderTournamentInline(t);
