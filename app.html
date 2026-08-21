@@ -1956,8 +1956,15 @@ function logMatch(){
   notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
 }
 function delMatch(id){if(guardScorer())return;
-  if(!confirm('Xóa trận? Điểm ELO không hoàn lại.'))return;
-  matches=matches.filter(m=>m.id!==id);saveAll();renderMatches();notify('🗑 Đã xóa trận');
+  const m = matches.find(x=>x.id===id); if(!m) return;
+  if(!confirm('Xóa trận? Điểm ELO đã cộng/trừ sẽ được hoàn lại.'))return;
+  if(m.elo){
+    const winners = m.winner==='A' ? m.a : m.b;
+    const losers  = m.winner==='A' ? m.b : m.a;
+    winners.forEach(n=>{const p=gp(n); if(p) p.score=parseFloat(Math.max(2,Math.min(8,p.score-m.elo)).toFixed(2));});
+    losers.forEach(n=>{const p=gp(n); if(p) p.score=parseFloat(Math.max(2,Math.min(8,p.score+m.elo)).toFixed(2));});
+  }
+  matches=matches.filter(m=>m.id!==id);saveAll();renderMatches();renderPlayers();renderRanking();notify('🗑 Đã xóa trận và hoàn lại điểm ELO');
 }
 let _matchTypeFilter = 'all'; // 'all' | 'keo' | 'giai'
 window.setMatchTypeFilter = (type) => {
@@ -4423,11 +4430,17 @@ function endTournament(){if(guardScorer())return;
 
 function deleteTournament(id){
   const t=tournaments.find(x=>x.id===id); if(!t) return;
-  if(!confirm('Xóa giải "'+t.name+'"? Không thể hoàn tác.')) return;
+  if(!confirm('Xóa giải "'+t.name+'"? Điểm ELO đã cộng/trừ từ các trận trong giải sẽ được hoàn lại. Không thể hoàn tác.')) return;
+  const allMatches = t.format==='groups'
+    ? [...(t.groupMatches||[]), ...(t.semis||[]), ...(t.final?[t.final]:[]), ...(t.thirdPlaceMatch?[t.thirdPlaceMatch]:[])]
+    : t.bracket ? (t.bracket.rounds||[]).flat().filter(m=>m&&!m.bye)
+    : (t.matches||[]);
+  allMatches.filter(m=>m&&m.done&&m.elo).forEach(m=>reverseEloIfNeeded(m));
   tournaments=tournaments.filter(x=>x.id!==id);
   saveAll();
   renderTournamentList();
-  notify('🗑 Đã xóa giải: '+t.name);
+  renderPlayers();
+  notify('🗑 Đã xóa giải và hoàn lại điểm ELO: '+t.name);
 }
 
 
