@@ -1007,6 +1007,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <option value="nuoc">Nước</option>
         <option value="bia">Bia</option>
         <option value="bong">Bóng Pickleball</option>
+        <option value="lau">Lẩu</option>
+        <option value="ga">Gà</option>
       </select>
     </div>
     <div id="keoNuocWrap" style="display:none" class="fgroup">
@@ -1020,6 +1022,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div id="keoBongWrap" style="display:none" class="fgroup">
       <label>Số quả bóng</label>
       <input class="finput" id="mBong" type="number" min="1" value="1" placeholder="Số quả bóng Pickleball..."/>
+    </div>
+    <div id="keoLauWrap" style="display:none" class="fgroup">
+      <label>Số nồi lẩu</label>
+      <input class="finput" id="mLau" type="number" min="1" value="1" placeholder="Số nồi lẩu..."/>
+    </div>
+    <div id="keoGaWrap" style="display:none" class="fgroup">
+      <label>Số con gà</label>
+      <input class="finput" id="mGa" type="number" min="1" value="1" placeholder="Số con gà..."/>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('matchModal')">Hủy</button>
@@ -1279,7 +1289,7 @@ function openModal(id){
   // Scorer role: can only record matches and edit member avatars
   if(window._userRole==='scorer' && id!=='matchModal' && id!=='editAvatarModal'){ guardScorer(); return; }
   document.getElementById(id).classList.add('open');
-  if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();document.getElementById('mNuoc').value='1';document.getElementById('mBia').value='1';document.getElementById('mBong').value='1';}
+  if(id==='matchModal'){popMatchSel();document.getElementById('mDate').value=today();updateMF();document.getElementById('mKeo').value='none';updateKeoUI();document.getElementById('mNuoc').value='1';document.getElementById('mBia').value='1';document.getElementById('mBong').value='1';document.getElementById('mLau').value='1';document.getElementById('mGa').value='1';}
   if(id==='finModal'){popFinSel();document.getElementById('finDate').value=today();}
   if(id==='fineModal'){
     popFineSel();
@@ -1652,13 +1662,13 @@ function renderOverviewCards(){
     const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
     const isWin=wt.includes(n), isLose=lt.includes(n);
     if(!isWin&&!isLose) return 0;
-    const raw = type==='nuoc'?(m.keoNuoc||1):type==='bia'?(m.keoBia||1):(m.keoBong||1);
+    const raw = type==='nuoc'?(m.keoNuoc||1):type==='bia'?(m.keoBia||1):type==='bong'?(m.keoBong||1):type==='lau'?(m.keoLau||1):(m.keoGa||1);
     return isWin ? raw/teamSize : -raw/teamSize;
   }
 
   // ── Tốp nộp: kèo thua + tiền phạt đã nộp ──
   const bal = {};
-  function ensureBal(n){ if(!bal[n]) bal[n]={nuoc:0,bia:0,bong:0,phat:0}; }
+  function ensureBal(n){ if(!bal[n]) bal[n]={nuoc:0,bia:0,bong:0,lau:0,ga:0,phat:0}; }
   vis.forEach(p=>ensureBal(p.name));
 
   // Kèo
@@ -1669,6 +1679,8 @@ function renderOverviewCards(){
       if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
       if(m.keo==='bia') bal[n].bia += keoVal(m,n,'bia');
       if(m.keo==='bong') bal[n].bong += keoVal(m,n,'bong');
+      if(m.keo==='lau') bal[n].lau += keoVal(m,n,'lau');
+      if(m.keo==='ga') bal[n].ga += keoVal(m,n,'ga');
     });
   });
   // Phạt đã nộp (âm = đã chi ra) — tính cho MỌI người từng bị phạt,
@@ -1683,11 +1695,13 @@ function renderOverviewCards(){
     bal[n].nuoc = parseFloat(bal[n].nuoc.toFixed(1));
     bal[n].bia = parseFloat(bal[n].bia.toFixed(1));
     bal[n].bong = parseFloat(bal[n].bong.toFixed(1));
+    bal[n].lau = parseFloat(bal[n].lau.toFixed(1));
+    bal[n].ga = parseFloat(bal[n].ga.toFixed(1));
     bal[n].phat = Math.round(bal[n].phat);
   });
 
   // Tổng điểm âm = tốp nộp (kèo thua + phạt)
-  function lossScore(d){ return d.phat + (d.nuoc+d.bia+d.bong)*10000; }
+  function lossScore(d){ return d.phat + (d.nuoc+d.bia+d.bong+d.lau+d.ga)*10000; }
 
   const allBal = Object.entries(bal).filter(([n])=>
     filtered.some(m=>[...m.a,...m.b].includes(n)) ||
@@ -1727,8 +1741,8 @@ function renderOverviewCards(){
   // Helper: render kèo balance
   function balLines(data, colorOverride){
     if(!data) return '<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>';
-    const {nuoc=0,bia=0,bong=0,phat=0}=data;
-    if(phat===0&&nuoc===0&&bia===0&&bong===0) return '<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>';
+    const {nuoc=0,bia=0,bong=0,lau=0,ga=0,phat=0}=data;
+    if(phat===0&&nuoc===0&&bia===0&&bong===0&&lau===0&&ga===0) return '<div style="font-size:.85rem;opacity:.5;margin-top:.3rem">Chưa có dữ liệu</div>';
     let html='';
     if(phat!==0){
       const col=colorOverride||(phat>0?'var(--success)':'var(--danger)');
@@ -1745,6 +1759,14 @@ function renderOverviewCards(){
     if(bong!==0){
       const col=colorOverride||(bong>0?'var(--lime)':'var(--danger)');
       html+=`<div style="font-size:.9rem;font-weight:600;color:${col};margin-top:3px">${bong>0?'+':''}${bong}<span style="font-size:.72rem;font-weight:400;margin-left:3px">quả bóng</span></div>`;
+    }
+    if(lau!==0){
+      const col=colorOverride||(lau>0?'#FB923C':'var(--danger)');
+      html+=`<div style="font-size:.9rem;font-weight:600;color:${col};margin-top:3px">${lau>0?'+':''}${lau}<span style="font-size:.72rem;font-weight:400;margin-left:3px">nồi lẩu</span></div>`;
+    }
+    if(ga!==0){
+      const col=colorOverride||(ga>0?'#F472B6':'var(--danger)');
+      html+=`<div style="font-size:.9rem;font-weight:600;color:${col};margin-top:3px">${ga>0?'+':''}${ga}<span style="font-size:.72rem;font-weight:400;margin-left:3px">con gà</span></div>`;
     }
     return html;
   }
@@ -1928,6 +1950,8 @@ function updateKeoUI(){
   document.getElementById('keoNuocWrap').style.display = val==='nuoc' ? '' : 'none';
   document.getElementById('keoBiaWrap').style.display = val==='bia' ? '' : 'none';
   document.getElementById('keoBongWrap').style.display = val==='bong' ? '' : 'none';
+  document.getElementById('keoLauWrap').style.display = val==='lau' ? '' : 'none';
+  document.getElementById('keoGaWrap').style.display = val==='ga' ? '' : 'none';
 }
 
 function logMatch(){
@@ -1941,6 +1965,8 @@ function logMatch(){
   const keoNuoc=keo==='nuoc'?parseInt(document.getElementById('mNuoc').value)||1:null;
   const keoBia=keo==='bia'?parseInt(document.getElementById('mBia').value)||1:null;
   const keoBong=keo==='bong'?parseInt(document.getElementById('mBong').value)||1:null;
+  const keoLau=keo==='lau'?parseInt(document.getElementById('mLau').value)||1:null;
+  const keoGa=keo==='ga'?parseInt(document.getElementById('mGa').value)||1:null;
   if(!date)return alert('Chọn ngày thi đấu');
   if(!a1||!b1)return alert('Vui lòng chọn đủ người chơi cho cả 2 bên');
   if(type==='doubles'&&(!a2||!b2))return alert('Trận đôi cần chọn đủ 4 người chơi');
@@ -1951,7 +1977,7 @@ function logMatch(){
   const winner=sA>sB?'A':'B';
   const wt=winner==='A'?tA:tB,lt=winner==='A'?tB:tA;
   const delta=applyEloDelta(wt, lt, Math.max(sA,sB), Math.min(sA,sB));
-  matches.push({id:nM++,date,type,a:tA,b:tB,scoreA:sA,scoreB:sB,keo,keoNuoc,keoBia,keoBong,winner,elo:delta});
+  matches.push({id:nM++,date,type,a:tA,b:tB,scoreA:sA,scoreB:sB,keo,keoNuoc,keoBia,keoBong,keoLau,keoGa,winner,elo:delta});
   saveAll();closeModal('matchModal');renderMatches();renderRanking();renderPlayers();
   notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
 }
@@ -2022,7 +2048,7 @@ function renderMatches(){
       <td style="text-align:center"><div class="score-disp"><span style="color:${wA?'var(--lime)':'var(--muted)'}">${m.scoreA}</span><span style="color:var(--muted);margin:0 4px">:</span><span style="color:${!wA?'var(--lime)':'var(--muted)'}">${m.scoreB}</span></div>${m.elo?`<div class="small tm">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''}</td>
       <td>${m.b.map(n=>avW(n,gpc(n))).join('<div style="margin:2px 0 2px 38px;font-size:.67rem;color:var(--muted)">và</div>')}</td>
 
-      <td>${m.isTournament?`<span class='pill p-gray'>🏅 ${m.tournamentName}</span>`:(m.keo==='nuoc'?`<span class='pill p-gray'>💧 ${m.keoNuoc} chai</span>`:m.keo==='bia'?`<span class='pill p-yellow'>🍺 ${m.keoBia} cốc</span>`:m.keo==='bong'?`<span class='pill p-green'><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> ${m.keoBong} quả</span>`:'<span class="tm">—</span>')}</td>
+      <td>${m.isTournament?`<span class='pill p-gray'>🏅 ${m.tournamentName}</span>`:(m.keo==='nuoc'?`<span class='pill p-gray'>💧 ${m.keoNuoc} chai</span>`:m.keo==='bia'?`<span class='pill p-yellow'>🍺 ${m.keoBia} cốc</span>`:m.keo==='bong'?`<span class='pill p-green'><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> ${m.keoBong} quả</span>`:m.keo==='lau'?`<span class='pill p-red'>🍲 ${m.keoLau} nồi</span>`:m.keo==='ga'?`<span class='pill p-yellow'>🐔 ${m.keoGa} con</span>`:'<span class="tm">—</span>')}</td>
       <td>${m.isTournament?'':`<button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button>`}</td>
     </tr>`;
   }).join('');
@@ -2064,7 +2090,7 @@ function renderMatches(){
       </div>
       <!-- Kèo / Giải -->
       ${m.isTournament?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">🏅 Giải: <strong style="color:var(--text)">${m.tournamentName}</strong>${m.elo?` · ±${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>`
-        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>'}</div>`:'')}
+        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':m.keo==='bong'?'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>':m.keo==='lau'?'🍲 Lẩu: <strong style="color:var(--text)">'+m.keoLau+' nồi</strong>':'🐔 Gà: <strong style="color:var(--text)">'+m.keoGa+' con</strong>'}</div>`:'')}
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
@@ -2567,6 +2593,18 @@ function renderProfile(name){
     const share = (m.keoBong||1) / (m.type==='doubles' ? 2 : 1);
     return s + (isWin ? share : -share);
   },0);
+  const keoLauTotal = myMatches.reduce((s,m)=>{
+    if(m.keo!=='lau') return s;
+    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    const share = (m.keoLau||1) / (m.type==='doubles' ? 2 : 1);
+    return s + (isWin ? share : -share);
+  },0);
+  const keoGaTotal = myMatches.reduce((s,m)=>{
+    if(m.keo!=='ga') return s;
+    const isWin=(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name));
+    const share = (m.keoGa||1) / (m.type==='doubles' ? 2 : 1);
+    return s + (isWin ? share : -share);
+  },0);
 
   document.getElementById('profileStats').innerHTML = `
     <div class="sc"><div class="val">${myMatches.length}</div><div class="lbl">Tổng trận</div></div>
@@ -2593,6 +2631,20 @@ function renderProfile(name){
         ${keoBongTotal>=0?'+':''}${keoBongTotal} quả
       </div>
       <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='bong').length} trận có kèo bóng</div>
+    </div>
+    <div class="sc" style="grid-column:span 2">
+      <div class="lbl" style="margin-bottom:.4rem">🍲 Kèo lẩu</div>
+      <div style="font-size:1.1rem;font-weight:700;color:${keoLauTotal>=0?'var(--success)':'var(--danger)'}">
+        ${keoLauTotal>=0?'+':''}${keoLauTotal} nồi
+      </div>
+      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='lau').length} trận có kèo lẩu</div>
+    </div>
+    <div class="sc" style="grid-column:span 2">
+      <div class="lbl" style="margin-bottom:.4rem">🐔 Kèo gà</div>
+      <div style="font-size:1.1rem;font-weight:700;color:${keoGaTotal>=0?'var(--success)':'var(--danger)'}">
+        ${keoGaTotal>=0?'+':''}${keoGaTotal} con
+      </div>
+      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='ga').length} trận có kèo gà</div>
     </div>`:''}`;
 
   // ── Bộ sưu tập cúp ──
