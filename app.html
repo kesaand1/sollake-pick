@@ -1519,7 +1519,7 @@ function calcPairingSingles(){
     const r=matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-10);
     if(!r.length)return 0;
     const w=r.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
-    return parseFloat(((w/r.length-0.5)*0.6).toFixed(3));
+    return parseFloat(((w/r.length-0.5)*0.2).toFixed(3));
   }
   const eff1=parseFloat((p1.score+formScore(n1)).toFixed(2));
   const eff2=parseFloat((p2.score+formScore(n2)).toFixed(2));
@@ -2299,8 +2299,8 @@ function calcPairing(){
     if(!recent.length) return 0;
     const wins=recent.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
     const wr10=wins/recent.length;
-    // FormScore = (WR10 - 0.5) * 0.6  → range -0.3 to +0.3
-    return parseFloat(((wr10-0.5)*0.6).toFixed(3));
+    // FormScore = (WR10 - 0.5) * 0.2  → range -0.1 to +0.1 (chỉ ảnh hưởng nhẹ, ưu tiên điểm ELO gốc)
+    return parseFloat(((wr10-0.5)*0.2).toFixed(3));
   }
 
   // ── STEP 3: EffectiveScore = Base + FormAdjustment ──
