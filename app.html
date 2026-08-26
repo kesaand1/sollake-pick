@@ -2727,17 +2727,19 @@ function renderProfile(name){
     function fitText(s, max){ return s.length>max ? s.slice(0,max-1)+'…' : s; }
 
     // 3 ô cửa "đã mở" dùng lại đúng ảnh cửa cắt từ template gốc, mỗi ô gắn tên 1 người xếp dưới
+    // Lưu ý: cả ảnh cửa và ảnh cảnh thần chết đều cắt từ CÙNG 1 ảnh gốc theo đúng tỉ lệ pixel,
+    // nên phải scale theo cùng 1 chiều CAO (không phải chiều rộng) để giữ đúng tỉ lệ thật giữa 2 ảnh.
     const doorTiles = belowNames.slice(0,3).reverse().map(n=>`
-      <div style="position:relative;flex-shrink:0;width:110px">
-        <img src="reaper_door.png" style="width:100%;display:block" alt=""/>
+      <div style="position:relative;flex-shrink:0;height:100%">
+        <img src="reaper_door.png" style="height:100%;width:auto;display:block" alt=""/>
         <div style="position:absolute;top:2px;left:0;right:0;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;color:#B91C1C;font-size:.8rem;text-shadow:0 1px 2px rgba(255,255,255,.5)">${fitText(n,12)}</div>
       </div>`).join('');
 
     reaperPanel.innerHTML = `
-      <div style="display:flex;align-items:flex-end;background:#D2CAB2;overflow-x:auto">
+      <div style="display:flex;align-items:flex-end;background:#D2CAB2;overflow-x:auto;height:min(60vw,340px)">
         ${doorTiles}
-        <div style="position:relative;flex:1;min-width:260px">
-          <img src="reaper_scene.png" style="width:100%;display:block" alt=""/>
+        <div style="position:relative;flex-shrink:0;height:100%">
+          <img src="reaper_scene.png" style="height:100%;width:auto;display:block" alt=""/>
           <div style="position:absolute;top:23.5%;left:60%;right:6%;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;color:#B91C1C;font-size:1.1rem;text-shadow:0 1px 2px rgba(255,255,255,.5)">${fitText(targetName,14)}</div>
           <div style="position:absolute;top:60%;left:6%;width:34%;text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:700;color:#fff;font-size:.8rem;text-shadow:0 1px 2px rgba(0,0,0,.6)">${fitText(name,12)}</div>
         </div>
