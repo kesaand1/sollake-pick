@@ -1161,8 +1161,8 @@ let nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
 const fmt=n=>n.toLocaleString('vi-VN')+'đ';
 function getLevel(score){
   const s=parseFloat(score);
-  if(s>=5.0)return{label:'VĐV Quốc gia',pill:'lv-quocgia',icon:'🏅'};
-  if(s>=4.0)return{label:'Tuyển thủ',pill:'lv-tuyenthu',icon:'⚡'};
+  if(s>=4.0)return{label:'VĐV Quốc gia',pill:'lv-quocgia',icon:'🏅'};
+  if(s>=3.5)return{label:'Tuyển thủ',pill:'lv-tuyenthu',icon:'⚡'};
   if(s>=3.0)return{label:'Nâng cao',pill:'lv-nangcao',icon:'🔥'};
   if(s>=2.5)return{label:'Trung bình',pill:'lv-trungbinh',icon:'📈'};
   return{label:'Người mới',pill:'lv-moi',icon:'🌱'};
