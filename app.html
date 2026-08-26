@@ -1529,7 +1529,7 @@ function calcPairingSingles(){
   const fc=c=>c>=0?'var(--success)':'var(--danger)';
 
   let handicap=0;
-  if(diff>=0.3) handicap=Math.min(5,Math.ceil((diff-0.3)/0.3));
+  if(diff>=0.15) handicap=Math.min(5,Math.ceil((diff-0.15)/0.15));
 
   // H2H singles
   const h2h=matches.filter(m=>m.type==='singles'&&[...m.a,...m.b].includes(n1)&&[...m.a,...m.b].includes(n2));
@@ -2324,7 +2324,7 @@ function calcPairing(){
 
   // Base handicap
   let handicap=0;
-  if(diff>=0.3) handicap=Math.min(5,Math.ceil((diff-0.3)/0.3));
+  if(diff>=0.15) handicap=Math.min(5,Math.ceil((diff-0.15)/0.15));
 
   const adjustments=[];
 
