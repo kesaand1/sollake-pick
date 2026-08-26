@@ -383,6 +383,16 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .av-lg{width:40px;height:40px;font-size:.8rem}
 .av-wrap{display:flex;align-items:center;gap:.55rem;min-width:0;overflow:hidden}
 .av-trophy-wrap{position:relative;flex-shrink:0;display:inline-flex}
+.reaper-hall{display:flex;align-items:flex-end;gap:.6rem;overflow-x:auto;padding:1rem .5rem .5rem}
+.reaper-door{flex-shrink:0;text-align:center;width:70px}
+.reaper-door-img{font-size:1.8rem;line-height:1;margin-bottom:.3rem}
+.reaper-door-name{font-size:.68rem;color:var(--muted);word-break:break-word;line-height:1.2}
+.reaper-door.target .reaper-door-name{color:var(--danger);font-weight:700}
+.reaper-door.done .reaper-door-name{color:var(--success)}
+.reaper-figure{flex-shrink:0;text-align:center;width:60px;position:relative}
+.reaper-figure .reaper-emoji{font-size:2.2rem;line-height:1}
+.reaper-figure .reaper-name{font-size:.7rem;font-weight:700;color:var(--text);margin-top:.2rem;word-break:break-word}
+.reaper-arrow{flex-shrink:0;color:var(--danger);font-size:1.2rem;padding-bottom:1.4rem}
 .av-trophy-badge{position:absolute;bottom:-5px;right:-8px;background:#FACC15;color:#0B1929;font-size:.58rem;font-weight:800;padding:1px 5px;border-radius:50px;border:2px solid var(--card);white-space:nowrap;line-height:1.3}
 .av-wrap .aname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
@@ -763,6 +773,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div id="rivalPartners" style="display:flex;flex-direction:column;gap:.6rem"></div>
       </div>
     </div>
+  </div>
+
+  <div class="panel" id="reaperPanel" style="margin-bottom:1rem;display:none;overflow:hidden">
+    <div class="panel-hd">💀 Săn lùng ngôi vị</div>
+    <div id="reaperContent"></div>
   </div>
 
   <div class="panel" style="margin-bottom:1rem">
@@ -2697,6 +2712,39 @@ function renderProfile(name){
     document.getElementById('rivalPartners').innerHTML = partHtml.join('') || '<div class="small tm">Chưa đủ dữ liệu</div>';
   } else {
     rivalryPanel.style.display='none';
+  }
+
+  // ── 💀 Săn lùng ngôi vị: thần chết gõ cửa người xếp trên mình ──
+  const reaperPanel = document.getElementById('reaperPanel');
+  const standings = players.filter(pl=>pl.visible).sort((a,b)=>b.score-a.score);
+  const myRank = standings.findIndex(pl=>pl.name===name); // 0-based
+  if(myRank>=3){ // chỉ hiện từ vị trí #4 trở đi (đủ dữ liệu 3 cửa đã mở)
+    reaperPanel.style.display='';
+    const playerAbove = myRank>0 ? standings[myRank-1] : null; // null chỉ xảy ra nếu myRank===0, không thực tế ở đây
+    const belowNames = [standings[myRank+1], standings[myRank+2], standings[myRank+3]].filter(Boolean);
+    const doorsOpenedHtml = belowNames.map(pl=>`
+      <div class="reaper-door done">
+        <div class="reaper-door-img">🚪</div>
+        <div class="reaper-door-name">${pl.name}</div>
+      </div>`).join('');
+    const targetName = playerAbove ? playerAbove.name : '?';
+    reaperPanel.innerHTML = `
+      <div class="reaper-hall">
+        ${doorsOpenedHtml}
+        <div class="reaper-figure">
+          <div class="reaper-emoji">💀</div>
+          <div class="reaper-name">${name}</div>
+        </div>
+        <div class="reaper-arrow">➜</div>
+        <div class="reaper-door target">
+          <div class="reaper-door-img">🚪❗</div>
+          <div class="reaper-door-name">${targetName}</div>
+        </div>
+      </div>
+      <div style="padding:0 1rem 1rem;font-size:.75rem;color:var(--muted)">${name} đã "hạ gục" ${belowNames.length} người phía dưới, giờ đang gõ cửa đe dọa vị trí của <strong style="color:var(--text)">${targetName}</strong>!</div>
+    `;
+  } else {
+    reaperPanel.style.display='none';
   }
 
   // ── % Win rate theo từng ngày có ghi trận (bỏ qua ngày không chơi) ──
