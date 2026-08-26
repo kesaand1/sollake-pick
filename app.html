@@ -2720,27 +2720,60 @@ function renderProfile(name){
   const myRank = standings.findIndex(pl=>pl.name===name); // 0-based
   if(myRank>=3){ // chỉ hiện từ vị trí #4 trở đi (đủ dữ liệu 3 cửa đã mở)
     reaperPanel.style.display='';
-    const playerAbove = myRank>0 ? standings[myRank-1] : null; // null chỉ xảy ra nếu myRank===0, không thực tế ở đây
-    const belowNames = [standings[myRank+1], standings[myRank+2], standings[myRank+3]].filter(Boolean);
-    const doorsOpenedHtml = belowNames.map(pl=>`
-      <div class="reaper-door done">
-        <div class="reaper-door-img">🚪</div>
-        <div class="reaper-door-name">${pl.name}</div>
-      </div>`).join('');
+    const playerAbove = myRank>0 ? standings[myRank-1] : null;
+    const belowNames = [standings[myRank+1], standings[myRank+2], standings[myRank+3]].filter(Boolean).map(pl=>pl.name);
     const targetName = playerAbove ? playerAbove.name : '?';
+
+    function fitText(s, max){ return s.length>max ? s.slice(0,max-1)+'…' : s; }
+    function doorFar(cx, topY, scale, label){
+      // cx: center x of door frame; topY: y of frame top; scale: size multiplier
+      const w=54*scale, h=100*scale;
+      return `
+        <g>
+          <rect x="${cx-w/2-4}" y="${topY-4}" width="${w+8}" height="${h+8}" fill="none" stroke="#E8E3D8" stroke-width="2"/>
+          <rect x="${cx-w/2}" y="${topY}" width="${w}" height="${h}" fill="#0B0B0B"/>
+          <rect x="${cx-w/2+6}" y="${topY+6}" width="${w-12}" height="${h-12}" fill="#D9A441"/>
+          <circle cx="${cx+w/2-14}" cy="${topY+h/2}" r="${3*scale}" fill="#8a6a2a"/>
+          <text x="${cx}" y="${topY-10}" text-anchor="middle" font-size="${13*scale+3}" font-weight="700" fill="#B91C1C" font-family="Georgia, serif" font-style="italic">${fitText(label,10)}</text>
+        </g>`;
+    }
+
+    // 3 cửa xa dần theo phối cảnh (giống ảnh mẫu), cửa gần nhất là mục tiêu
+    const door1 = doorFar(70, 165, 0.62, belowNames[2]||'');
+    const door2 = doorFar(200, 145, 0.78, belowNames[1]||'');
+    const door3 = doorFar(345, 118, 1.0, belowNames[0]||'');
+
+    // Cửa mục tiêu (đang bị gõ) — lớn nhất, gần người xem nhất
+    const tw=140, th=230, tx=560, ty=70;
+
     reaperPanel.innerHTML = `
-      <div class="reaper-hall">
-        ${doorsOpenedHtml}
-        <div class="reaper-figure">
-          <div class="reaper-emoji">💀</div>
-          <div class="reaper-name">${name}</div>
-        </div>
-        <div class="reaper-arrow">➜</div>
-        <div class="reaper-door target">
-          <div class="reaper-door-img">🚪❗</div>
-          <div class="reaper-door-name">${targetName}</div>
-        </div>
-      </div>
+      <svg viewBox="0 0 800 420" style="width:100%;height:auto;display:block;background:linear-gradient(180deg,#E4DFCF 0%,#E4DFCF 62%,#C9BFA0 62%,#C9BFA0 100%)">
+        <polygon points="0,420 800,420 800,255 0,340" fill="#C9BFA0"/>
+        <polygon points="0,420 800,420 800,255 0,340" fill="none"/>
+        <path d="M0,410 C90,370 150,395 230,368 C300,345 340,375 430,352 L430,410 Z" fill="#8B1E1E" opacity=".85"/>
+        <ellipse cx="60" cy="400" rx="10" ry="4" fill="#8B1E1E" opacity=".85"/>
+        <ellipse cx="270" cy="378" rx="7" ry="3" fill="#8B1E1E" opacity=".85"/>
+        ${door1}${door2}${door3}
+        <g>
+          <rect x="${tx-6}" y="${ty-6}" width="${tw+12}" height="${th+12}" fill="none" stroke="#F5F1E6" stroke-width="3"/>
+          <rect x="${tx}" y="${ty}" width="${tw}" height="${th}" fill="#D9A441"/>
+          <circle cx="${tx+tw-22}" cy="${ty+th/2}" r="6" fill="#8a6a2a"/>
+          <path d="M${tx+tw-8},${ty+70} l14,-10 M${tx+tw-8},${ty+90} l16,0 M${tx+tw-8},${ty+110} l14,10" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+          <text x="${tx+tw/2}" y="${ty-16}" text-anchor="middle" font-size="19" font-weight="700" fill="#B91C1C" font-family="Georgia, serif" font-style="italic">${fitText(targetName,14)}</text>
+        </g>
+        <g transform="translate(420,150)">
+          <path d="M60,230 C10,230 -10,190 20,150 C0,120 10,70 55,55 L100,10 L118,28 L145,20 L152,45 L120,60 C150,80 150,130 130,160 C160,190 150,225 110,230 Z" fill="#141414"/>
+          <path d="M20,150 C0,175 -15,205 30,222 C10,190 15,165 20,150 Z" fill="#141414"/>
+          <ellipse cx="63" cy="45" rx="27" ry="30" fill="#EDEAE0"/>
+          <ellipse cx="53" cy="42" rx="6" ry="8" fill="#141414"/>
+          <ellipse cx="76" cy="42" rx="6" ry="8" fill="#141414"/>
+          <path d="M48,60 Q63,52 78,60" stroke="#141414" stroke-width="3" fill="none"/>
+          <rect x="42" y="70" width="42" height="10" fill="#141414" opacity=".08"/>
+          <line x1="100" y1="10" x2="185" y2="235" stroke="#7a5a30" stroke-width="7"/>
+          <path d="M100,10 C130,-10 165,-6 178,22 C160,26 138,26 118,28 Z" fill="#EDEAE0" stroke="#141414" stroke-width="2"/>
+          <text x="70" y="145" text-anchor="middle" font-size="15" font-weight="700" fill="#fff" font-family="Georgia, serif" font-style="italic" transform="rotate(-4 70 145)">${fitText(name,12)}</text>
+        </g>
+      </svg>
       <div style="padding:0 1rem 1rem;font-size:.75rem;color:var(--muted)">${name} đã "hạ gục" ${belowNames.length} người phía dưới, giờ đang gõ cửa đe dọa vị trí của <strong style="color:var(--text)">${targetName}</strong>!</div>
     `;
   } else {
