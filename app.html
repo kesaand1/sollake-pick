@@ -1913,24 +1913,27 @@ function updateMF(){
 function calcElo(ws,ls){return parseFloat((0.1*(1-1/(1+Math.pow(10,(ls-ws)/0.8)))).toFixed(2))}
 
 // Mức độ áp đảo trong tỷ số thực tế của trận (VD: 11-3 áp đảo hơn 11-9)
-// margin=2 (thắng sát nút, mức tối thiểu) → hệ số 0.7x
+// margin=2 (thắng sát nút, mức tối thiểu) → hệ số 1.0x (giữ nguyên baseDelta gốc)
 // margin>=11 (áp đảo hoàn toàn) → hệ số 1.5x
 function marginMultiplier(winScore, loseScore){
   const margin = Math.max(0, (winScore||0) - (loseScore||0));
   const capped = Math.min(margin, 11);
-  return 0.7 + Math.max(0, capped-2)/9 * 0.8;
+  return 1.0 + Math.max(0, capped-2)/9 * 0.5;
 }
 
 // Apply ELO score changes to players based on match result — used by both
 // regular ("kèo") matches and tournament ("giải") matches, so all match types
 // contribute to player ELO consistently. winScore/loseScore (optional) scale
 // the delta by how lopsided the actual match score was.
+// MIN_ELO_DELTA: every win/loss always moves the score by at least this much,
+// even when the favorite wins exactly as expected — a result should never be worth 0.
+const MIN_ELO_DELTA = 0.02;
 function applyEloDelta(winnerNames, loserNames, winScore, loseScore){
   const avgW=winnerNames.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/winnerNames.length;
   const avgL=loserNames.reduce((s,n)=>{const p=gp(n);return s+(p?p.score:1000)},0)/loserNames.length;
   const baseDelta=calcElo(avgW,avgL);
   const mult = (winScore!=null && loseScore!=null) ? marginMultiplier(winScore, loseScore) : 1;
-  const delta=parseFloat((baseDelta*mult).toFixed(2));
+  const delta=Math.max(MIN_ELO_DELTA, parseFloat((baseDelta*mult).toFixed(2)));
   winnerNames.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.min(8,p.score+delta).toFixed(2));});
   loserNames.forEach(n=>{const p=gp(n);if(p)p.score=parseFloat(Math.max(2,p.score-delta).toFixed(2));});
   return delta;
