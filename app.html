@@ -1902,7 +1902,7 @@ function setMatchPeriod(p){
   document.getElementById('matchTo').value=today();renderMatches();
 }
 function popMatchSel(){
-  const vis=players.filter(p=>p.visible);
+  const vis=players.filter(p=>p.visible).slice().sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   const blank='<option value="">-- Chọn người chơi --</option>';
   ['mA1','mA2','mB1','mB2'].forEach(id=>{document.getElementById(id).innerHTML=blank+vis.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');document.getElementById(id).value='';});
 }
