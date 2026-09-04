@@ -2032,7 +2032,7 @@ function renderMatches(){
   if(_matchTypeFilter==='keo') source = matches;
   else if(_matchTypeFilter==='giai') source = getAllTournamentMatchesFlat();
   else source = [...matches, ...getAllTournamentMatchesFlat()];
-  const fullList=source.filter(m=>inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>b.date.localeCompare(a.date));
+  const fullList=source.filter(m=>inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>b.date.localeCompare(a.date)||(b.id||0)-(a.id||0));
   if(!fullList.length){
     const e=empty('','Chưa có trận nào trong khoảng thời gian này');
     document.getElementById('matchD').innerHTML=e;document.getElementById('matchM').innerHTML=e;
@@ -2063,6 +2063,7 @@ function renderMatches(){
         <div style="display:flex;align-items:center;gap:.4rem">
           <span class="small tm">${fmtD(m.date)}</span>
           <span class="pill p-gray" style="font-size:.62rem">${m.type==='singles'?'Đơn':'Đôi'}</span>
+          ${m.elo?`<span style="font-size:.68rem;font-weight:700;color:var(--lime)">±${parseFloat(m.elo).toFixed(2)} điểm</span>`:''}
         </div>
         ${m.isTournament?'':`<button class="btn btn-danger btn-xs" onclick="delMatch(${m.id})">🗑</button>`}
       </div>
@@ -2091,9 +2092,8 @@ function renderMatches(){
         <span style="font-size:1.4rem;font-weight:700;color:${!wA?'var(--lime)':'var(--muted)'};flex-shrink:0">${m.scoreB}</span>
       </div>
       <!-- Kèo / Giải -->
-      ${m.isTournament?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">🏅 Giải: <strong style="color:var(--text)">${m.tournamentName}</strong>${m.elo?` · ±${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>`
-        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':m.keo==='bong'?'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>':m.keo==='lau'?'🍲 Lẩu: <strong style="color:var(--text)">'+m.keoLau+' nồi</strong>':'🐔 Gà: <strong style="color:var(--text)">'+m.keoGa+' con</strong>'}${m.elo?` · ±${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>`
-        :(m.elo?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''))}
+      ${m.isTournament?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">🏅 Giải: <strong style="color:var(--text)">${m.tournamentName}</strong></div>`
+        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':m.keo==='bong'?'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>':m.keo==='lau'?'🍲 Lẩu: <strong style="color:var(--text)">'+m.keoLau+' nồi</strong>':'🐔 Gà: <strong style="color:var(--text)">'+m.keoGa+' con</strong>'}</div>`:'')}
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
@@ -3948,6 +3948,7 @@ function renderTournamentList(){
       +statusPill
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">'
+      +'<span class="small tm">'+fmtD(t.date)+'</span>'
       +'<span class="small tm">'+done+'/'+total+' trận</span>'
       +'<button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteTournament('+t.id+')" title="Xóa giải">🗑</button>'
       +'<span class="t-accordion-arrow" id="tacc_arrow_'+t.id+'" style="color:var(--muted);transition:transform .2s;'+(expanded?'transform:rotate(180deg)':'')+'">▼</span>'
