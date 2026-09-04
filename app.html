@@ -604,6 +604,16 @@ tr:hover td{background:rgba(255,255,255,.02)}
   .botnav{display:none}
 }
 /* mobile/desktop toggle */
+.podium-row{display:flex;flex-wrap:wrap;gap:.5rem}
+.podium-item{min-width:0}
+.podium-item.p-champ{order:1;flex:1 1 100%}
+.podium-item.p-second{order:2;flex:1}
+.podium-item.p-third{order:3;flex:1}
+@media(min-width:601px){
+  .podium-item.p-champ{order:2;flex:1.4}
+  .podium-item.p-second{order:1;flex:1}
+  .podium-item.p-third{order:3;flex:1}
+}
 .mob{display:none}.desk{display:block}
 @media(max-width:600px){.mob{display:block}.desk{display:none}}
 </style>
@@ -3913,13 +3923,15 @@ function renderTournamentList(){
     const expanded=(idx===0);
     const top = (!isActive && done>0) ? getTournamentTopStandings(t) : [];
     const podiumSummary = top.length
-      ? '<div style="display:flex;gap:.5rem;padding:0 1rem .85rem;flex-wrap:wrap;align-items:stretch">'
-        + '<div style="width:100%;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.15rem">🏆 Bảng xếp hạng</div>'
+      ? '<div style="padding:0 1rem .85rem">'
+        + '<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">🏆 Bảng xếp hạng</div>'
+        + '<div class="podium-row">'
         + top.map((s,i)=>{
             const c = s.idx!=null ? teamColors(s.idx) : {border:'var(--border)',text:'var(--text)'};
             const wl = (s.w!=null) ? (s.w+'T '+s.l+'B · '+s.label) : s.label;
             const isChamp = i===0;
-            return '<div style="flex:'+(isChamp?'1.4':'1')+';min-width:'+(isChamp?'170px':'140px')+';background:'+(isChamp?'linear-gradient(160deg,rgba(250,204,21,.16),rgba(250,204,21,.04))':'rgba(255,255,255,.02)')+';border:'+(isChamp?'1.5px solid rgba(250,204,21,.55)':'1px solid '+c.border)+';border-radius:var(--rs);padding:'+(isChamp?'1rem .8rem':'.7rem')+';text-align:center;position:relative">'
+            const posClass = isChamp?'p-champ':(i===1?'p-second':'p-third');
+            return '<div class="podium-item '+posClass+'" style="background:'+(isChamp?'linear-gradient(160deg,rgba(250,204,21,.16),rgba(250,204,21,.04))':'rgba(255,255,255,.02)')+';border:'+(isChamp?'1.5px solid rgba(250,204,21,.55)':'1px solid '+c.border)+';border-radius:var(--rs);padding:'+(isChamp?'1rem .8rem':'.7rem')+';text-align:center;position:relative">'
               +(isChamp?'<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:.6rem;font-weight:800;letter-spacing:.5px;color:#0B1929;background:#FACC15;padding:.1rem .5rem;border-radius:50px">VÔ ĐỊCH</div>':'')
               +'<div style="font-size:'+(isChamp?'1.8rem':'1.15rem')+';margin-top:'+(isChamp?'.3rem':'0')+'">'+(medals[i]||'#'+(i+1))+'</div>'
               +'<div style="font-size:'+(isChamp?'1.05rem':'.85rem')+';font-weight:800;color:'+(isChamp?'#FACC15':c.text)+';margin:.25rem 0">'+s.name+'</div>'
@@ -3927,6 +3939,7 @@ function renderTournamentList(){
               +'<div style="font-size:'+(isChamp?'.8rem':'.72rem')+';font-weight:600;color:'+(isChamp?'var(--text)':'var(--muted)')+';line-height:1.4">👤 '+s.members.join(' & ')+'</div>'
               +'</div>';
           }).join('')
+        + '</div>'
         + '</div>'
       : '';
     const formatLabel = t.format==='groups' ? 'Chia bảng' : t.format==='teams' ? 'Chia team' : 'Tournament';
