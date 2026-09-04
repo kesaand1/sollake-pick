@@ -626,7 +626,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
 <!-- TOP NAV -->
 <nav class="topnav">
-  <div class="logo" id="clubLogo">Sollake <span>Pick</span></div>
+  <div class="logo" id="clubLogo" onclick="showPage('ranking')" style="cursor:pointer">Sollake <span>Pick</span></div>
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="showPage('ranking')">🏆 Tổng quan</button>
     <button class="tab-btn" onclick="showPage('matches')">Lịch sử</button>
@@ -1499,7 +1499,7 @@ function setPairType(type){
 }
 
 function populatePairingSinglesSelects(){
-  const vis=players.filter(p=>p.visible);
+  const vis=players.filter(p=>p.visible).slice().sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   const blank='<option value="">-- Chọn người chơi --</option>';
   const opts=vis.map(p=>`<option value="${p.name}">${p.name} (${p.score.toFixed(2)})</option>`).join('');
   ['pairS1','pairS2'].forEach(id=>{
@@ -2261,7 +2261,7 @@ function populateMatchPlayerFilter(){
 }
 
 function populatePairingSelects(){
-  const vis=players.filter(p=>p.visible);
+  const vis=players.filter(p=>p.visible).slice().sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   const blank='<option value="">-- Chọn người chơi --</option>';
   const opts=vis.map(p=>`<option value="${p.name}">${p.name} (${p.score.toFixed(2)})</option>`).join('');
   ['pairA1','pairA2','pairB1','pairB2'].forEach(id=>{document.getElementById(id).innerHTML=blank+opts;document.getElementById(id).value='';});
