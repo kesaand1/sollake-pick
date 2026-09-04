@@ -1403,6 +1403,7 @@ function renderPlayers(){
   if(filterLevel){
     list=list.filter(p=>getLevel(p.score).pill===filterLevel);
   }
+  list=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   const genderLabel=g=>g==='male'?'<span class="pill p-gray" style="color:#60A5FA;background:rgba(96,165,250,.12)">♂ Nam</span>':g==='female'?'<span class="pill p-gray" style="color:#F472B6;background:rgba(244,114,182,.12)">♀ Nữ</span>':g==='hidden'?'<span class="pill p-gray">🙈 Ẩn số</span>':'<span class="tm">—</span>';
   if(!list.length){
     const e=empty('👥', players.length ? 'Không tìm thấy thành viên phù hợp' : 'Chưa có thành viên nào');
@@ -2091,7 +2092,8 @@ function renderMatches(){
       </div>
       <!-- Kèo / Giải -->
       ${m.isTournament?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">🏅 Giải: <strong style="color:var(--text)">${m.tournamentName}</strong>${m.elo?` · ±${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>`
-        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':m.keo==='bong'?'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>':m.keo==='lau'?'🍲 Lẩu: <strong style="color:var(--text)">'+m.keoLau+' nồi</strong>':'🐔 Gà: <strong style="color:var(--text)">'+m.keoGa+' con</strong>'}</div>`:'')}
+        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':m.keo==='bong'?'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>':m.keo==='lau'?'🍲 Lẩu: <strong style="color:var(--text)">'+m.keoLau+' nồi</strong>':'🐔 Gà: <strong style="color:var(--text)">'+m.keoGa+' con</strong>'}${m.elo?` · ±${parseFloat(m.elo).toFixed(2)} điểm`:''}</div>`
+        :(m.elo?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">±${parseFloat(m.elo).toFixed(2)} điểm</div>`:''))}
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
