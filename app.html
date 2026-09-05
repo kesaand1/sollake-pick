@@ -3073,7 +3073,7 @@ function effectiveScoreT(name){
   const p = gp(name); if(!p) return 0;
   const r = matches.filter(m=>[...m.a,...m.b].includes(name)).slice(-10);
   const w = r.length?r.filter(m=>(m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length:0;
-  const form = r.length?((w/r.length-0.5)*0.6):0;
+  const form = r.length?((w/r.length-0.5)*0.2):0;
   return parseFloat((p.score+form).toFixed(3));
 }
 
