@@ -2979,6 +2979,7 @@ function openNewTournamentModal(){if(guardScorer())return;
   }
   openModal('newTournamentModal');
   tSelectedPlayers = [];
+  const saBtn=document.getElementById('tSelectAllBtn'); if(saBtn) saBtn.innerHTML='☑️ Chọn tất cả';
   tMode = 'teams'; tFormat='roundrobin'; tAssign='auto'; tManualAssign={};
   document.getElementById('tModeCardTeams').classList.add('selected');
   document.getElementById('tModeCardTournament').classList.remove('selected');
@@ -3059,12 +3060,27 @@ function renderTPlayersList(){
       +(sel?'✓ ':'')+p.name+' <span style="opacity:.6;font-size:.7rem">'+lv.icon+' '+p.score.toFixed(2)+'</span>'
       +'</div>';
   }).join('');
+  const btn=document.getElementById('tSelectAllBtn');
+  if(btn){
+    const allSelected = vis.length>0 && vis.every(p=>tSelectedPlayers.includes(p.name));
+    btn.innerHTML = allSelected ? '⬜ Bỏ chọn tất cả' : '☑️ Chọn tất cả';
+  }
 }
 
 function toggleTPlayer(name){if(guardScorer())return;
   const idx = tSelectedPlayers.indexOf(name);
   if(idx>=0) tSelectedPlayers.splice(idx,1);
   else tSelectedPlayers.push(name);
+  renderTPlayersList();
+  updateTLabel();
+}
+
+function toggleSelectAllTPlayers(){if(guardScorer())return;
+  const vis = players.filter(p=>p.visible).map(p=>p.name);
+  const allSelected = vis.length>0 && vis.every(n=>tSelectedPlayers.includes(n));
+  tSelectedPlayers = allSelected ? [] : vis.slice();
+  const btn=document.getElementById('tSelectAllBtn');
+  if(btn) btn.innerHTML = allSelected ? '☑️ Chọn tất cả' : '⬜ Bỏ chọn tất cả';
   renderTPlayersList();
   updateTLabel();
 }
@@ -4252,37 +4268,31 @@ function renderTournamentInlineGroups(t){
       +'</div></div>';
   }
 
-  function groupBlock(groupIdx, groupLabel){
+  function groupTeamsBlock(groupIdx, groupLabel){
     const groupTeams = t.teams.filter(tm=>tm.group===groupIdx);
-    const standings = computeGroupStandings(t, groupIdx);
-    const groupMatches = t.groupMatches.filter(m=>m && groupTeams.some(tm=>tm.id===m.teamA));
-    const medals=['🥇','🥈','🥉','🏅'];
     const teamsHtml = groupTeams.map(team=>{
       const c=teamColors(team.id);
       return '<div style="border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.5rem .7rem;font-size:.78rem">'
         +'<span style="color:'+c.text+';font-weight:700">'+team.name+'</span>: '+team.members.join(', ')
         +'</div>';
     }).join('');
-    const standHtml = standings.map((s,i)=>{
-      const c=teamColors(s.idx);
-      const diff=s.pf-s.pa;
-      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-radius:var(--rs);background:'+(i===0?'rgba(181,240,51,.08)':'rgba(255,255,255,.02)')+';margin-bottom:3px">'
-        +'<span style="font-weight:700;min-width:20px">'+(medals[i]||'#'+(i+1))+'</span>'
-        +'<span style="flex:1;font-size:.8rem;font-weight:600;color:'+c.text+'">'+s.name+'</span>'
-        +'<span style="font-size:.7rem;color:var(--muted)">'+s.w+'T '+s.l+'B</span>'
-        +'<span style="font-weight:700;font-size:.78rem;color:'+(diff>=0?'var(--success)':'var(--danger)')+';min-width:40px;text-align:right">'+(diff>=0?'+':'')+diff+'</span>'
-        +'</div>';
-    }).join('');
-    const matchesHtml = groupMatches.filter(Boolean).map(m=>scoreCard(m, 'gs_'+t.id+'_'+m.id, 'saveGroupMatchResult('+t.id+','+m.id+')')).join('');
-    return '<div style="margin-bottom:1.1rem">'
+    return '<div style="margin-bottom:.7rem">'
       +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">📊 Bảng '+groupLabel+'</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.4rem;margin-bottom:.5rem">'+teamsHtml+'</div>'
-      +standHtml
-      +'<div style="margin-top:.5rem">'+matchesHtml+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.4rem">'+teamsHtml+'</div>'
       +'</div>';
   }
 
-  const groupsHtml = groupBlock(0,'A') + groupBlock(1,'B');
+  function groupMatchesBlock(groupIdx, groupLabel){
+    const groupTeams = t.teams.filter(tm=>tm.group===groupIdx);
+    const groupMatches = t.groupMatches.filter(m=>m && groupTeams.some(tm=>tm.id===m.teamA));
+    const matchesHtml = groupMatches.filter(Boolean).map(m=>scoreCard(m, 'gs_'+t.id+'_'+m.id, 'saveGroupMatchResult('+t.id+','+m.id+')')).join('');
+    return '<div style="margin-bottom:1.1rem">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.4rem">⚔️ Các cặp đấu — Bảng '+groupLabel+'</div>'
+      +matchesHtml
+      +'</div>';
+  }
+
+  const groupsHtml = groupTeamsBlock(0,'A') + groupTeamsBlock(1,'B') + groupMatchesBlock(0,'A') + groupMatchesBlock(1,'B');
 
   function miniMatch(m, idPrefix, saveFn){
     if(!m) return '<div class="ko-slot ko-empty">Chưa xác định</div>';
@@ -5493,7 +5503,10 @@ init();
     </div>
     <div id="tPlayersSection">
       <div class="fgroup">
-        <label id="tPlayersLabel">Chọn thành viên tham gia (cần 8 người)</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+          <label id="tPlayersLabel" style="margin:0">Chọn thành viên tham gia (cần 8 người)</label>
+          <button type="button" class="btn btn-ghost btn-xs" onclick="toggleSelectAllTPlayers()" id="tSelectAllBtn">☑️ Chọn tất cả</button>
+        </div>
         <div id="tPlayersList" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem;max-height:200px;overflow-y:auto;padding:.5rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--rs)"></div>
       </div>
       <div id="tValidation" style="font-size:.78rem;margin-top:.3rem"></div>
