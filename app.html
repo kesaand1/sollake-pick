@@ -51,8 +51,9 @@ window.applyClubBanner = applyClubBanner;
 
 function applyClubLogo(name){
   const el = document.getElementById('clubLogo');
-  if(!el || !name) return;
-  el.textContent = name;
+  if(el && name) el.textContent = name;
+  const loginEl = document.getElementById('loginScreenClubName');
+  if(loginEl && name) loginEl.textContent = name;
 }
 window.applyClubLogo = applyClubLogo;
 
@@ -5590,7 +5591,7 @@ init();
         title="Đóng">✕</button>
     </div>
     <div style="text-align:center;margin-bottom:1.5rem">
-      <div style="font-size:1.5rem;font-weight:800;color:var(--lime)">Sollake <span style="color:var(--text)">Pick</span></div>
+      <div style="font-size:1.5rem;font-weight:800;color:var(--lime)" id="loginScreenClubName">Sollake <span style="color:var(--text)">Pick</span></div>
       <div style="font-size:.82rem;color:var(--muted);margin-top:.3rem">Đăng nhập để tiếp tục</div>
     </div>
     <div class="fgroup">
