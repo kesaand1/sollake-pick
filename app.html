@@ -1909,13 +1909,13 @@ function updateMF(){
 }
 function calcElo(ws,ls){return parseFloat((0.1*(1-1/(1+Math.pow(10,(ls-ws)/0.8)))).toFixed(2))}
 
-// Mức độ áp đảo trong tỷ số thực tế của trận (VD: 11-3 áp đảo hơn 11-9)
+// Mức độ áp đảo trong tỷ số thực tế của trận (VD: 15-3 áp đảo hơn 15-13)
 // margin=2 (thắng sát nút, mức tối thiểu) → hệ số 1.0x (giữ nguyên baseDelta gốc)
-// margin>=11 (áp đảo hoàn toàn) → hệ số 1.5x
+// margin>=15 (áp đảo hoàn toàn) → hệ số 1.5x
 function marginMultiplier(winScore, loseScore){
   const margin = Math.max(0, (winScore||0) - (loseScore||0));
-  const capped = Math.min(margin, 11);
-  return 1.0 + Math.max(0, capped-2)/9 * 0.5;
+  const capped = Math.min(margin, 15);
+  return 1.0 + Math.max(0, capped-2)/13 * 0.5;
 }
 
 // Apply ELO score changes to players based on match result — used by both
