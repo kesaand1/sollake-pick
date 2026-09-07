@@ -2613,43 +2613,7 @@ function renderProfile(name){
   document.getElementById('profileStats').innerHTML = `
     <div class="sc"><div class="val">${myMatches.length}</div><div class="lbl">Tổng trận</div></div>
     <div class="sc"><div class="val" style="color:#FACC15">🏆 ${myTrophies.length}</div><div class="lbl">Số cúp vô địch</div></div>
-    <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>
-    ${keoMatches.length?`
-    <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem">💧 Kèo nước</div>
-      <div style="font-size:1.1rem;font-weight:700;color:${keoNuocTotal>=0?'var(--success)':'var(--danger)'}">
-        ${keoNuocTotal>=0?'+':''}${keoNuocTotal} chai
-      </div>
-      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='nuoc').length} trận có kèo nước</div>
-    </div>
-    <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem">🍺 Kèo bia</div>
-      <div style="font-size:1.1rem;font-weight:700;color:${keoBiaTotal>=0?'var(--success)':'var(--danger)'}">
-        ${keoBiaTotal>=0?'+':''}${keoBiaTotal} cốc
-      </div>
-      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='bia').length} trận có kèo bia</div>
-    </div>
-    <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem"><img src='pickleball.png' style='width:1em;height:1em;vertical-align:-3px;display:inline-block' alt=''/> Kèo bóng Pickleball</div>
-      <div style="font-size:1.1rem;font-weight:700;color:${keoBongTotal>=0?'var(--success)':'var(--danger)'}">
-        ${keoBongTotal>=0?'+':''}${keoBongTotal} quả
-      </div>
-      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='bong').length} trận có kèo bóng</div>
-    </div>
-    <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem">🍲 Kèo lẩu</div>
-      <div style="font-size:1.1rem;font-weight:700;color:${keoLauTotal>=0?'var(--success)':'var(--danger)'}">
-        ${keoLauTotal>=0?'+':''}${keoLauTotal} nồi
-      </div>
-      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='lau').length} trận có kèo lẩu</div>
-    </div>
-    <div class="sc" style="grid-column:span 2">
-      <div class="lbl" style="margin-bottom:.4rem">🐔 Kèo gà</div>
-      <div style="font-size:1.1rem;font-weight:700;color:${keoGaTotal>=0?'var(--success)':'var(--danger)'}">
-        ${keoGaTotal>=0?'+':''}${keoGaTotal} con
-      </div>
-      <div class="small tm" style="margin-top:.2rem">${keoMatches.filter(m=>m.keo==='ga').length} trận có kèo gà</div>
-    </div>`:''}`;
+    <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>`;
 
   // ── Bộ sưu tập cúp ──
   const trophyPanel = document.getElementById('trophyPanel');
@@ -3953,7 +3917,7 @@ function renderTournamentList(){
               +'<div style="font-size:'+(isChamp?'1.8rem':'1.15rem')+';margin-top:'+(isChamp?'.3rem':'0')+'">'+(medals[i]||'#'+(i+1))+'</div>'
               +'<div style="font-size:'+(isChamp?'1.05rem':'.85rem')+';font-weight:800;color:'+(isChamp?'#FACC15':c.text)+';margin:.25rem 0">'+s.name+'</div>'
               +'<div style="font-size:.72rem;color:var(--muted);margin-bottom:.3rem">'+wl+'</div>'
-              +'<div style="font-size:'+(isChamp?'.8rem':'.72rem')+';font-weight:600;color:'+(isChamp?'var(--text)':'var(--muted)')+';line-height:1.4">👤 '+s.members.join(' & ')+'</div>'
+              +'<div style="font-size:'+(isChamp?'.8rem':'.72rem')+';font-weight:600;color:'+(isChamp?'var(--text)':'var(--muted)')+';line-height:1.4">👤 '+s.members.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</div>'
               +'</div>';
           }).join('')
         + '</div>'
@@ -4092,7 +4056,7 @@ function renderTournamentInlineRoundRobin(t){
         +'<div style="font-size:1.5rem">'+medals[i]+'</div>'
         +'<div style="font-size:.82rem;font-weight:700;color:'+c.text+';margin:.2rem 0">'+s.name+'</div>'
         +'<div style="font-size:.7rem;color:var(--muted)">'+s.w+'T '+s.l+'B · '+(s.pf-s.pa>=0?'+':'')+(s.pf-s.pa)+'đ</div>'
-        +'<div style="font-size:.68rem;font-weight:700;color:var(--text);margin-top:.2rem">'+s.members.join(', ')+'</div>'
+        +'<div style="font-size:.68rem;font-weight:700;color:var(--text);margin-top:.2rem">'+s.members.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(', ')+'</div>'
         +'</div>';
     }).join('')+'</div>' : '';
 
@@ -4132,9 +4096,9 @@ function renderTournamentInlineRoundRobin(t){
       +(isDone?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓</span>':'')
       +'</div>'
       +'<div style="font-size:.75rem;margin-bottom:.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:.4rem">'
-      +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.join(' & ')+'</span>'
+      +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.map(function(n){return '<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>';}).join(' & ')+'</span>'
       +'<span style="color:var(--border)">|</span>'
-      +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.join(' & ')+'</span>'
+      +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.map(function(n){return '<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>';}).join(' & ')+'</span>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
       +'<div style="display:flex;align-items:center;gap:.35rem">'
@@ -4179,7 +4143,7 @@ function renderTournamentInlineBracket(t){
       +'<div style="font-size:2rem">🏆</div>'
       +'<div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:.3rem">Vô địch</div>'
       +'<div style="font-size:1.1rem;font-weight:800;color:var(--lime);margin-top:.2rem">'+t.teams[t.championIdx].name+'</div>'
-      +'<div style="font-size:.75rem;color:var(--muted)">'+t.teams[t.championIdx].members.join(', ')+'</div>'
+      +'<div style="font-size:.75rem;color:var(--muted)">'+t.teams[t.championIdx].members.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="openProfile(\''+n+'\')">'+n+'</span>').join(', ')+'</div>'
       +'</div>' : '';
 
   const roundsHtml = t.bracket.rounds.map((round,ridx)=>{
@@ -4207,9 +4171,9 @@ function renderTournamentInlineBracket(t){
         +(isDone?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓</span>':'')
         +'</div>'
         +'<div style="font-size:.75rem;margin-bottom:.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:.4rem">'
-        +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.join(' & ')+'</span>'
+        +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.map(function(n){return '<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>';}).join(' & ')+'</span>'
         +'<span style="color:var(--border)">|</span>'
-        +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.join(' & ')+'</span>'
+        +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.map(function(n){return '<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>';}).join(' & ')+'</span>'
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
         +'<div style="display:flex;align-items:center;gap:.35rem">'
@@ -4252,9 +4216,9 @@ function renderTournamentInlineGroups(t){
       +(isDone?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓</span>':'')
       +'</div>'
       +'<div style="font-size:.75rem;margin-bottom:.5rem;display:flex;align-items:center;flex-wrap:wrap;gap:.4rem">'
-      +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.join(' & ')+'</span>'
+      +'<span style="color:'+cA.text+';font-weight:600">'+m.pairA.map(function(n){return '<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>';}).join(' & ')+'</span>'
       +'<span style="color:var(--border)">|</span>'
-      +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.join(' & ')+'</span>'
+      +'<span style="color:'+cB.text+';font-weight:600">'+m.pairB.map(function(n){return '<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>';}).join(' & ')+'</span>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
       +'<div style="display:flex;align-items:center;gap:.35rem">'
@@ -4273,7 +4237,7 @@ function renderTournamentInlineGroups(t){
     const groupTeams = t.teams.filter(tm=>tm.group===groupIdx);
     const teamsHtml = groupTeams.map(team=>{
       const c=teamColors(team.id);
-      const membersHtml = team.members.map((n,mi)=>'<div style="display:flex;align-items:center;gap:.45rem;font-size:.82rem;font-weight:600;color:var(--text)">'+av(n,mi%2===0?'c0':'c1')+'<span>'+n+'</span></div>').join('');
+      const membersHtml = team.members.map((n,mi)=>'<div style="display:flex;align-items:center;gap:.45rem;font-size:.82rem;font-weight:600;color:var(--text);cursor:pointer" onclick="openProfile(\''+n+'\')">'+av(n,mi%2===0?'c0':'c1')+'<span style="text-decoration:underline;text-decoration-color:rgba(255,255,255,.2);text-underline-offset:3px">'+n+'</span></div>').join('');
       return '<div style="border:1px solid '+c.border+';background:'+c.bg+';border-radius:var(--rs);padding:.6rem .7rem .65rem">'
         +'<div style="display:inline-block;font-size:.72rem;font-weight:800;letter-spacing:.3px;color:'+c.text+';background:rgba(255,255,255,.06);border:1px solid '+c.border+';border-radius:50px;padding:.15rem .6rem;margin-bottom:.45rem">'+team.name+'</div>'
         +'<div style="display:flex;flex-direction:column;gap:.25rem">'+membersHtml+'</div>'
@@ -4303,15 +4267,18 @@ function renderTournamentInlineGroups(t){
     const cA = teamColors(m.teamA), cB = teamColors(m.teamB);
     const isDone = m.done;
     const winner = isDone ? m.winnerIdx : null;
+    const memberLine = (team,c)=>'<div style="font-size:.65rem;color:var(--muted);margin:.1rem 0 .3rem">'+team.members.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</div>';
     return '<div class="ko-slot">'
       + '<div class="ko-team" style="color:'+cA.text+(winner===m.teamA?';font-weight:800':'')+'">'
         + '<span>'+(winner===m.teamA?'👑 ':'')+tA.name+'</span>'
         + '<span class="ko-score">'+(isDone?m.scoreA:'–')+'</span>'
         + '</div>'
+      + memberLine(tA,cA)
       + '<div class="ko-team" style="color:'+cB.text+(winner===m.teamB?';font-weight:800':'')+'">'
         + '<span>'+(winner===m.teamB?'👑 ':'')+tB.name+'</span>'
         + '<span class="ko-score">'+(isDone?m.scoreB:'–')+'</span>'
         + '</div>'
+      + memberLine(tB,cB)
       + '<div class="ko-input-row">'
           +'<input class="score-input" type="number" min="0" id="'+idPrefix+'_a" value="'+(isDone?m.scoreA:'')+'" placeholder="0"/>'
           +'<span style="color:var(--muted)">:</span>'
@@ -4343,10 +4310,10 @@ function renderTournamentInlineGroups(t){
       + '<div class="ko-connector">➜</div>'
       + '<div class="ko-round"><div class="ko-round-title">Vô địch</div>'
         + (champion
-            ? '<div class="ko-champion">🏆<div class="ko-champion-name">'+champion.name+'</div><div class="ko-champion-members">'+champion.members.join(' & ')+'</div></div>'
+            ? '<div class="ko-champion">🏆<div class="ko-champion-name">'+champion.name+'</div><div class="ko-champion-members">'+champion.members.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</div></div>'
             : '<div class="ko-slot ko-empty">Chưa có</div>')
         + (thirdPlaceTeam
-            ? '<div style="margin-top:.5rem;background:rgba(205,127,50,.1);border:1px solid rgba(205,127,50,.35);border-radius:var(--rs);padding:.55rem .6rem;text-align:center">🥉<div style="font-size:.8rem;font-weight:700;color:#CD7F32;margin-top:.15rem">'+thirdPlaceTeam.name+'</div><div style="font-size:.65rem;color:var(--muted)">'+thirdPlaceTeam.members.join(' & ')+'</div></div>'
+            ? '<div style="margin-top:.5rem;background:rgba(205,127,50,.1);border:1px solid rgba(205,127,50,.35);border-radius:var(--rs);padding:.55rem .6rem;text-align:center">🥉<div style="font-size:.8rem;font-weight:700;color:#CD7F32;margin-top:.15rem">'+thirdPlaceTeam.name+'</div><div style="font-size:.65rem;color:var(--muted)">'+thirdPlaceTeam.members.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</div></div>'
             : '')
       + '</div>'
     + '</div>'
