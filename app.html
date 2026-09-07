@@ -2509,10 +2509,6 @@ function renderProfile(name){
   document.getElementById('profileAv').onclick = canEditAvatar ? (()=>openEditAvatar(p.id)) : null;
   document.getElementById('profileAv').style.cursor = canEditAvatar ? 'pointer' : 'default';
   document.getElementById('profileAvEditHint').style.display = canEditAvatar ? '' : 'none';
-  const profIsChamp = typeof isLatestChampion==='function' ? isLatestChampion(name) : false;
-  const profTrophyBadge = document.getElementById('profileTrophyBadge');
-  if(profIsChamp){ profTrophyBadge.textContent='🏆'; profTrophyBadge.style.display=''; }
-  else { profTrophyBadge.style.display='none'; }
   document.getElementById('profileName').textContent = name;
   document.getElementById('profileScore').textContent = p.score.toFixed(2);
   document.getElementById('profileMeta').innerHTML =
@@ -2533,13 +2529,24 @@ function renderProfile(name){
   const singles = myMatches.filter(m=>m.type==='singles').length;
   const doubles = myMatches.filter(m=>m.type==='doubles').length;
 
-  // ── Cúp vô địch: giải đấu đã kết thúc mà player nằm trong đội vô địch ──
-  const myTrophies = tournaments.filter(t=>t.status==='done').map(t=>{
+  // ── Cúp: giải đấu đã kết thúc mà player đạt Vô địch / Á quân / Giải 3 ──
+  const myAllPodiums = tournaments.filter(t=>t.status==='done').map(t=>{
     const top = typeof getTournamentTopStandings==='function' ? getTournamentTopStandings(t) : [];
-    const champ = top[0];
-    if(!champ || !champ.members || !champ.members.includes(name)) return null;
-    return {tournamentName:t.name, date:t.date};
+    const rankIdx = top.findIndex(s=>s && s.members && s.members.includes(name));
+    if(rankIdx<0 || rankIdx>2) return null;
+    return {tournamentName:t.name, date:t.date, rank:rankIdx};
   }).filter(Boolean).sort((a,b)=>b.date.localeCompare(a.date));
+  const myTrophies = myAllPodiums.filter(tr=>tr.rank===0);
+
+  // ── Badge số cúp vàng trên avatar (hiển thị đủ số lần vô địch, liên tiếp) ──
+  const profTrophyBadge = document.getElementById('profileTrophyBadge');
+  if(myTrophies.length){
+    profTrophyBadge.innerHTML = '🏆'.repeat(myTrophies.length);
+    profTrophyBadge.style.display='';
+    profTrophyBadge.style.whiteSpace='nowrap';
+  } else {
+    profTrophyBadge.style.display='none';
+  }
 
   // ── Đối thủ tiêu biểu (đối đầu trực tiếp, không tính đồng đội) ──
   const oppStats = {};
@@ -2618,14 +2625,20 @@ function renderProfile(name){
   // ── Bộ sưu tập cúp ──
   const trophyPanel = document.getElementById('trophyPanel');
   const trophyList = document.getElementById('trophyList');
-  if(myTrophies.length){
+  const podiumStyle = [
+    {icon:'🏆', label:'Vô Địch',  color:'var(--success)', bg:'rgba(74,222,128,.08)',  border:'rgba(74,222,128,.3)',  iconBg:'rgba(74,222,128,.15)'},
+    {icon:'🥈', label:'Á Quân',   color:'#CBD5E1',        bg:'rgba(203,213,225,.08)', border:'rgba(203,213,225,.3)', iconBg:'rgba(203,213,225,.15)'},
+    {icon:'🥉', label:'Giải Ba',  color:'#CD7F32',        bg:'rgba(205,127,50,.08)',  border:'rgba(205,127,50,.3)',  iconBg:'rgba(205,127,50,.15)'}
+  ];
+  if(myAllPodiums.length){
     trophyPanel.style.display='';
-    trophyList.innerHTML = myTrophies.map(tr=>{
+    trophyList.innerHTML = myAllPodiums.map(tr=>{
       const [y,mo] = (tr.date||'').split('-');
-      return `<div style="flex:1;min-width:180px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:var(--rs);padding:.7rem .9rem;display:flex;align-items:center;gap:.6rem">
-        <div style="width:38px;height:38px;border-radius:50%;background:rgba(74,222,128,.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🏆</div>
+      const s = podiumStyle[tr.rank];
+      return `<div style="flex:1;min-width:180px;background:${s.bg};border:1px solid ${s.border};border-radius:var(--rs);padding:.7rem .9rem;display:flex;align-items:center;gap:.6rem">
+        <div style="width:38px;height:38px;border-radius:50%;background:${s.iconBg};display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">${s.icon}</div>
         <div style="min-width:0">
-          <div style="font-size:.85rem;font-weight:700;color:var(--success)">Vô Địch ${tr.tournamentName}</div>
+          <div style="font-size:.85rem;font-weight:700;color:${s.color}">${s.label} ${tr.tournamentName}</div>
           <div style="font-size:.72rem;color:var(--muted)">Tháng ${mo}/${y}</div>
         </div>
       </div>`;
