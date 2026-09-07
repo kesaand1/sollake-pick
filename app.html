@@ -2123,7 +2123,19 @@ function renderMatches(){
       </div>
       <!-- Kèo / Giải -->
       ${m.isTournament?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">🏅 Giải: <strong style="color:var(--text)">${m.tournamentName}</strong></div>`
-        :(m.keo&&m.keo!=='none'?`<div style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">${m.keo==='nuoc'?'💧 Nước: <strong style="color:var(--text)">'+m.keoNuoc+' chai</strong>':m.keo==='bia'?'🍺 Bia: <strong style="color:var(--text)">'+m.keoBia+' cốc</strong>':m.keo==='bong'?'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-3px;display:inline-block" alt=""/> Bóng: <strong style="color:var(--text)">'+m.keoBong+' quả</strong>':m.keo==='lau'?'🍲 Lẩu: <strong style="color:var(--text)">'+m.keoLau+' nồi</strong>':'🐔 Gà: <strong style="color:var(--text)">'+m.keoGa+' con</strong>'}</div>`:'')}
+        :(m.keo&&m.keo!=='none'?(()=>{
+            const keoStyle = {
+              nuoc:{bg:'rgba(96,165,250,.14)', border:'rgba(96,165,250,.4)', color:'#93C5FD', icon:'💧', label:'Nước', val:m.keoNuoc+' chai'},
+              bia:{bg:'rgba(251,191,36,.14)', border:'rgba(251,191,36,.4)', color:'#FCD34D', icon:'🍺', label:'Bia', val:m.keoBia+' cốc'},
+              bong:{bg:'rgba(163,230,53,.14)', border:'rgba(163,230,53,.4)', color:'#BEF264', icon:'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-2px;display:inline-block" alt=""/>', label:'Bóng', val:m.keoBong+' quả'},
+              lau:{bg:'rgba(251,146,60,.14)', border:'rgba(251,146,60,.4)', color:'#FDBA74', icon:'🍲', label:'Lẩu', val:m.keoLau+' nồi'},
+              ga:{bg:'rgba(248,113,113,.14)', border:'rgba(248,113,113,.4)', color:'#FCA5A5', icon:'🐔', label:'Gà', val:m.keoGa+' con'}
+            }[m.keo];
+            return `<div style="margin-top:.6rem;display:flex;align-items:center;gap:.4rem;background:${keoStyle.bg};border:1px solid ${keoStyle.border};border-radius:50px;padding:.4rem .8rem;width:fit-content">
+              <span style="font-size:1rem">${keoStyle.icon}</span>
+              <span style="font-size:.82rem;font-weight:700;color:${keoStyle.color}">Kèo ${keoStyle.label}: ${keoStyle.val}</span>
+            </div>`;
+          })():'')}
     </div>`;
   }).join('');
   document.getElementById('matchM').innerHTML=`<div class="card-list">${cards}</div>`;
