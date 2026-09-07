@@ -1158,6 +1158,34 @@ let nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
 
 // Helpers
 const fmt=n=>n.toLocaleString('vi-VN')+'đ';
+
+// Gộp toàn bộ trận đấu (kèo thường + mọi trận trong giải đấu ở mọi định dạng:
+// vòng tròn, loại trực tiếp, chia bảng) thành 1 danh sách chuẩn hoá để tính
+// thống kê (đã đấu/thắng/thua/tỷ lệ/phong độ) chính xác — vì ELO đã cộng cho
+// cả trận giải đấu nên thống kê cũng phải tính đủ, không chỉ riêng trận kèo.
+function getAllMatchesUnified(){
+  const out = matches.slice();
+  tournaments.forEach(t=>{
+    const tourMatches = [];
+    if(Array.isArray(t.matches)) tourMatches.push(...t.matches); // vòng tròn
+    if(t.bracket && Array.isArray(t.bracket.rounds)) tourMatches.push(...t.bracket.rounds.flat()); // loại trực tiếp
+    if(Array.isArray(t.groupMatches)) tourMatches.push(...t.groupMatches); // chia bảng — vòng bảng
+    if(Array.isArray(t.semis)) tourMatches.push(...t.semis); // chia bảng — bán kết
+    if(t.final) tourMatches.push(t.final); // chia bảng — chung kết
+    if(t.thirdPlaceMatch) tourMatches.push(t.thirdPlaceMatch); // chia bảng — tranh giải 3
+    tourMatches.filter(m=>m && m.done && !m.bye && m.pairA && m.pairB).forEach(m=>{
+      out.push({
+        id:'t'+t.id+'_'+m.id,
+        date: t.date,
+        a: m.pairA, b: m.pairB,
+        winner: m.scoreA>m.scoreB?'A':'B',
+        type: m.pairA.length===1?'singles':'doubles',
+        elo: m.elo, keo:'none', isTournamentMatch:true
+      });
+    });
+  });
+  return out;
+}
 function getLevel(score){
   const s=parseFloat(score);
   if(s>=4.0)return{label:'VĐV Quốc gia',pill:'lv-quocgia',icon:'🏅'};
@@ -1654,7 +1682,7 @@ function renderOverviewCards(){
 
   const {from,to} = getRankDateRange();
   const vis  = players.filter(p=>p.visible);
-  const filtered = matches.filter(m=>inR(m.date,from,to));
+  const filtered = getAllMatchesUnified().filter(m=>inR(m.date,from,to));
 
   // Helper: chia đôi kèo đôi
   function keoVal(m, n, type){
@@ -1824,7 +1852,7 @@ function renderRanking(){
   const st={};
   vis.forEach(p=>{st[p.name]={wins:0,losses:0,played:0,trend:0}});
 
-  matches.filter(m=>inR(m.date,from,to)).forEach(m=>{
+  getAllMatchesUnified().filter(m=>inR(m.date,from,to)).forEach(m=>{
     const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
     const delta=parseFloat(m.elo||0.04);
     wt.forEach(n=>{if(st[n]){st[n].wins++;st[n].played++;st[n].trend=parseFloat((st[n].trend+delta).toFixed(2));}});
@@ -2516,8 +2544,8 @@ function renderProfile(name){
     `<span>Tham gia: ${fmtD(p.joined)}</span>` +
     (p.note ? `<span>📝 ${p.note}</span>` : '');
 
-  // Compute match stats for this player
-  const myMatches = matches
+  // Compute match stats for this player (bao gồm cả trận kèo và trận đánh giải)
+  const myMatches = getAllMatchesUnified()
     .filter(m => m.a.includes(name) || m.b.includes(name))
     .sort((a,b) => a.date.localeCompare(b.date));
 
