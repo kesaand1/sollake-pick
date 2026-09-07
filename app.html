@@ -1178,6 +1178,7 @@ function getAllMatchesUnified(){
         id:'t'+t.id+'_'+m.id,
         date: t.date,
         a: m.pairA, b: m.pairB,
+        scoreA: m.scoreA, scoreB: m.scoreB,
         winner: m.scoreA>m.scoreB?'A':'B',
         type: m.pairA.length===1?'singles':'doubles',
         elo: m.elo, keo:'none', isTournamentMatch:true
