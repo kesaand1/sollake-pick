@@ -1730,7 +1730,10 @@ function renderOverviewCards(){
   });
 
   // Tổng điểm âm = tốp nộp (kèo thua + phạt)
-  function lossScore(d){ return d.phat + (d.nuoc+d.bia+d.bong+d.lau+d.ga)*10000; }
+  // Quy ước quy đổi kèo ra tiền (ngầm, không hiển thị lên màn hình) để so sánh
+  // "ai đang nợ nhiều nhất" cho công bằng giữa các loại kèo khác nhau:
+  // 1 chai nước = 1 cốc bia = 10.000đ · 1 quả bóng = 40.000đ · 1 nồi lẩu = 500.000đ · 1 con gà = 300.000đ
+  function lossScore(d){ return d.phat + (d.nuoc+d.bia)*10000 + d.bong*40000 + d.lau*500000 + d.ga*300000; }
 
   const allBal = Object.entries(bal).filter(([n])=>
     filtered.some(m=>[...m.a,...m.b].includes(n)) ||
