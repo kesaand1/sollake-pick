@@ -2013,7 +2013,7 @@ function logMatch(){
   saveAll();closeModal('matchModal');renderMatches();renderRanking();renderPlayers();
   notify(`🏆 ${wt.join(' & ')} thắng! ±${delta.toFixed(2)} điểm`);
 }
-function delMatch(id){if(guardScorer())return;
+function delMatch(id){
   const m = matches.find(x=>x.id===id); if(!m) return;
   if(!confirm('Xóa trận? Điểm ELO đã cộng/trừ sẽ được hoàn lại.'))return;
   if(m.elo){
