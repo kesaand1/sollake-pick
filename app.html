@@ -732,6 +732,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <!-- PAGE: PROFILE -->
 <div class="page" id="page-profile">
   <button class="back-btn" onclick="goBack()">← Quay lại</button>
+  <div class="fgroup" style="margin-bottom:.85rem">
+    <select class="finput" id="profilePeriodSelect" onchange="onProfilePeriodSelect()" style="width:100%;max-width:260px">
+    </select>
+  </div>
   <div class="profile-hero">
     <div style="position:relative;flex-shrink:0">
       <div class="profile-av" id="profileAv" style="cursor:pointer" title="Bấm để đổi ảnh đại diện"></div>
@@ -2597,17 +2601,62 @@ function calcPairing(){
 let prevPage = 'ranking';
 let eloChart = null;
 let wlChart  = null;
+let _currentProfileName = null;
 
 function openProfile(name){
   const p = gp(name);
   if(!p) return;
   prevPage = document.querySelector('.page.active')?.id?.replace('page-','') || 'ranking';
   showPage('profile');
+  _currentProfileName = name;
+  buildProfilePeriodDropdown();
   renderProfile(name);
 }
 
 function goBack(){
   showPage(prevPage);
+}
+
+function buildProfilePeriodDropdown(){
+  const sel = document.getElementById('profilePeriodSelect');
+  if(!sel) return;
+  const now = nowGMT7();
+  const curY = now.getUTCFullYear();
+  const curM = now.getUTCMonth()+1;
+  const pad = n=>String(n).padStart(2,'0');
+
+  const monthSet = new Set();
+  getAllMatchesUnified().forEach(m=>{
+    const [y,mo] = m.date.split('-');
+    monthSet.add(`${y}-${mo}`);
+  });
+  monthSet.add(`${curY}-${pad(curM)}`);
+
+  const sorted = [...monthSet]
+    .filter(k=>{
+      const [y,m]=k.split('-');
+      return parseInt(y)<curY || (parseInt(y)===curY && parseInt(m)<=curM);
+    })
+    .sort((a,b)=>b.localeCompare(a));
+
+  const prevVal = sel.value;
+  sel.innerHTML = '<option value="all">Toàn bộ thời gian</option>' +
+    sorted.map(k=>{
+      const [y,m]=k.split('-');
+      return `<option value="month:${k}">Tháng ${m}/${y}</option>`;
+    }).join('');
+
+  sel.value = (prevVal && [...sel.options].some(o=>o.value===prevVal)) ? prevVal : 'all';
+}
+
+function onProfilePeriodSelect(){
+  if(_currentProfileName) renderProfile(_currentProfileName);
+}
+
+function getProfileDateRange(){
+  const sel = document.getElementById('profilePeriodSelect');
+  const preset = (sel && sel.value) ? sel.value : 'all';
+  return getPeriodRange(preset);
 }
 
 function renderProfile(name){
@@ -2636,8 +2685,9 @@ function renderProfile(name){
     (p.note ? `<span>📝 ${p.note}</span>` : '');
 
   // Compute match stats for this player (bao gồm cả trận kèo và trận đánh giải)
+  const {from:profFrom, to:profTo} = getProfileDateRange();
   const myMatches = getAllMatchesUnified()
-    .filter(m => m.a.includes(name) || m.b.includes(name))
+    .filter(m => (m.a.includes(name) || m.b.includes(name)) && inR(m.date, profFrom, profTo))
     .sort((a,b) => a.date.localeCompare(b.date));
 
   const wins   = myMatches.filter(m => (m.winner==='A'&&m.a.includes(name))||(m.winner==='B'&&m.b.includes(name))).length;
@@ -2741,9 +2791,9 @@ function renderProfile(name){
     <div class="sc"><div class="val" style="color:#FACC15">🏆 ${myTrophies.length}</div><div class="lbl">Số cúp vô địch</div></div>
     <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>`;
 
-  // ── Kèo thua & Nộp phạt (toàn thời gian) ──
+  // ── Kèo thua & Nộp phạt (theo khoảng thời gian đã chọn) ──
   (function(){
-    const {bal} = computeKeoBalances('', '');
+    const {bal} = computeKeoBalances(profFrom, profTo);
     const d = bal[name] || {nuoc:0,bia:0,bong:0,lau:0,ga:0,phat:0};
     const items = [
       {cond:d.nuoc<0, icon:'💧', label:'Nước', val:Math.abs(d.nuoc)+' chai', color:'#93C5FD'},
@@ -2752,7 +2802,7 @@ function renderProfile(name){
       {cond:d.lau<0, icon:'🍲', label:'Lẩu', val:Math.abs(d.lau)+' nồi', color:'#FDBA74'},
       {cond:d.ga<0, icon:'🐔', label:'Gà', val:Math.abs(d.ga)+' con', color:'#FCA5A5'},
     ].filter(it=>it.cond);
-    const finesPaid = fines.filter(f=>f.player===name&&f.paid).reduce((s,f)=>s+f.amount,0);
+    const finesPaid = fines.filter(f=>f.player===name&&f.paid&&inR(f.date,profFrom,profTo)).reduce((s,f)=>s+f.amount,0);
     const keoStatsEl = document.getElementById('profileKeoStats');
     if(!items.length && finesPaid===0){
       keoStatsEl.innerHTML = '<div style="font-size:.85rem;opacity:.5">Chưa từng thua kèo hoặc nộp phạt</div>';
