@@ -716,6 +716,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="mob" id="rankM"></div>
   </div>
 
+  <div class="panel" style="margin-top:1rem;background:rgba(251,146,60,.04);border-color:rgba(251,146,60,.18)">
+    <div class="panel-hd" style="color:#FB923C">🥄 Mâm Xôi Vàng — Thua kèo nhiều nhất</div>
+    <div class="desk tbl-wrap" id="maXoiD"></div>
+    <div class="mob" id="maXoiM"></div>
+  </div>
+
   <div class="panel" style="margin-top:1rem;background:rgba(181,240,51,0.04);border-color:rgba(181,240,51,0.15)">
     <div class="panel-hd" style="color:var(--lime)">🤝 Thống kê cặp đôi — Tỷ lệ thắng</div>
     <div class="desk tbl-wrap" id="pairsD"></div>
@@ -743,6 +749,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
   </div>
 
   <div class="stat3" id="profileStats"></div>
+
+  <div class="panel" id="profileKeoPanel" style="margin-bottom:1rem;background:rgba(251,146,60,.04);border-color:rgba(251,146,60,.18)">
+    <div class="panel-hd" style="color:#FB923C">🥄 Kèo thua & Nộp phạt</div>
+    <div id="profileKeoStats"></div>
+  </div>
 
   <div class="panel" id="trophyPanel" style="margin-bottom:1rem;display:none">
     <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center">
@@ -1156,7 +1167,67 @@ let nM=matches.length?Math.max(...matches.map(m=>m.id))+1:1;
 let nF=finances.length?Math.max(...finances.map(f=>f.id))+1:1;
 let nFi=fines.length?Math.max(...fines.map(f=>f.id))+1:1;
 
-// Helpers
+// Tính bảng cân đối kèo thua + tiền phạt đã nộp của mọi thành viên trong 1
+// khoảng thời gian — dùng chung cho card "Tốp nộp" (Tổng quan), mục "Mâm xôi
+// vàng" (Xếp hạng thành viên) và thống kê trên trang cá nhân từng người.
+function computeKeoBalances(from, to){
+  const vis = players.filter(p=>p.visible);
+  const filtered = getAllMatchesUnified().filter(m=>inR(m.date,from,to));
+
+  function keoVal(m, n, type){
+    const teamSize = m.type==='doubles' ? 2 : 1;
+    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
+    const isWin=wt.includes(n), isLose=lt.includes(n);
+    if(!isWin&&!isLose) return 0;
+    if(isWin) return 0; // Thắng kèo thì không được cộng, chỉ có thua mới phải trả
+    const raw = type==='nuoc'?(m.keoNuoc||1):type==='bia'?(m.keoBia||1):type==='bong'?(m.keoBong||1):type==='lau'?(m.keoLau||1):(m.keoGa||1);
+    return -raw/teamSize;
+  }
+
+  const bal = {};
+  function ensureBal(n){ if(!bal[n]) bal[n]={nuoc:0,bia:0,bong:0,lau:0,ga:0,phat:0}; }
+  vis.forEach(p=>ensureBal(p.name));
+
+  filtered.forEach(m=>{
+    if(!m.keo||m.keo==='none') return;
+    [...m.a,...m.b].forEach(n=>{
+      ensureBal(n);
+      if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
+      if(m.keo==='bia') bal[n].bia += keoVal(m,n,'bia');
+      if(m.keo==='bong') bal[n].bong += keoVal(m,n,'bong');
+      if(m.keo==='lau') bal[n].lau += keoVal(m,n,'lau');
+      if(m.keo==='ga') bal[n].ga += keoVal(m,n,'ga');
+    });
+  });
+  // Phạt đã nộp (âm = đã chi ra) — tính cho MỌI người từng bị phạt,
+  // kể cả người đã bị ẩn khỏi danh sách thành viên hiện tại
+  fines.filter(f=>f.paid&&inR(f.date,from,to)).forEach(f=>{
+    ensureBal(f.player);
+    bal[f.player].phat -= f.amount;
+  });
+
+  Object.keys(bal).forEach(n=>{
+    bal[n].nuoc = parseFloat(bal[n].nuoc.toFixed(1));
+    bal[n].bia = parseFloat(bal[n].bia.toFixed(1));
+    bal[n].bong = parseFloat(bal[n].bong.toFixed(1));
+    bal[n].lau = parseFloat(bal[n].lau.toFixed(1));
+    bal[n].ga = parseFloat(bal[n].ga.toFixed(1));
+    bal[n].phat = Math.round(bal[n].phat);
+  });
+
+  // Quy ước quy đổi kèo ra tiền (ngầm, không hiển thị lên màn hình) để so sánh
+  // "ai đang nợ nhiều nhất" cho công bằng giữa các loại kèo khác nhau:
+  // 1 chai nước = 1 cốc bia = 10.000đ · 1 quả bóng = 40.000đ · 1 nồi lẩu = 500.000đ · 1 con gà = 300.000đ
+  function lossScore(d){ return d.phat + (d.nuoc+d.bia)*10000 + d.bong*40000 + d.lau*500000 + d.ga*300000; }
+
+  const allBal = Object.entries(bal).filter(([n])=>
+    filtered.some(m=>[...m.a,...m.b].includes(n)) ||
+    fines.some(f=>f.player===n&&f.paid&&inR(f.date,from,to))
+  );
+
+  return {bal, lossScore, allBal};
+}
+
 const fmt=n=>n.toLocaleString('vi-VN')+'đ';
 
 // Gộp toàn bộ trận đấu (kèo thường + mọi trận trong giải đấu ở mọi định dạng:
@@ -1685,61 +1756,7 @@ function renderOverviewCards(){
   const vis  = players.filter(p=>p.visible);
   const filtered = getAllMatchesUnified().filter(m=>inR(m.date,from,to));
 
-  // Helper: chia đôi kèo đôi
-  function keoVal(m, n, type){
-    const teamSize = m.type==='doubles' ? 2 : 1;
-    const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
-    const isWin=wt.includes(n), isLose=lt.includes(n);
-    if(!isWin&&!isLose) return 0;
-    if(isWin) return 0; // Thắng kèo thì không được cộng, chỉ có thua mới phải trả
-    const raw = type==='nuoc'?(m.keoNuoc||1):type==='bia'?(m.keoBia||1):type==='bong'?(m.keoBong||1):type==='lau'?(m.keoLau||1):(m.keoGa||1);
-    return -raw/teamSize;
-  }
-
-  // ── Tốp nộp: kèo thua + tiền phạt đã nộp ──
-  const bal = {};
-  function ensureBal(n){ if(!bal[n]) bal[n]={nuoc:0,bia:0,bong:0,lau:0,ga:0,phat:0}; }
-  vis.forEach(p=>ensureBal(p.name));
-
-  // Kèo
-  filtered.forEach(m=>{
-    if(!m.keo||m.keo==='none') return;
-    [...m.a,...m.b].forEach(n=>{
-      ensureBal(n);
-      if(m.keo==='nuoc') bal[n].nuoc += keoVal(m,n,'nuoc');
-      if(m.keo==='bia') bal[n].bia += keoVal(m,n,'bia');
-      if(m.keo==='bong') bal[n].bong += keoVal(m,n,'bong');
-      if(m.keo==='lau') bal[n].lau += keoVal(m,n,'lau');
-      if(m.keo==='ga') bal[n].ga += keoVal(m,n,'ga');
-    });
-  });
-  // Phạt đã nộp (âm = đã chi ra) — tính cho MỌI người từng bị phạt,
-  // kể cả người đã bị ẩn khỏi danh sách thành viên hiện tại
-  fines.filter(f=>f.paid&&inR(f.date,from,to)).forEach(f=>{
-    ensureBal(f.player);
-    bal[f.player].phat -= f.amount;
-  });
-
-  // Round
-  Object.keys(bal).forEach(n=>{
-    bal[n].nuoc = parseFloat(bal[n].nuoc.toFixed(1));
-    bal[n].bia = parseFloat(bal[n].bia.toFixed(1));
-    bal[n].bong = parseFloat(bal[n].bong.toFixed(1));
-    bal[n].lau = parseFloat(bal[n].lau.toFixed(1));
-    bal[n].ga = parseFloat(bal[n].ga.toFixed(1));
-    bal[n].phat = Math.round(bal[n].phat);
-  });
-
-  // Tổng điểm âm = tốp nộp (kèo thua + phạt)
-  // Quy ước quy đổi kèo ra tiền (ngầm, không hiển thị lên màn hình) để so sánh
-  // "ai đang nợ nhiều nhất" cho công bằng giữa các loại kèo khác nhau:
-  // 1 chai nước = 1 cốc bia = 10.000đ · 1 quả bóng = 40.000đ · 1 nồi lẩu = 500.000đ · 1 con gà = 300.000đ
-  function lossScore(d){ return d.phat + (d.nuoc+d.bia)*10000 + d.bong*40000 + d.lau*500000 + d.ga*300000; }
-
-  const allBal = Object.entries(bal).filter(([n])=>
-    filtered.some(m=>[...m.a,...m.b].includes(n)) ||
-    fines.some(f=>f.player===n&&f.paid&&inR(f.date,from,to))
-  );
+  const {bal, lossScore, allBal} = computeKeoBalances(from,to);
 
   // Tìm TẤT CẢ người có cùng điểm âm thấp nhất
   const topNopList = (() => {
@@ -1925,6 +1942,63 @@ function renderRanking(){
     </div>`;
   }).join('');
   document.getElementById('rankM').innerHTML=`<div class="card-list">${cards}</div>`;
+
+  // ── Mâm Xôi Vàng: xếp hạng thua kèo nhiều nhất ──
+  renderMaXoiVang(from, to);
+}
+
+function renderMaXoiVang(from, to){
+  const {bal, lossScore, allBal} = computeKeoBalances(from, to);
+  const loserList = allBal
+    .filter(([,d])=>lossScore(d) < 0)
+    .sort((a,b)=>lossScore(a[1])-lossScore(b[1]));
+
+  const maXoiD = document.getElementById('maXoiD');
+  const maXoiM = document.getElementById('maXoiM');
+  if(!maXoiD || !maXoiM) return;
+
+  if(!loserList.length){
+    const e = empty('🥄','Chưa có ai thua kèo trong khoảng thời gian này');
+    maXoiD.innerHTML=e; maXoiM.innerHTML=e; return;
+  }
+
+  function keoBadges(d){
+    const parts=[];
+    if(d.nuoc<0) parts.push(`💧 ${Math.abs(d.nuoc)} chai`);
+    if(d.bia<0) parts.push(`🍺 ${Math.abs(d.bia)} cốc`);
+    if(d.bong<0) parts.push(`<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-2px;display:inline-block" alt=""/> ${Math.abs(d.bong)} quả`);
+    if(d.lau<0) parts.push(`🍲 ${Math.abs(d.lau)} nồi`);
+    if(d.ga<0) parts.push(`🐔 ${Math.abs(d.ga)} con`);
+    if(d.phat<0) parts.push(`🚨 ${(Math.abs(d.phat)/1000).toFixed(0)}k phạt`);
+    return parts.length ? parts.join(' · ') : '—';
+  }
+
+  const rowsD = loserList.map(([n,d],i)=>{
+    const p = players.find(pp=>pp.name===n);
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+    return `<tr>
+      <td><span class="rnum ${i===0?'r1':i===1?'r2':i===2?'r3':''}">${medal}</span></td>
+      <td>${p?avWTrophy(p.name,p.color):n}</td>
+      <td style="font-size:.85rem">${keoBadges(d)}</td>
+    </tr>`;
+  }).join('');
+  maXoiD.innerHTML = `<table><thead><tr><th>#</th><th>Thành viên</th><th>Kèo thua</th></tr></thead><tbody>${rowsD}</tbody></table>`;
+
+  const cardsM = loserList.map(([n,d],i)=>{
+    const p = players.find(pp=>pp.name===n);
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    return `<div class="card-item">
+      <div class="card-item-row">
+        <div class="av-wrap">
+          <span class="rnum ${i===0?'r1':i===1?'r2':i===2?'r3':''}" style="min-width:26px;text-align:center">${medal||('#'+(i+1))}</span>
+          ${p?avTrophy(p.name,p.color,'av-lg'):''}
+          <div class="bold">${n}</div>
+        </div>
+      </div>
+      <div class="card-meta mt1"><span>${keoBadges(d)}</span></div>
+    </div>`;
+  }).join('');
+  maXoiM.innerHTML = `<div class="card-list">${cardsM}</div>`;
 }
 
 // Matches
@@ -2666,6 +2740,35 @@ function renderProfile(name){
     <div class="sc"><div class="val">${myMatches.length}</div><div class="lbl">Tổng trận</div></div>
     <div class="sc"><div class="val" style="color:#FACC15">🏆 ${myTrophies.length}</div><div class="lbl">Số cúp vô địch</div></div>
     <div class="sc"><div class="val ${wr>=60?'ts':wr>=40?'tw':'td'}">${wr}%</div><div class="lbl">Tỷ lệ thắng</div></div>`;
+
+  // ── Kèo thua & Nộp phạt (toàn thời gian) ──
+  (function(){
+    const {bal} = computeKeoBalances('', '');
+    const d = bal[name] || {nuoc:0,bia:0,bong:0,lau:0,ga:0,phat:0};
+    const items = [
+      {cond:d.nuoc<0, icon:'💧', label:'Nước', val:Math.abs(d.nuoc)+' chai', color:'#93C5FD'},
+      {cond:d.bia<0, icon:'🍺', label:'Bia', val:Math.abs(d.bia)+' cốc', color:'#FCD34D'},
+      {cond:d.bong<0, icon:'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-2px;display:inline-block" alt=""/>', label:'Bóng', val:Math.abs(d.bong)+' quả', color:'#BEF264'},
+      {cond:d.lau<0, icon:'🍲', label:'Lẩu', val:Math.abs(d.lau)+' nồi', color:'#FDBA74'},
+      {cond:d.ga<0, icon:'🐔', label:'Gà', val:Math.abs(d.ga)+' con', color:'#FCA5A5'},
+    ].filter(it=>it.cond);
+    const finesPaid = fines.filter(f=>f.player===name&&f.paid).reduce((s,f)=>s+f.amount,0);
+    const keoStatsEl = document.getElementById('profileKeoStats');
+    if(!items.length && finesPaid===0){
+      keoStatsEl.innerHTML = '<div style="font-size:.85rem;opacity:.5">Chưa từng thua kèo hoặc nộp phạt</div>';
+    } else {
+      keoStatsEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:.5rem">`
+        + items.map(it=>`<div style="display:flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:50px;padding:.4rem .8rem">
+            <span style="font-size:1rem">${it.icon}</span>
+            <span style="font-size:.82rem;font-weight:700;color:${it.color}">${it.label}: ${it.val}</span>
+          </div>`).join('')
+        + (finesPaid>0 ? `<div style="display:flex;align-items:center;gap:.4rem;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);border-radius:50px;padding:.4rem .8rem">
+            <span style="font-size:1rem">🚨</span>
+            <span style="font-size:.82rem;font-weight:700;color:#FCA5A5">Đã nộp phạt: ${fmt(finesPaid)}</span>
+          </div>` : '')
+        + `</div>`;
+    }
+  })();
 
   // ── Bộ sưu tập cúp ──
   const trophyPanel = document.getElementById('trophyPanel');
