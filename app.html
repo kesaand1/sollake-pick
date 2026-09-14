@@ -754,16 +754,16 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
   <div class="stat3" id="profileStats"></div>
 
-  <div class="panel" id="profileKeoPanel" style="margin-bottom:1rem;background:rgba(251,146,60,.04);border-color:rgba(251,146,60,.18)">
-    <div class="panel-hd" style="color:#FB923C">🥄 Kèo thua & Nộp phạt</div>
-    <div id="profileKeoStats"></div>
-  </div>
-
   <div class="panel" id="trophyPanel" style="margin-bottom:1rem;display:none">
     <div class="panel-hd" style="display:flex;justify-content:space-between;align-items:center">
       <span>🏅 Bộ Sưu Tập Cúp</span>
     </div>
     <div id="trophyList" style="display:flex;flex-wrap:wrap;gap:.6rem"></div>
+  </div>
+
+  <div class="panel" id="profileKeoPanel" style="margin-bottom:1rem;background:rgba(251,146,60,.04);border-color:rgba(251,146,60,.18)">
+    <div class="panel-hd" style="color:#FB923C">🥄 Kèo thua & Nộp phạt</div>
+    <div id="profileKeoStats"></div>
   </div>
 
   <div class="panel" id="rivalryPanel" style="margin-bottom:1rem;display:none">
@@ -2699,7 +2699,7 @@ function renderProfile(name){
   const doubles = myMatches.filter(m=>m.type==='doubles').length;
 
   // ── Cúp: giải đấu đã kết thúc mà player đạt Vô địch / Á quân / Giải 3 ──
-  const myAllPodiums = tournaments.filter(t=>t.status==='done').map(t=>{
+  const myAllPodiums = tournaments.filter(t=>t.status==='done' && inR(t.date,profFrom,profTo)).map(t=>{
     const top = typeof getTournamentTopStandings==='function' ? getTournamentTopStandings(t) : [];
     const rankIdx = top.findIndex(s=>s && s.members && s.members.includes(name));
     if(rankIdx<0 || rankIdx>2) return null;
