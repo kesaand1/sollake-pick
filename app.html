@@ -1691,8 +1691,9 @@ function renderOverviewCards(){
     const wt=m.winner==='A'?m.a:m.b, lt=m.winner==='A'?m.b:m.a;
     const isWin=wt.includes(n), isLose=lt.includes(n);
     if(!isWin&&!isLose) return 0;
+    if(isWin) return 0; // Thắng kèo thì không được cộng, chỉ có thua mới phải trả
     const raw = type==='nuoc'?(m.keoNuoc||1):type==='bia'?(m.keoBia||1):type==='bong'?(m.keoBong||1):type==='lau'?(m.keoLau||1):(m.keoGa||1);
-    return isWin ? raw/teamSize : -raw/teamSize;
+    return -raw/teamSize;
   }
 
   // ── Tốp nộp: kèo thua + tiền phạt đã nộp ──
