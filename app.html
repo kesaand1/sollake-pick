@@ -51,11 +51,26 @@ function applyClubBanner(clubId, info){
 }
 window.applyClubBanner = applyClubBanner;
 
-function applyClubLogo(name){
+function applyClubLogo(name, logoUrl){
   const el = document.getElementById('clubLogo');
-  if(el && name) el.textContent = name;
+  if(el && name){
+    if(logoUrl){
+      el.innerHTML = `<img src="${logoUrl}" alt="${name}" style="height:28px;max-width:160px;object-fit:contain;vertical-align:middle"/>`;
+    } else if(el.querySelector('img')){
+      // Trước đó có logo ảnh nhưng giờ bị gỡ (logoUrl rỗng) → quay lại chữ
+      el.textContent = name;
+    } else {
+      el.textContent = name;
+    }
+  }
   const loginEl = document.getElementById('loginScreenClubName');
-  if(loginEl && name) loginEl.textContent = name;
+  if(loginEl && name){
+    if(logoUrl){
+      loginEl.innerHTML = `<img src="${logoUrl}" alt="${name}" style="height:44px;max-width:220px;object-fit:contain"/>`;
+    } else {
+      loginEl.textContent = name;
+    }
+  }
 }
 window.applyClubLogo = applyClubLogo;
 
@@ -119,7 +134,7 @@ onAuthStateChanged(auth, async (user) => {
         if(info.active === false){ showClubDeactivated(info.name||_urlClubId, !!info.pendingApproval); return; }
         window._clubName = (info && info.name) || _urlClubId;
         applyClubBanner(_urlClubId, info); // upgrade to custom banner if set
-        applyClubLogo(window._clubName);
+        applyClubLogo(window._clubName, info && info.logo);
       }).catch(()=>{});
     }
     // No action needed - landing page already showing
@@ -177,7 +192,7 @@ onAuthStateChanged(auth, async (user) => {
     if(clubInfo.active === false){ showClubDeactivated(clubInfo.name||targetClubId, !!clubInfo.pendingApproval); return; }
     window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
     applyClubBanner(targetClubId, clubInfo);
-    applyClubLogo(window._clubName);
+    applyClubLogo(window._clubName, clubInfo && clubInfo.logo);
 
     applyRoleUI(currentRole);
     hideLoginScreen();
@@ -4838,7 +4853,7 @@ async function enterGuestMode(clubId){
     if(clubInfoSnap.active === false){ if(window.showClubDeactivated) window.showClubDeactivated(clubInfoSnap.name||clubId, !!clubInfoSnap.pendingApproval); return; }
     window._clubName=(clubInfoSnap&&clubInfoSnap.name)||clubId;
     if(window.applyClubBanner) window.applyClubBanner(clubId, clubInfoSnap);
-    if(window.applyClubLogo) window.applyClubLogo(window._clubName);
+    if(window.applyClubLogo) window.applyClubLogo(window._clubName, clubInfoSnap && clubInfoSnap.logo);
   }
   if(typeof applyRoleUI==='function') applyRoleUI('guest');
   if(typeof hideLoginScreen==='function') hideLoginScreen();
@@ -5020,6 +5035,29 @@ function loadSettingsPage(){
   if(bannerErr) bannerErr.style.display='none';
   refreshScorerList();
   loadMyFeedback();
+
+  // Nạp logo hiện tại (nếu có) để xem trước
+  _pendingLogoDataUrl = null;
+  const logoErr = document.getElementById('settingsLogoErr');
+  if(logoErr) logoErr.style.display='none';
+  const logoSaveBtn = document.getElementById('settingsLogoSaveBtn');
+  if(logoSaveBtn) logoSaveBtn.disabled = true;
+  if(window._fbGet && window._clubId){
+    window._fbGet('clubs/'+window._clubId+'/info/logo').then(logoUrl=>{
+      const preview = document.getElementById('settingsLogoPreview');
+      const placeholder = document.getElementById('settingsLogoPlaceholder');
+      const removeBtn = document.getElementById('settingsLogoRemoveBtn');
+      if(logoUrl){
+        preview.src = logoUrl; preview.style.display='block';
+        placeholder.style.display='none';
+        removeBtn.style.display='';
+      } else {
+        preview.style.display='none';
+        placeholder.style.display='';
+        removeBtn.style.display='none';
+      }
+    }).catch(()=>{});
+  }
 }
 
 let _myFeedbackPage = 1;
@@ -5361,6 +5399,66 @@ window.doUploadBanner = async () => {
     await window._clubSet('info/banner', _pendingBannerDataUrl);
     if(window.applyClubBanner) window.applyClubBanner(window._clubId, {name:window._clubName, banner:_pendingBannerDataUrl});
     notify('✅ Đã cập nhật banner CLB');
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message; errEl.style.display='';
+  }
+  btn.disabled=false; btn.textContent=oldTxt;
+};
+
+// ── Logo App ──
+let _pendingLogoDataUrl = null;
+
+window.previewLogoFile = async (event) => {
+  const file = event.target.files[0];
+  const errEl = document.getElementById('settingsLogoErr');
+  errEl.style.display='none';
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ errEl.textContent='Vui lòng chọn file ảnh.'; errEl.style.display=''; return; }
+  try{
+    const dataUrl = await compressImage(file, 400, 0.9);
+    _pendingLogoDataUrl = dataUrl;
+    const preview = document.getElementById('settingsLogoPreview');
+    preview.src = dataUrl; preview.style.display='block';
+    document.getElementById('settingsLogoPlaceholder').style.display='none';
+    document.getElementById('settingsLogoSaveBtn').disabled = false;
+  }catch(e){
+    errEl.textContent='Không thể xử lý ảnh: '+e.message; errEl.style.display='';
+  }
+};
+
+window.doUploadLogo = async () => {
+  const errEl = document.getElementById('settingsLogoErr');
+  errEl.style.display='none';
+  if(!_pendingLogoDataUrl){ errEl.textContent='Vui lòng chọn ảnh trước.'; errEl.style.display=''; return; }
+  const btn = document.getElementById('settingsLogoSaveBtn');
+  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang lưu...';
+  try{
+    await window._clubSet('info/logo', _pendingLogoDataUrl);
+    if(window.applyClubLogo) window.applyClubLogo(window._clubName, _pendingLogoDataUrl);
+    document.getElementById('settingsLogoRemoveBtn').style.display='';
+    notify('✅ Đã cập nhật logo app');
+  }catch(e){
+    errEl.textContent='Lỗi: '+e.message; errEl.style.display='';
+  }
+  btn.disabled=false; btn.textContent=oldTxt;
+};
+
+window.doRemoveLogo = async () => {
+  if(!confirm('Gỡ logo hiện tại và quay lại hiển thị tên CLB dạng chữ?')) return;
+  const errEl = document.getElementById('settingsLogoErr');
+  errEl.style.display='none';
+  const btn = document.getElementById('settingsLogoRemoveBtn');
+  const oldTxt = btn.textContent; btn.disabled=true; btn.textContent='Đang gỡ...';
+  try{
+    await window._clubSet('info/logo', null);
+    _pendingLogoDataUrl = null;
+    document.getElementById('settingsLogoFile').value = '';
+    document.getElementById('settingsLogoPreview').style.display='none';
+    document.getElementById('settingsLogoPlaceholder').style.display='';
+    document.getElementById('settingsLogoSaveBtn').disabled = true;
+    btn.style.display='none';
+    if(window.applyClubLogo) window.applyClubLogo(window._clubName, null);
+    notify('✅ Đã gỡ logo, quay lại tên CLB dạng chữ');
   }catch(e){
     errEl.textContent='Lỗi: '+e.message; errEl.style.display='';
   }
@@ -5749,6 +5847,28 @@ init();
     </div>
     <div id="settingsBannerErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
     <button class="btn btn-lime" id="settingsBannerSaveBtn" onclick="doUploadBanner()" disabled>💾 Lưu banner</button>
+  </div>
+
+  <!-- Đổi logo app -->
+  <div class="panel">
+    <div class="panel-hd">Logo App (hiển thị ở góc trên bên trái)</div>
+    <div style="margin-bottom:.75rem;display:flex;align-items:center;gap:1rem">
+      <div style="width:100px;height:100px;border-radius:var(--rs);background:var(--navy);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+        <img id="settingsLogoPreview" src="" alt="Logo preview" style="max-width:100%;max-height:100%;object-fit:contain;display:none"/>
+        <span id="settingsLogoPlaceholder" style="font-size:.7rem;color:var(--muted);text-align:center;padding:.4rem">Chưa có logo</span>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted)">Nếu không đặt logo, tên CLB dạng chữ sẽ được hiển thị như mặc định.</div>
+    </div>
+    <div class="fgroup">
+      <label>Chọn ảnh logo từ máy</label>
+      <input class="finput" type="file" id="settingsLogoFile" accept="image/*" onchange="previewLogoFile(event)"/>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Nên dùng ảnh nền trong suốt (PNG), tỉ lệ ngang. Ảnh sẽ được tự động thu nhỏ.</div>
+    </div>
+    <div id="settingsLogoErr" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;display:none"></div>
+    <div class="gap">
+      <button class="btn btn-lime" id="settingsLogoSaveBtn" onclick="doUploadLogo()" disabled>💾 Lưu logo</button>
+      <button class="btn btn-ghost" id="settingsLogoRemoveBtn" onclick="doRemoveLogo()" style="display:none">🗑 Gỡ logo (dùng lại tên chữ)</button>
+    </div>
   </div>
 
   <!-- Tài khoản Ghi trận -->
