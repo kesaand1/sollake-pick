@@ -1024,10 +1024,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
   </div>
 </div>
 
-<!-- MODAL: ALBUM ẢNH GIẢI ĐẤU -->
-<div class="modal-bg" id="albumModal">
-  <div class="modal" style="max-width:720px">
-    <div class="modal-title-row"><div class="modal-title">🖼️ Album — <span id="albumTournamentName"></span></div><button class="modal-x" onclick="closeAlbum()" title="Đóng">✕</button></div>
+<!-- PAGE: ALBUM ẢNH GIẢI ĐẤU -->
+<div class="page" id="page-album">
+  <button class="back-btn" onclick="goBackAlbum()">← Quay lại</button>
+  <div class="panel">
+    <div class="panel-hd">🖼️ Album — <span id="albumTournamentName"></span></div>
 
     <div id="albumUploadZone" style="margin-bottom:.85rem">
       <label class="btn btn-lime btn-sm" style="display:inline-flex;align-items:center;gap:.4rem;cursor:pointer">
@@ -1038,14 +1039,22 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div style="font-size:.68rem;color:var(--muted);margin-top:.35rem">Video tối đa 50MB/file</div>
     </div>
 
-    <div id="albumGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem;max-height:60vh;overflow-y:auto;padding-right:.2rem"></div>
+    <div style="display:flex;gap:.4rem;margin-bottom:.7rem" id="albumFilterBar">
+      <button class="btn btn-xs match-type-btn active" data-filter="all" onclick="setAlbumFilter('all')">Tất cả</button>
+      <button class="btn btn-xs match-type-btn" data-filter="image" onclick="setAlbumFilter('image')">🖼️ Ảnh</button>
+      <button class="btn btn-xs match-type-btn" data-filter="video" onclick="setAlbumFilter('video')">🎬 Video</button>
+    </div>
+
+    <div id="albumGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem"></div>
   </div>
 </div>
 
 <!-- LIGHTBOX: XEM ẢNH FULL-SIZE -->
 <div id="albumLightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:1rem" onclick="closeLightbox()">
+  <button onclick="event.stopPropagation();lightboxNav(-1)" style="position:absolute;left:.5rem;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.08);border:none;color:#fff;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;line-height:1;z-index:1" title="Ảnh/video trước">‹</button>
   <img id="albumLightboxImg" src="" alt="" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:8px" onclick="event.stopPropagation()"/>
   <video id="albumLightboxVideo" controls playsinline style="display:none;max-width:92vw;max-height:82vh;border-radius:8px" onclick="event.stopPropagation()"></video>
+  <button onclick="event.stopPropagation();lightboxNav(1)" style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.08);border:none;color:#fff;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;line-height:1;z-index:1" title="Ảnh/video tiếp theo">›</button>
   <div id="albumLightboxMeta" style="color:#fff;font-size:.8rem;opacity:.8;text-align:center"></div>
   <button onclick="closeLightbox()" style="position:absolute;top:1rem;right:1.2rem;background:none;border:none;color:#fff;font-size:1.8rem;cursor:pointer;line-height:1">✕</button>
 </div>
@@ -1419,7 +1428,7 @@ function showPage(id){
   const pageEl=document.getElementById('page-'+id);
   if(!pageEl) return;
   pageEl.classList.add('active');
-  if(id!=='profile') sessionStorage.setItem('sp_page', id);
+  if(id!=='profile' && id!=='album') sessionStorage.setItem('sp_page', id);
   const map={ranking:'tổng',matches:'lịch',pairing:'ghép',players:'thành',finance:'thu',tournament:'giải',settings:'cài',profile:''};
   if(map[id])document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(map[id]))b.classList.add('active')});
   document.querySelectorAll('.bot-tab').forEach(b=>b.classList.remove('active'));
@@ -5107,6 +5116,8 @@ let _albumTournamentId = null;
 let _albumTournamentName = '';
 let _albumUnsub = null;
 let _albumPhotos = {};
+let _albumFilter = 'all'; // 'all' | 'image' | 'video'
+let _albumVisibleIds = []; // thứ tự đang hiển thị (theo bộ lọc) — dùng để điều hướng lightbox
 
 function canManageAlbum(){
   if(window._userRole!=='admin' && window._userRole!=='scorer'){
@@ -5123,7 +5134,11 @@ function openAlbum(tournamentId, tournamentName){
   const canManage = window._userRole==='admin' || window._userRole==='scorer';
   document.getElementById('albumUploadZone').style.display = canManage ? '' : 'none';
   document.getElementById('albumGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">Đang tải album...</div>';
-  openModal('albumModal');
+  _albumFilter = 'all';
+  document.querySelectorAll('#albumFilterBar .match-type-btn').forEach(b=>b.classList.toggle('active', b.dataset.filter==='all'));
+
+  prevPage = document.querySelector('.page.active')?.id?.replace('page-','') || 'tournament';
+  showPage('album');
 
   if(_albumUnsub) _albumUnsub();
   _albumUnsub = window._clubAlbumSubscribe(tournamentId, (val) => {
@@ -5132,18 +5147,27 @@ function openAlbum(tournamentId, tournamentName){
   });
 }
 
-function closeAlbum(){
+function goBackAlbum(){
   if(_albumUnsub){ _albumUnsub(); _albumUnsub=null; }
   _albumTournamentId = null;
   _albumPhotos = {};
-  closeModal('albumModal');
+  goBack();
+}
+
+function setAlbumFilter(filter){
+  _albumFilter = filter;
+  document.querySelectorAll('#albumFilterBar .match-type-btn').forEach(b=>b.classList.toggle('active', b.dataset.filter===filter));
+  renderAlbumGrid();
 }
 
 function renderAlbumGrid(){
   const grid = document.getElementById('albumGrid');
-  const entries = Object.entries(_albumPhotos).sort((a,b)=>(b[1].uploadedAt||0)-(a[1].uploadedAt||0));
+  let entries = Object.entries(_albumPhotos).sort((a,b)=>(b[1].uploadedAt||0)-(a[1].uploadedAt||0));
+  if(_albumFilter==='image') entries = entries.filter(([,ph])=>ph.type!=='video');
+  else if(_albumFilter==='video') entries = entries.filter(([,ph])=>ph.type==='video');
+  _albumVisibleIds = entries.map(([photoId])=>photoId);
   if(!entries.length){
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">📭 Chưa có ảnh nào trong album này.</div>';
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">📭 ${_albumFilter==='all'?'Chưa có ảnh/video nào trong album này.':(_albumFilter==='image'?'Chưa có ảnh nào.':'Chưa có video nào.')}</div>`;
     return;
   }
   grid.innerHTML = entries.map(([photoId, ph]) => {
@@ -5244,10 +5268,22 @@ async function handleAlbumUpload(event){
     statusEl.textContent = `Đang tải ${done}/${files.length} file...`;
   }
   statusEl.textContent = `✅ Đã tải xong ${done} file`;
+  notify(`✅ Đã tải lên thành công ${done} ảnh/video vào album "${_albumTournamentName}"`);
   setTimeout(()=>{ statusEl.textContent=''; }, 3000);
 }
 
+let _lightboxIndex = -1;
+
 function openLightbox(photoId){
+  const idx = _albumVisibleIds.indexOf(photoId);
+  if(idx<0) return;
+  _lightboxIndex = idx;
+  renderLightboxAt(_lightboxIndex);
+  document.getElementById('albumLightbox').style.display = 'flex';
+}
+
+function renderLightboxAt(idx){
+  const photoId = _albumVisibleIds[idx];
   const ph = _albumPhotos[photoId];
   if(!ph) return;
   const imgEl = document.getElementById('albumLightboxImg');
@@ -5260,15 +5296,31 @@ function openLightbox(photoId){
     imgEl.style.display=''; imgEl.src=ph.url;
   }
   const d = ph.uploadedAt ? new Date(ph.uploadedAt).toLocaleDateString('vi-VN') : '';
-  document.getElementById('albumLightboxMeta').textContent = [ph.uploadedBy, d].filter(Boolean).join(' · ');
-  document.getElementById('albumLightbox').style.display = 'flex';
+  const posLabel = _albumVisibleIds.length>1 ? `${idx+1}/${_albumVisibleIds.length} · ` : '';
+  document.getElementById('albumLightboxMeta').textContent = posLabel + [ph.uploadedBy, d].filter(Boolean).join(' · ');
 }
+
+function lightboxNav(dir){
+  if(!_albumVisibleIds.length) return;
+  _lightboxIndex = (_lightboxIndex + dir + _albumVisibleIds.length) % _albumVisibleIds.length;
+  renderLightboxAt(_lightboxIndex);
+}
+
 function closeLightbox(){
   document.getElementById('albumLightbox').style.display = 'none';
   document.getElementById('albumLightboxImg').src = '';
   const vidEl = document.getElementById('albumLightboxVideo');
   vidEl.pause(); vidEl.src='';
+  _lightboxIndex = -1;
 }
+
+document.addEventListener('keydown', (e)=>{
+  const lb = document.getElementById('albumLightbox');
+  if(!lb || lb.style.display==='none' || !lb.style.display) return;
+  if(e.key==='ArrowLeft') lightboxNav(-1);
+  else if(e.key==='ArrowRight') lightboxNav(1);
+  else if(e.key==='Escape') closeLightbox();
+});
 
 async function deleteAlbumPhoto(photoId){
   if(!canManageAlbum()) return;
