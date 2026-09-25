@@ -9,6 +9,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getStorage, ref as sRef, uploadString, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAF4GMR-pn-7MXbwtKIF9u-hp4azUqbF8E",
@@ -24,6 +25,7 @@ const firebaseConfig = {
 const app  = initializeApp(firebaseConfig);
 const db   = getDatabase(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 let unsubscribers = [];
 let currentRole = '';
@@ -271,6 +273,38 @@ window.subscribeClubData = subscribeClubData;
 
 // ── Club-aware set ──
 window._clubSet = (path, data) => set(ref(db, clubPath+'/'+path), data);
+
+// ── Album ảnh giải đấu: TÁCH RIÊNG khỏi subscribeClubData() ──
+// Không subscribe sẵn cho mọi giải đấu lúc tải app (sẽ làm chậm mọi thứ khi
+// club có nhiều giải + nhiều ảnh). Chỉ subscribe khi người dùng thực sự mở
+// tab Album của 1 giải đấu cụ thể, và hủy subscribe khi họ rời khỏi đó.
+window._clubAlbumSubscribe = (tournamentId, cb) => {
+  const path = clubPath+'/albums/'+tournamentId;
+  return onValue(ref(db, path), snap => cb(snap.val()));
+};
+window._clubAlbumSetPhoto = (tournamentId, photoId, data) =>
+  set(ref(db, clubPath+'/albums/'+tournamentId+'/'+photoId), data);
+window._clubAlbumDeletePhoto = (tournamentId, photoId) =>
+  set(ref(db, clubPath+'/albums/'+tournamentId+'/'+photoId), null);
+
+// ── Firebase Storage: upload/xóa file ảnh thật (không lưu base64 vào RTDB) ──
+window._clubUploadImage = async (storagePath, dataUrl) => {
+  const fileRef = sRef(storage, storagePath);
+  await uploadString(fileRef, dataUrl, 'data_url');
+  return getDownloadURL(fileRef);
+};
+window._clubUploadFile = async (storagePath, file) => {
+  const fileRef = sRef(storage, storagePath);
+  await uploadBytes(fileRef, file, {contentType: file.type});
+  return getDownloadURL(fileRef);
+};
+window._clubDeleteImage = async (storagePath) => {
+  try { await deleteObject(sRef(storage, storagePath)); } catch(e){ /* file có thể đã bị xóa trước đó, bỏ qua */ }
+};
+window._clubDeleteByUrl = async (url) => {
+  try { await deleteObject(sRef(storage, url)); } catch(e){ /* file có thể đã bị xóa trước đó, bỏ qua */ }
+};
+window._fbCurrentEmail = () => (auth.currentUser && auth.currentUser.email) || '';
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
@@ -988,6 +1022,32 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <button class="btn btn-lime" onclick="saveAvatarEdit()">✅ Lưu ảnh</button>
     </div>
   </div>
+</div>
+
+<!-- MODAL: ALBUM ẢNH GIẢI ĐẤU -->
+<div class="modal-bg" id="albumModal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-title-row"><div class="modal-title">🖼️ Album — <span id="albumTournamentName"></span></div><button class="modal-x" onclick="closeAlbum()" title="Đóng">✕</button></div>
+
+    <div id="albumUploadZone" style="margin-bottom:.85rem">
+      <label class="btn btn-lime btn-sm" style="display:inline-flex;align-items:center;gap:.4rem;cursor:pointer">
+        📤 Tải ảnh/video lên
+        <input type="file" id="albumFileInput" accept="image/*,video/*" multiple onchange="handleAlbumUpload(event)" style="display:none"/>
+      </label>
+      <span id="albumUploadStatus" style="font-size:.78rem;color:var(--muted);margin-left:.6rem"></span>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:.35rem">Video tối đa 50MB/file</div>
+    </div>
+
+    <div id="albumGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem;max-height:60vh;overflow-y:auto;padding-right:.2rem"></div>
+  </div>
+</div>
+
+<!-- LIGHTBOX: XEM ẢNH FULL-SIZE -->
+<div id="albumLightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:1rem" onclick="closeLightbox()">
+  <img id="albumLightboxImg" src="" alt="" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:8px" onclick="event.stopPropagation()"/>
+  <video id="albumLightboxVideo" controls playsinline style="display:none;max-width:92vw;max-height:82vh;border-radius:8px" onclick="event.stopPropagation()"></video>
+  <div id="albumLightboxMeta" style="color:#fff;font-size:.8rem;opacity:.8;text-align:center"></div>
+  <button onclick="closeLightbox()" style="position:absolute;top:1rem;right:1.2rem;background:none;border:none;color:#fff;font-size:1.8rem;cursor:pointer;line-height:1">✕</button>
 </div>
 
 <!-- MODAL: LOG MATCH -->
@@ -4194,6 +4254,7 @@ function renderTournamentList(){
       +'<div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">'
       +'<span class="small tm">'+fmtD(t.date)+'</span>'
       +'<span class="small tm">'+done+'/'+total+' trận</span>'
+      +'<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openAlbum('+t.id+',\''+t.name.replace(/'/g,"\\'")+'\')" title="Album ảnh">🖼️ Album</button>'
       +'<button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteTournament('+t.id+')" title="Xóa giải">🗑</button>'
       +'<span class="t-accordion-arrow" id="tacc_arrow_'+t.id+'" style="color:var(--muted);transition:transform .2s;'+(expanded?'transform:rotate(180deg)':'')+'">▼</span>'
       +'</div>'
@@ -5032,6 +5093,192 @@ function compressImage(file, maxWidth, quality){
     reader.onerror = () => reject(new Error('Không đọc được file'));
     reader.readAsDataURL(file);
   });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ALBUM ẢNH GIẢI ĐẤU
+// Thiết kế để KHÔNG ảnh hưởng tốc độ tải app chính:
+// - Không subscribe dữ liệu album lúc mở app, chỉ subscribe khi mở đúng
+//   giải đấu đó, và hủy subscribe ngay khi đóng modal.
+// - Ảnh lưu ở Firebase Storage (không phải RTDB) — RTDB chỉ giữ URL + metadata.
+// - Mỗi ảnh có 2 bản: thumb (hiển thị lưới) và full (chỉ tải khi xem lightbox).
+// ══════════════════════════════════════════════════════════════════════
+let _albumTournamentId = null;
+let _albumTournamentName = '';
+let _albumUnsub = null;
+let _albumPhotos = {};
+
+function canManageAlbum(){
+  if(window._userRole!=='admin' && window._userRole!=='scorer'){
+    notify('🔒 Chỉ tài khoản Admin hoặc Ghi trận mới được tải ảnh/video lên và xóa khỏi album.');
+    return false;
+  }
+  return true;
+}
+
+function openAlbum(tournamentId, tournamentName){
+  _albumTournamentId = tournamentId;
+  _albumTournamentName = tournamentName || '';
+  document.getElementById('albumTournamentName').textContent = _albumTournamentName;
+  const canManage = window._userRole==='admin' || window._userRole==='scorer';
+  document.getElementById('albumUploadZone').style.display = canManage ? '' : 'none';
+  document.getElementById('albumGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">Đang tải album...</div>';
+  openModal('albumModal');
+
+  if(_albumUnsub) _albumUnsub();
+  _albumUnsub = window._clubAlbumSubscribe(tournamentId, (val) => {
+    _albumPhotos = val || {};
+    renderAlbumGrid();
+  });
+}
+
+function closeAlbum(){
+  if(_albumUnsub){ _albumUnsub(); _albumUnsub=null; }
+  _albumTournamentId = null;
+  _albumPhotos = {};
+  closeModal('albumModal');
+}
+
+function renderAlbumGrid(){
+  const grid = document.getElementById('albumGrid');
+  const entries = Object.entries(_albumPhotos).sort((a,b)=>(b[1].uploadedAt||0)-(a[1].uploadedAt||0));
+  if(!entries.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">📭 Chưa có ảnh nào trong album này.</div>';
+    return;
+  }
+  grid.innerHTML = entries.map(([photoId, ph]) => {
+    const canDel = window._userRole==='admin' || window._userRole==='scorer';
+    const isVideo = ph.type==='video';
+    return `<div style="position:relative;aspect-ratio:1;border-radius:var(--rs);overflow:hidden;border:1px solid var(--border);cursor:pointer" onclick="openLightbox('${photoId}')">
+      <img src="${ph.thumbUrl}" loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover;display:block"/>
+      ${isVideo ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.15)"><span style="width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:.9rem;color:#fff">▶️</span></div>` : ''}
+      ${canDel ? `<button onclick="event.stopPropagation();deleteAlbumPhoto('${photoId}')" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;cursor:pointer;font-size:.7rem;line-height:1" title="Xóa">🗑</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// Chụp khung hình đầu của video làm thumbnail (video không nén được qua canvas
+// như ảnh, nên chỉ lấy 1 khung hình tĩnh để hiển thị lưới)
+function captureVideoThumbnail(file, maxWidth, quality){
+  return new Promise((resolve,reject)=>{
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    video.src = URL.createObjectURL(file);
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(0.3, (video.duration||1)/2);
+    };
+    video.onseeked = () => {
+      let w = video.videoWidth, h = video.videoHeight;
+      if(w > maxWidth){ h = Math.round(h * maxWidth / w); w = maxWidth; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+      URL.revokeObjectURL(video.src);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    video.onerror = () => reject(new Error('Không đọc được video'));
+  });
+}
+
+const ALBUM_MAX_VIDEO_MB = 50;
+
+async function handleAlbumUpload(event){
+  if(!canManageAlbum()){ event.target.value=''; return; }
+  const files = Array.from(event.target.files||[]);
+  event.target.value = '';
+  if(!files.length || !_albumTournamentId) return;
+
+  const statusEl = document.getElementById('albumUploadStatus');
+  let done = 0;
+  statusEl.textContent = `Đang tải ${done}/${files.length} file...`;
+
+  for(const file of files){
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    if(!isImage && !isVideo) continue;
+
+    if(isVideo && file.size > ALBUM_MAX_VIDEO_MB*1024*1024){
+      notify(`⚠️ Video "${file.name}" vượt quá ${ALBUM_MAX_VIDEO_MB}MB, bỏ qua.`);
+      done++; statusEl.textContent = `Đang tải ${done}/${files.length} file...`;
+      continue;
+    }
+
+    try{
+      const photoId = 'p'+Date.now()+Math.random().toString(36).slice(2,8);
+      const basePath = 'clubs/'+window._clubId+'/tournaments/'+_albumTournamentId+'/'+photoId;
+
+      if(isImage){
+        const [thumbDataUrl, fullDataUrl] = await Promise.all([
+          compressImage(file, 400, 0.7),
+          compressImage(file, 1600, 0.82),
+        ]);
+        const [thumbUrl, fullUrl] = await Promise.all([
+          window._clubUploadImage(basePath+'_thumb.jpg', thumbDataUrl),
+          window._clubUploadImage(basePath+'_full.jpg', fullDataUrl),
+        ]);
+        await window._clubAlbumSetPhoto(_albumTournamentId, photoId, {
+          type: 'image', url: fullUrl, thumbUrl: thumbUrl,
+          uploadedBy: window._fbCurrentEmail ? window._fbCurrentEmail() : '',
+          uploadedAt: Date.now(),
+        });
+      } else {
+        const ext = (file.name.split('.').pop()||'mp4').toLowerCase();
+        const [thumbDataUrl, videoUrl] = await Promise.all([
+          captureVideoThumbnail(file, 400, 0.7),
+          window._clubUploadFile(basePath+'_video.'+ext, file),
+        ]);
+        const thumbUrl = await window._clubUploadImage(basePath+'_thumb.jpg', thumbDataUrl);
+        await window._clubAlbumSetPhoto(_albumTournamentId, photoId, {
+          type: 'video', url: videoUrl, thumbUrl: thumbUrl,
+          uploadedBy: window._fbCurrentEmail ? window._fbCurrentEmail() : '',
+          uploadedAt: Date.now(),
+        });
+      }
+    }catch(e){
+      console.error('Lỗi upload file:', e);
+      notify(`⚠️ Lỗi tải "${file.name}"`);
+    }
+    done++;
+    statusEl.textContent = `Đang tải ${done}/${files.length} file...`;
+  }
+  statusEl.textContent = `✅ Đã tải xong ${done} file`;
+  setTimeout(()=>{ statusEl.textContent=''; }, 3000);
+}
+
+function openLightbox(photoId){
+  const ph = _albumPhotos[photoId];
+  if(!ph) return;
+  const imgEl = document.getElementById('albumLightboxImg');
+  const vidEl = document.getElementById('albumLightboxVideo');
+  if(ph.type==='video'){
+    imgEl.style.display='none'; imgEl.src='';
+    vidEl.style.display=''; vidEl.src=ph.url;
+  } else {
+    vidEl.style.display='none'; vidEl.pause(); vidEl.src='';
+    imgEl.style.display=''; imgEl.src=ph.url;
+  }
+  const d = ph.uploadedAt ? new Date(ph.uploadedAt).toLocaleDateString('vi-VN') : '';
+  document.getElementById('albumLightboxMeta').textContent = [ph.uploadedBy, d].filter(Boolean).join(' · ');
+  document.getElementById('albumLightbox').style.display = 'flex';
+}
+function closeLightbox(){
+  document.getElementById('albumLightbox').style.display = 'none';
+  document.getElementById('albumLightboxImg').src = '';
+  const vidEl = document.getElementById('albumLightboxVideo');
+  vidEl.pause(); vidEl.src='';
+}
+
+async function deleteAlbumPhoto(photoId){
+  if(!canManageAlbum()) return;
+  const ph = _albumPhotos[photoId];
+  if(!confirm('Xóa file này khỏi album?')) return;
+  await window._clubAlbumDeletePhoto(_albumTournamentId, photoId);
+  if(ph){
+    if(ph.thumbUrl) window._clubDeleteByUrl(ph.thumbUrl);
+    if(ph.url) window._clubDeleteByUrl(ph.url);
+  }
 }
 
 window.previewBannerFile = async (event) => {
