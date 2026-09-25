@@ -1039,10 +1039,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div style="font-size:.68rem;color:var(--muted);margin-top:.35rem">Video tối đa 50MB/file</div>
     </div>
 
-    <div style="display:flex;gap:.4rem;margin-bottom:.7rem" id="albumFilterBar">
+    <div style="display:flex;gap:.4rem;margin-bottom:.7rem;flex-wrap:wrap;align-items:center" id="albumFilterBar">
       <button class="btn btn-xs match-type-btn active" data-filter="all" onclick="setAlbumFilter('all')">Tất cả</button>
       <button class="btn btn-xs match-type-btn" data-filter="image" onclick="setAlbumFilter('image')">🖼️ Ảnh</button>
       <button class="btn btn-xs match-type-btn" data-filter="video" onclick="setAlbumFilter('video')">🎬 Video</button>
+      <select class="finput" id="albumFaceFilterSelect" onchange="onAlbumFaceFilterChange()" style="max-width:220px;font-size:.78rem;padding:.35rem .6rem">
+        <option value="">🧑 Tìm theo thành viên...</option>
+      </select>
+      <span id="albumFaceFilterStatus" style="font-size:.72rem;color:var(--muted)"></span>
     </div>
 
     <div id="albumGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem"></div>
@@ -5137,6 +5141,15 @@ function openAlbum(tournamentId, tournamentName){
   _albumFilter = 'all';
   document.querySelectorAll('#albumFilterBar .match-type-btn').forEach(b=>b.classList.toggle('active', b.dataset.filter==='all'));
 
+  _albumFaceFilterPlayerId = '';
+  _albumFaceMatchedIds = null;
+  const faceSel = document.getElementById('albumFaceFilterSelect');
+  faceSel.value = '';
+  document.getElementById('albumFaceFilterStatus').textContent = '';
+  const withAvatar = players.filter(p=>p.avatarUrl);
+  faceSel.innerHTML = '<option value="">🧑 Tìm theo thành viên...</option>'
+    + withAvatar.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+
   prevPage = document.querySelector('.page.active')?.id?.replace('page-','') || 'tournament';
   showPage('album');
 
@@ -5160,14 +5173,77 @@ function setAlbumFilter(filter){
   renderAlbumGrid();
 }
 
+// ── Lọc ảnh theo khuôn mặt thành viên ──
+let _albumFaceFilterPlayerId = '';
+let _albumFaceMatchedIds = null; // null = không lọc theo khuôn mặt; Set = danh sách photoId khớp
+
+async function onAlbumFaceFilterChange(){
+  const sel = document.getElementById('albumFaceFilterSelect');
+  const statusEl = document.getElementById('albumFaceFilterStatus');
+  const playerId = sel.value;
+  _albumFaceFilterPlayerId = playerId;
+
+  if(!playerId){
+    _albumFaceMatchedIds = null;
+    statusEl.textContent = '';
+    renderAlbumGrid();
+    return;
+  }
+
+  const player = players.find(p=>String(p.id)===String(playerId));
+  if(!player || !player.avatarUrl){
+    notify('⚠️ Thành viên này chưa có ảnh đại diện, không thể tìm theo khuôn mặt.');
+    sel.value = ''; _albumFaceFilterPlayerId = ''; _albumFaceMatchedIds = null;
+    renderAlbumGrid();
+    return;
+  }
+
+  statusEl.textContent = '🔎 Đang phân tích khuôn mặt (chỉ chậm ở lần đầu)...';
+  renderAlbumGrid(); // hiện trạng thái "đang tìm" trong lúc chờ
+
+  try{
+    const refDescriptor = await getAvatarFaceDescriptor(player);
+    if(!refDescriptor){
+      notify(`⚠️ Không nhận diện được khuôn mặt trong ảnh đại diện của "${player.name}".`);
+      statusEl.textContent = '';
+      sel.value = ''; _albumFaceFilterPlayerId = ''; _albumFaceMatchedIds = null;
+      renderAlbumGrid();
+      return;
+    }
+    const matched = new Set();
+    Object.entries(_albumPhotos).forEach(([photoId, ph]) => {
+      const faces = ph.faces || [];
+      const isMatch = faces.some(f => faceDistance(f, refDescriptor) < FACE_MATCH_THRESHOLD);
+      if(isMatch) matched.add(photoId);
+    });
+    _albumFaceMatchedIds = matched;
+    statusEl.textContent = `Tìm thấy ${matched.size} ảnh/video có "${player.name}"`;
+  }catch(e){
+    console.error('Lỗi tìm theo khuôn mặt:', e);
+    notify('⚠️ Có lỗi khi phân tích khuôn mặt, vui lòng thử lại.');
+    statusEl.textContent = '';
+  }
+  renderAlbumGrid();
+}
+
 function renderAlbumGrid(){
   const grid = document.getElementById('albumGrid');
   let entries = Object.entries(_albumPhotos).sort((a,b)=>(b[1].uploadedAt||0)-(a[1].uploadedAt||0));
   if(_albumFilter==='image') entries = entries.filter(([,ph])=>ph.type!=='video');
   else if(_albumFilter==='video') entries = entries.filter(([,ph])=>ph.type==='video');
+  if(_albumFaceFilterPlayerId && _albumFaceMatchedIds===null){
+    // Đang trong lúc chờ phân tích khuôn mặt xong
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">🔎 Đang tìm ảnh có khuôn mặt phù hợp...</div>';
+    _albumVisibleIds = [];
+    return;
+  }
+  if(_albumFaceMatchedIds) entries = entries.filter(([photoId])=>_albumFaceMatchedIds.has(photoId));
   _albumVisibleIds = entries.map(([photoId])=>photoId);
   if(!entries.length){
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">📭 ${_albumFilter==='all'?'Chưa có ảnh/video nào trong album này.':(_albumFilter==='image'?'Chưa có ảnh nào.':'Chưa có video nào.')}</div>`;
+    const emptyMsg = _albumFaceMatchedIds
+      ? '📭 Không tìm thấy ảnh/video nào có khuôn mặt thành viên này.'
+      : (_albumFilter==='all'?'📭 Chưa có ảnh/video nào trong album này.':(_albumFilter==='image'?'📭 Chưa có ảnh nào.':'📭 Chưa có video nào.'));
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem 0;color:var(--muted);font-size:.85rem">${emptyMsg}</div>`;
     return;
   }
   grid.innerHTML = entries.map(([photoId, ph]) => {
@@ -5208,6 +5284,76 @@ function captureVideoThumbnail(file, maxWidth, quality){
 
 const ALBUM_MAX_VIDEO_MB = 50;
 
+// ── Nhận diện khuôn mặt (face-api.js) — CHỈ tải khi thực sự cần dùng ──
+// (lúc upload ảnh vào album, hoặc lúc chọn lọc "Tìm theo thành viên"),
+// không ảnh hưởng tốc độ mở app hay các trang khác.
+let _faceApiLoadPromise = null;
+const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+const FACE_MATCH_THRESHOLD = 0.55; // càng nhỏ càng khắt khe; face-api.js khuyến nghị ~0.6
+
+function loadFaceApi(){
+  if(_faceApiLoadPromise) return _faceApiLoadPromise;
+  _faceApiLoadPromise = new Promise((resolve, reject) => {
+    if(window.faceapi){ resolve(window.faceapi); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js';
+    script.onload = async () => {
+      try{
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
+        ]);
+        resolve(window.faceapi);
+      }catch(e){ reject(e); }
+    };
+    script.onerror = () => reject(new Error('Không tải được thư viện nhận diện khuôn mặt'));
+    document.head.appendChild(script);
+  });
+  return _faceApiLoadPromise;
+}
+
+// Trả về mảng các vector đặc trưng khuôn mặt (mỗi khuôn mặt phát hiện được
+// trong ảnh là 1 mảng 128 số) từ 1 ảnh dạng dataURL. Ảnh nhóm nhiều người
+// vẫn phát hiện được hết các khuôn mặt trong ảnh.
+async function extractFaceDescriptors(dataUrl){
+  const faceapi = await loadFaceApi();
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('Không đọc được ảnh để nhận diện khuôn mặt'));
+    el.src = dataUrl;
+  });
+  const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks().withFaceDescriptors();
+  return detections.map(d => Array.from(d.descriptor));
+}
+
+function faceDistance(a, b){
+  let sum = 0;
+  for(let i=0;i<a.length;i++){ const d=a[i]-b[i]; sum += d*d; }
+  return Math.sqrt(sum);
+}
+
+// Cache vector khuôn mặt của avatar từng thành viên trong phiên làm việc này
+// (không lưu vào RTDB, chỉ tính lại khi cần và giữ tạm trong bộ nhớ trình duyệt)
+let _avatarDescriptorCache = {};
+async function getAvatarFaceDescriptor(player){
+  if(!player.avatarUrl) return null;
+  const cacheKey = player.id + '|' + player.avatarUrl;
+  if(_avatarDescriptorCache[cacheKey] !== undefined) return _avatarDescriptorCache[cacheKey];
+  try{
+    const faces = await extractFaceDescriptors(player.avatarUrl);
+    const result = faces.length ? faces[0] : null;
+    _avatarDescriptorCache[cacheKey] = result;
+    return result;
+  }catch(e){
+    console.error('Lỗi nhận diện khuôn mặt avatar:', e);
+    _avatarDescriptorCache[cacheKey] = null;
+    return null;
+  }
+}
+
 async function handleAlbumUpload(event){
   if(!canManageAlbum()){ event.target.value=''; return; }
   const files = Array.from(event.target.files||[]);
@@ -5242,22 +5388,30 @@ async function handleAlbumUpload(event){
           window._clubUploadImage(basePath+'_thumb.jpg', thumbDataUrl),
           window._clubUploadImage(basePath+'_full.jpg', fullDataUrl),
         ]);
+        let faces = [];
+        try{ faces = await extractFaceDescriptors(fullDataUrl); }
+        catch(e){ console.error('Lỗi nhận diện khuôn mặt:', e); }
         await window._clubAlbumSetPhoto(_albumTournamentId, photoId, {
           type: 'image', url: fullUrl, thumbUrl: thumbUrl,
           uploadedBy: window._fbCurrentEmail ? window._fbCurrentEmail() : '',
           uploadedAt: Date.now(),
+          faces: faces,
         });
       } else {
         const ext = (file.name.split('.').pop()||'mp4').toLowerCase();
         const [thumbDataUrl, videoUrl] = await Promise.all([
-          captureVideoThumbnail(file, 400, 0.7),
+          captureVideoThumbnail(file, 720, 0.75),
           window._clubUploadFile(basePath+'_video.'+ext, file),
         ]);
         const thumbUrl = await window._clubUploadImage(basePath+'_thumb.jpg', thumbDataUrl);
+        let faces = [];
+        try{ faces = await extractFaceDescriptors(thumbDataUrl); }
+        catch(e){ console.error('Lỗi nhận diện khuôn mặt:', e); }
         await window._clubAlbumSetPhoto(_albumTournamentId, photoId, {
           type: 'video', url: videoUrl, thumbUrl: thumbUrl,
           uploadedBy: window._fbCurrentEmail ? window._fbCurrentEmail() : '',
           uploadedAt: Date.now(),
+          faces: faces,
         });
       }
     }catch(e){
