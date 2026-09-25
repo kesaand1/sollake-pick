@@ -1429,6 +1429,53 @@ function toggleHidden(){if(guardScorer())return;
   document.getElementById('hiddenBtn').textContent=showHidden?'📋 Danh sách thành viên':'👁 Xem thành viên ẩn';
   renderPlayers();
 }
+function renamePlayer(id){if(guardScorer())return;
+  const p=players.find(x=>x.id===id);if(!p)return;
+  const oldName=p.name;
+  const newName=prompt(`Tên mới cho "${oldName}":`,oldName);
+  if(newName===null)return;
+  const trimmed=newName.trim();
+  if(!trimmed)return alert('Tên không được để trống');
+  if(trimmed===oldName)return;
+  if(players.some(x=>x.id!==id&&x.name===trimmed))return alert(`Đã có thành viên khác tên "${trimmed}"`);
+
+  p.name=trimmed;
+
+  // Cập nhật tên trong toàn bộ trận kèo thường
+  matches.forEach(m=>{
+    m.a=m.a.map(n=>n===oldName?trimmed:n);
+    m.b=m.b.map(n=>n===oldName?trimmed:n);
+  });
+
+  // Cập nhật tên trong toàn bộ giải đấu (mọi định dạng: vòng tròn, loại trực tiếp, chia bảng)
+  const renamePair=arr=>{arr.forEach(m=>{
+    if(!m)return;
+    if(Array.isArray(m.pairA)) m.pairA=m.pairA.map(n=>n===oldName?trimmed:n);
+    if(Array.isArray(m.pairB)) m.pairB=m.pairB.map(n=>n===oldName?trimmed:n);
+  });};
+  tournaments.forEach(t=>{
+    if(Array.isArray(t.teams)) t.teams.forEach(team=>{
+      if(Array.isArray(team.members)) team.members=team.members.map(n=>n===oldName?trimmed:n);
+    });
+    if(Array.isArray(t.matches)) renamePair(t.matches);
+    if(t.bracket&&Array.isArray(t.bracket.rounds)) t.bracket.rounds.forEach(round=>renamePair(round));
+    if(Array.isArray(t.groupMatches)) renamePair(t.groupMatches);
+    if(Array.isArray(t.semis)) renamePair(t.semis);
+    if(t.final) renamePair([t.final]);
+    if(t.thirdPlaceMatch) renamePair([t.thirdPlaceMatch]);
+  });
+
+  // Cập nhật tên trong lịch sử phạt & thu chi
+  fines.forEach(f=>{ if(f.player===oldName) f.player=trimmed; });
+  finances.forEach(f=>{ if(f.player===oldName) f.player=trimmed; });
+
+  saveAll();
+  renderPlayers();
+  if(typeof renderRanking==='function') renderRanking();
+  if(typeof renderMatches==='function') renderMatches();
+  notify(`✅ Đã đổi tên "${oldName}" → "${trimmed}"`);
+}
+
 function editScore(id){if(guardScorer())return;
   const p=players.find(x=>x.id===id);if(!p)return;
   const ns=prompt(`Điểm mới cho ${p.name} (hiện: ${p.score.toFixed(2)}, từ 2.00 đến 8.00):`,p.score.toFixed(2));
@@ -1519,6 +1566,7 @@ function renderPlayers(){
     <td class="tm small">${fmtD(p.joined)}</td>
     <td>${genderLabel(p.gender)}</td>
     <td><div class="gap">
+      <button class="btn btn-ghost btn-xs" onclick="renamePlayer(${p.id})">✏️ Tên</button>
       <button class="btn btn-ghost btn-xs" onclick="editScore(${p.id})">✏️ Điểm</button>
       <button class="btn btn-ghost btn-xs" onclick="togglePlayerVis(${p.id})">${p.visible?'🙈 Ẩn':'👁 Hiện'}</button>
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑</button>
@@ -1534,6 +1582,7 @@ function renderPlayers(){
       <span style="font-weight:700;font-size:1.25rem;color:var(--lime)">${p.score.toFixed(2)}</span>
     </div>
     <div class="gap mt1">
+      <button class="btn btn-ghost btn-xs" onclick="renamePlayer(${p.id})">✏️ Sửa tên</button>
       <button class="btn btn-ghost btn-xs" onclick="editScore(${p.id})">✏️ Sửa điểm</button>
       <button class="btn btn-ghost btn-xs" onclick="togglePlayerVis(${p.id})">${p.visible?'🙈 Ẩn':'👁 Hiện'}</button>
       <button class="btn btn-danger btn-xs" onclick="delPlayer(${p.id})">🗑 Xóa</button>
