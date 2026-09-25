@@ -1583,7 +1583,7 @@ window.previewAvatarFile = async (event) => {
   if(!file) return;
   if(!file.type.startsWith('image/')){ errEl.textContent='Vui lòng chọn file ảnh.'; errEl.style.display=''; return; }
   try{
-    const dataUrl = await compressImage(file, 300, 0.85);
+    const dataUrl = await compressImage(file, 480, 0.85);
     _pendingAvatarUrl = dataUrl;
     const preview = document.getElementById('editAvatarPreview');
     preview.src = dataUrl; preview.style.display='';
@@ -5289,7 +5289,7 @@ const ALBUM_MAX_VIDEO_MB = 50;
 // không ảnh hưởng tốc độ mở app hay các trang khác.
 let _faceApiLoadPromise = null;
 const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
-const FACE_MATCH_THRESHOLD = 0.55; // càng nhỏ càng khắt khe; face-api.js khuyến nghị ~0.6
+const FACE_MATCH_THRESHOLD = 0.6; // mức khuyến nghị chính thức của face-api.js (< 0.6 = cùng 1 người)
 
 function loadFaceApi(){
   if(_faceApiLoadPromise) return _faceApiLoadPromise;
@@ -5300,7 +5300,7 @@ function loadFaceApi(){
     script.onload = async () => {
       try{
         await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
+          faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
         ]);
@@ -5324,7 +5324,7 @@ async function extractFaceDescriptors(dataUrl){
     el.onerror = () => reject(new Error('Không đọc được ảnh để nhận diện khuôn mặt'));
     el.src = dataUrl;
   });
-  const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+  const detections = await faceapi.detectAllFaces(img, new faceapi.SsdMobilenetv1Options({minConfidence: 0.4}))
     .withFaceLandmarks().withFaceDescriptors();
   return detections.map(d => Array.from(d.descriptor));
 }
