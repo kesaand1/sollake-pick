@@ -4562,15 +4562,38 @@ function toggleTAccordion(id){
   }
 }
 
+// renderTournamentInline() rebuilds toàn bộ HTML bên trong giải đấu (bằng
+// innerHTML) mỗi khi có 1 trận được xác nhận/chốt — điều này xóa sạch DOM cũ
+// và tạo DOM mới, nên bất kỳ ô nhập điểm/chọn người chơi nào NGƯỜI DÙNG ĐÃ
+// ĐIỀN nhưng CHƯA bấm xác nhận ở các trận khác sẽ bị mất trắng (vì input/select
+// là phần tử mới, không giữ giá trị cũ). Để khắc phục triệt để cho MỌI định
+// dạng giải đấu: trước khi render lại, chụp lại giá trị hiện tại của tất cả
+// input/select bên trong khu vực này (theo id — id ổn định vì dựa trên
+// id trận/id giải không đổi), sau khi render xong thì điền lại đúng ô cùng id
+// nếu ô đó vẫn còn tồn tại và chưa có giá trị mới (tránh ghi đè giá trị vừa
+// được xác nhận).
 function renderTournamentInline(t){
   const el=document.getElementById('t_content_'+t.id);
   if(!el) return;
   tViewingId=t.id;
-  if(t.format==='roundrobin') return renderTournamentInlineRoundRobin(t);
-  if(t.format==='singleelim') return renderTournamentInlineBracket(t);
-  if(t.format==='groups') return renderTournamentInlineGroups(t);
-  if(t.format==='teamtie') return renderTournamentInlineTie(t);
-  return renderTournamentInlineTeams(t);
+
+  const snapshot = {};
+  el.querySelectorAll('input, select').forEach(elm=>{
+    if(elm.id && elm.value) snapshot[elm.id] = elm.value;
+  });
+
+  if(t.format==='roundrobin') renderTournamentInlineRoundRobin(t);
+  else if(t.format==='singleelim') renderTournamentInlineBracket(t);
+  else if(t.format==='groups') renderTournamentInlineGroups(t);
+  else if(t.format==='teamtie') renderTournamentInlineTie(t);
+  else renderTournamentInlineTeams(t);
+
+  const el2=document.getElementById('t_content_'+t.id);
+  if(!el2) return;
+  Object.keys(snapshot).forEach(id=>{
+    const elm=document.getElementById(id);
+    if(elm && !elm.value) elm.value = snapshot[id];
+  });
 }
 
 function renderTournamentInlineTeams(t){
