@@ -103,6 +103,15 @@ if (_urlClubId) {
   }, 500);
 }
 
+// Bật lại nút "Đăng nhập" nếu nó đang bị kẹt ở trạng thái "Đang đăng nhập..."
+// — xảy ra khi đăng nhập ĐÚNG mật khẩu nhưng bước kiểm tra quyền/CLB sau đó
+// thất bại (chưa phân quyền, tài khoản bị tạm ngưng, sai CLB...) khiến
+// onAuthStateChanged phải signOut() giữa chừng mà không quay lại doLogin().
+function resetLoginButtonIfStuck(){
+  const btn = document.getElementById('loginBtn');
+  if(btn && btn.disabled){ btn.disabled=false; btn.textContent='Đăng nhập'; }
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (_guestTimer) { clearTimeout(_guestTimer); _guestTimer = null; }
   if (!user) {
@@ -139,6 +148,7 @@ onAuthStateChanged(auth, async (user) => {
         return;
       }
       alert('Tài khoản chưa được phân quyền. Liên hệ quản trị viên.');
+      resetLoginButtonIfStuck();
       signOut(auth);
       return;
     }
@@ -147,6 +157,7 @@ onAuthStateChanged(auth, async (user) => {
       alert(roleData.pendingApproval
         ? 'Tài khoản của bạn đang chờ quản trị viên hệ thống xét duyệt. Vui lòng quay lại sau.'
         : 'Tài khoản của bạn đã bị tạm ngưng. Liên hệ quản trị viên CLB để biết thêm chi tiết.');
+      resetLoginButtonIfStuck();
       signOut(auth);
       return;
     }
@@ -160,6 +171,7 @@ onAuthStateChanged(auth, async (user) => {
       const saSnap = await get(ref(db, 'admin_config/super_admin_uid'));
       if (saSnap.val() !== user.uid) {
         alert('Bạn không có quyền truy cập CLB này.');
+        resetLoginButtonIfStuck();
         signOut(auth);
         return;
       }
@@ -173,8 +185,8 @@ onAuthStateChanged(auth, async (user) => {
 
     const clubInfoSnap = await get(ref(db, 'clubs/' + targetClubId + '/info'));
     const clubInfo = clubInfoSnap.val();
-    if(!clubInfo){ redirectToHome(); return; }
-    if(clubInfo.active === false){ showClubDeactivated(clubInfo.name||targetClubId, !!clubInfo.pendingApproval); return; }
+    if(!clubInfo){ resetLoginButtonIfStuck(); redirectToHome(); return; }
+    if(clubInfo.active === false){ resetLoginButtonIfStuck(); showClubDeactivated(clubInfo.name||targetClubId, !!clubInfo.pendingApproval); return; }
     window._clubName = (clubInfo && clubInfo.name) || roleData.clubName || targetClubId;
     applyClubBanner(targetClubId, clubInfo);
     applyClubLogo(window._clubName);
@@ -187,6 +199,7 @@ onAuthStateChanged(auth, async (user) => {
   } catch(e) {
     console.error('Auth error:', e);
     alert('Lỗi xác thực: ' + e.message);
+    resetLoginButtonIfStuck();
     signOut(auth);
   }
 });
