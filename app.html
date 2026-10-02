@@ -3292,15 +3292,12 @@ function openNewTournamentModal(){if(guardScorer())return;
   openModal('newTournamentModal');
   tSelectedPlayers = [];
   const saBtn=document.getElementById('tSelectAllBtn'); if(saBtn) saBtn.innerHTML='☑️ Chọn tất cả';
-  tMode = 'teams'; tFormat='roundrobin'; tTeamFormat='roundrobin'; tAssign='auto'; tManualAssign={};
+  tFormat='roundrobin'; tAssign='auto'; tManualAssign={};
   document.getElementById('tModeCardTeams').classList.add('selected');
   document.getElementById('tModeCardTournament').classList.remove('selected');
   document.getElementById('tModeCardGroups').classList.remove('selected');
-  document.getElementById('tFormatGroup').style.display='none';
-  document.getElementById('tAssignGroup').style.display='';
-  document.getElementById('tGroupCountGroup').style.display='none';
-  document.getElementById('tTeamCountGroup').style.display='';
-  document.getElementById('tTeamSizeGroup').style.display='';
+  setTMode('teams');
+  setTTeamFormat('roundrobin');
   renderTPlayersList();
   updateTLabel();
   updatePrimaryBtn();
@@ -3935,6 +3932,18 @@ function confirmCreateTieTournament(rawTeams){
 }
 
 // Thiết lập cặp đánh cho 1 trận nhỏ trong tie (chọn công khai, không cần giấu)
+// Sửa lại cặp đánh đã chốt (chỉ khi trận đó CHƯA nhập tỉ số) — quay về form
+// chọn người chơi để chọn lại.
+function editTieSubLineup(tId, tieId, subId){if(guardScorer())return;
+  const t = tournaments.find(x=>x.id===tId); if(!t) return;
+  const tie = t.bracket.rounds.flat().find(m=>m&&m.id===tieId); if(!tie) return;
+  const sub = tie.subMatches.find(s=>s.id===subId); if(!sub) return;
+  if(sub.done){ alert('Trận này đã có tỷ số, không thể sửa cặp đánh nữa.'); return; }
+  sub.pairA = []; sub.pairB = [];
+  saveAll();
+  renderTournamentInline(t);
+}
+
 function setTieSubLineup(tId, tieId, subId){if(guardScorer())return;
   const t = tournaments.find(x=>x.id===tId); if(!t) return;
   const tie = t.bracket.rounds.flat().find(m=>m&&m.id===tieId); if(!tie) return;
@@ -4859,6 +4868,7 @@ function renderTieSubMatchHtml(t, tie, sub, cA, cB){
       +'</div>';
   }
 
+  const canManage = window._userRole==='admin' || window._userRole==='scorer';
   const prefix = 'tieScore_'+t.id+'_'+tie.id+'_'+sub.id;
   return '<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--rs);padding:.55rem .6rem;margin-bottom:.4rem">'
     +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem">'+typeLabel+'</div>'
@@ -4866,6 +4876,7 @@ function renderTieSubMatchHtml(t, tie, sub, cA, cB){
     +'<span style="color:'+cA.text+';font-weight:600">'+curA.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</span>'
     +'<span style="color:var(--border)">vs</span>'
     +'<span style="color:'+cB.text+';font-weight:600">'+curB.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</span>'
+    +(!sub.done && canManage ? '<button class="btn btn-ghost btn-xs" style="margin-left:.3rem" onclick="editTieSubLineup('+t.id+','+tie.id+','+sub.id+')">✏️ Sửa cặp</button>' : '')
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">'
     +'<input class="score-input" type="number" min="0" id="'+prefix+'_a" value="'+(sub.done?sub.scoreA:'')+'" placeholder="0"/>'
