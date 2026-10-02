@@ -4480,6 +4480,18 @@ function renderTournamentList(){
     el.innerHTML=empty('🏅','Chưa có giải đấu nào. Nhấn "+ Tạo giải mới" để bắt đầu!');
     return;
   }
+  // renderTournamentList() vẽ lại TOÀN BỘ danh sách giải đấu (kể cả nội dung
+  // giải đang mở rộng) — nếu hàm này được gọi NGAY SAU renderTournamentInline()
+  // (như các hàm saveXxxMatchResult vẫn làm, để cập nhật số trận/%/trạng thái
+  // ở phần header), nó sẽ xóa sạch DOM cũ trước khi renderTournamentInline()
+  // kịp khôi phục input chưa lưu, khiến dữ liệu người dùng đang gõ dở ở các
+  // trận khác bị mất. Nên phải tự chụp & khôi phục input NGAY TẠI ĐÂY, bao
+  // trùm luôn cả việc vẽ lại nội dung bên trong.
+  const snapshot = {};
+  el.querySelectorAll('input, select').forEach(elm=>{
+    if(elm.id && elm.value) snapshot[elm.id] = elm.value;
+  });
+
   const sorted=[...tournaments].reverse();
   const medals=['🥇','🥈','🥉','🏅'];
   el.innerHTML=sorted.map(function(t,idx){
@@ -4543,6 +4555,13 @@ function renderTournamentList(){
   // Render content for expanded ones
   sorted.forEach(function(t,idx){
     if(idx===0) renderTournamentInline(t);
+  });
+
+  // Khôi phục lại các ô input/select mà người dùng đã điền dở nhưng chưa xác
+  // nhận, sau khi toàn bộ danh sách (kể cả nội dung mở rộng) đã được vẽ lại.
+  Object.keys(snapshot).forEach(id=>{
+    const elm=document.getElementById(id);
+    if(elm && !elm.value) elm.value = snapshot[id];
   });
 }
 
