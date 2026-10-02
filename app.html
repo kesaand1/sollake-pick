@@ -3957,7 +3957,7 @@ function setTieSubLineup(tId, tieId, subId){if(guardScorer())return;
     team.members.forEach(n=>counts[n]=0);
     tie.subMatches.forEach(s=>{
       if(s.id===sub.id) return; // bỏ qua chính trận đang chốt, tính riêng bằng newPick
-      const pair = team===teamA ? s.pairA : s.pairB;
+      const pair = (team===teamA ? s.pairA : s.pairB) || [];
       pair.forEach(n=>{ if(counts[n]!=null) counts[n]++; });
     });
     newPick.forEach(n=>{ if(counts[n]!=null) counts[n]++; });
@@ -4797,7 +4797,10 @@ function renderTieSubMatchHtml(t, tie, sub, cA, cB){
   const teamA = t.teams[tie.teamA], teamB = t.teams[tie.teamB];
   const need = sub.type==='doubles' ? 2 : 1;
   const typeLabel = sub.type==='doubles' ? '👥 Đôi' : '👤 Đơn';
-  const lineupReady = sub.pairA.length===need && sub.pairB.length===need;
+  // Firebase RTDB không lưu được mảng rỗng [] — khi đồng bộ lại, pairA/pairB
+  // chưa chốt sẽ bị thiếu hẳn key (undefined) thay vì []. Luôn phòng vệ.
+  const curA = sub.pairA || [], curB = sub.pairB || [];
+  const lineupReady = curA.length===need && curB.length===need;
 
   if(!lineupReady){
     const prefix = 'tieLineup_'+t.id+'_'+tie.id+'_'+sub.id;
@@ -4818,9 +4821,9 @@ function renderTieSubMatchHtml(t, tie, sub, cA, cB){
   return '<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:var(--rs);padding:.55rem .6rem;margin-bottom:.4rem">'
     +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem">'+typeLabel+'</div>'
     +'<div style="font-size:.74rem;margin-bottom:.4rem;display:flex;flex-wrap:wrap;gap:.3rem;align-items:center">'
-    +'<span style="color:'+cA.text+';font-weight:600">'+sub.pairA.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</span>'
+    +'<span style="color:'+cA.text+';font-weight:600">'+curA.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</span>'
     +'<span style="color:var(--border)">vs</span>'
-    +'<span style="color:'+cB.text+';font-weight:600">'+sub.pairB.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</span>'
+    +'<span style="color:'+cB.text+';font-weight:600">'+curB.map(n=>'<span style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);text-underline-offset:2px" onclick="event.stopPropagation();openProfile(\''+n+'\')">'+n+'</span>').join(' & ')+'</span>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">'
     +'<input class="score-input" type="number" min="0" id="'+prefix+'_a" value="'+(sub.done?sub.scoreA:'')+'" placeholder="0"/>'
@@ -4863,7 +4866,7 @@ function renderTieMatchCardHtml(t, tie){
   const sumA = tie.subMatches.reduce((s,m)=>s+(m.done?m.scoreA:0),0);
   const sumB = tie.subMatches.reduce((s,m)=>s+(m.done?m.scoreB:0),0);
   const stageLabel = tie.stage==='final' ? '🏆 Chung kết' : tie.stage==='third' ? '🥉 Tranh giải 3' : '#'+tie.id;
-  const hasUnsetLineup = tie.subMatches.some(s=>!s.done && (s.pairA.length===0 || s.pairB.length===0));
+  const hasUnsetLineup = tie.subMatches.some(s=>!s.done && ((s.pairA||[]).length===0 || (s.pairB||[]).length===0));
   const canManage = window._userRole==='admin' || window._userRole==='scorer';
   return '<div class="match-card">'
     +'<div class="match-header">'
