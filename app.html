@@ -3317,7 +3317,7 @@ function setTTeamFormat(fmt){
   const sel = document.getElementById('tTeamCount');
   const prevVal = sel.value;
   if(fmt==='tie'){
-    sel.innerHTML = [4,8,16,32].map(n=>'<option value="'+n+'"'+(n===4?' selected':'')+'>'+n+' teams</option>').join('');
+    sel.innerHTML = [2,4,8,16,32].map(n=>'<option value="'+n+'"'+(n===4?' selected':'')+'>'+n+' teams'+(n===2?' (vào thẳng Chung kết)':'')+'</option>').join('');
   } else {
     sel.innerHTML = Array.from({length:29},(_,i)=>i+2).map(n=>'<option value="'+n+'"'+(n===4?' selected':'')+'>'+n+' teams</option>').join('');
     if([...sel.options].some(o=>o.value===prevVal)) sel.value = prevVal;
@@ -3868,6 +3868,15 @@ function genTieBracket(teams, doublesCount, singlesCount){
     return avgB-avgA;
   });
   const n = seeded.length;
+  if(n===2){
+    // Chỉ 2 team → vào thẳng Chung kết, không có bán kết/tranh giải 3
+    return { rounds:[[{
+      id:1, round:1, slot:0, stage:'final',
+      teamA:seeded[0].origIdx, teamB:seeded[1].origIdx,
+      done:false, winnerIdx:null, lineupSet:false,
+      subMatches: genTieSubMatches(doublesCount, singlesCount)
+    }]] };
+  }
   const order = standardSeedOrder(n);
   const slots = order.map(seedPos => seeded[seedPos-1]);
   const round1=[];
@@ -3889,7 +3898,7 @@ function confirmCreateTieTournament(rawTeams){
   const singlesCount = parseInt(document.getElementById('tTieSingles').value)||0;
   if(doublesCount+singlesCount<1){ alert('Cần ít nhất 1 trận đơn hoặc đôi cho mỗi cặp đấu!'); return false; }
   const n = rawTeams.length;
-  if(n<4 || (n & (n-1))!==0){ alert('Số lượng team phải là 4, 8, 16, 32... (lũy thừa của 2) để chia bảng đấu loại trực tiếp đều nhau!'); return false; }
+  if(n<2 || (n & (n-1))!==0){ alert('Số lượng team phải là 2, 4, 8, 16, 32... (lũy thừa của 2) để chia bảng đấu loại trực tiếp đều nhau!'); return false; }
   const builtTeams = rawTeams.map((t,i)=>({id:i, name:TEAM_NAMES_8[i]||('Team '+(i+1)), members:t.members}));
   const tournament = {
     id: nT++, name: tCurrentName, date: today(),
@@ -3965,6 +3974,15 @@ function advanceTieBracket(t){
   const last = rounds[rounds.length-1];
   const allDone = last.every(m=>m && m.done);
   if(!allDone) return;
+
+  if(last.length===1 && last[0].stage==='final'){
+    // Chỉ 2 team, 1 trận Chung kết duy nhất — kết thúc giải luôn, không có giải 3
+    const finalMatch = last[0];
+    t.status='done';
+    t.championIdx = finalMatch.winnerIdx;
+    t.runnerIdx = finalMatch.winnerIdx===finalMatch.teamA ? finalMatch.teamB : finalMatch.teamA;
+    return;
+  }
 
   if(last.length===2 && (last[0].stage==='final' || last[0].stage==='third')){
     // Vòng Chung kết + Tranh giải 3 đã xong — kết thúc giải
@@ -4800,9 +4818,12 @@ function renderTieMatchCardHtml(t, tie){
 function renderTournamentInlineTie(t){
   const el=document.getElementById('t_content_'+t.id);
   if(!el) return;
-  const roundLabel = (idx,totalRounds)=>{
+  const roundLabel = (round,idx,totalRounds)=>{
+    const hasThird = round.some(m=>m&&m.stage==='third');
+    const onlyFinal = round.length===1 && round[0].stage==='final';
+    if(onlyFinal) return 'Chung kết';
+    if(hasThird) return 'Chung kết & Tranh giải 3';
     const remaining = totalRounds-idx;
-    if(remaining===1) return 'Chung kết & Tranh giải 3';
     if(remaining===2) return 'Bán kết';
     if(remaining===3) return 'Tứ kết';
     return 'Vòng '+(idx+1);
@@ -4824,7 +4845,7 @@ function renderTournamentInlineTie(t){
   const roundsHtml = t.bracket.rounds.map((round,ridx)=>{
     const matchesHtml = round.filter(Boolean).map(tie=>renderTieMatchCardHtml(t, tie)).join('');
     return '<div style="margin-bottom:1rem">'
-      +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">⚔️ '+roundLabel(ridx,totalRounds)+'</div>'
+      +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.5rem">⚔️ '+roundLabel(round,ridx,totalRounds)+'</div>'
       +matchesHtml+'</div>';
   }).join('');
 
@@ -6269,62 +6290,6 @@ init();
       <div style="font-size:.68rem;color:var(--muted);margin-top:.4rem">Mỗi cặp đấu (round) giữa 2 team gồm đủ số trận này. Đội thắng round = tổng điểm cộng dồn tất cả các trận cao hơn. Bán kết → 2 đội thắng vào Chung kết, 2 đội thua đánh Tranh giải 3.</div>
     </div>
 
-    <div class="fgroup" id="tGroupCountGroup" style="display:none">
-      <label>Số team mỗi bảng (2 bảng: A, B)</label>
-      <select class="finput" id="tGroupTeamCount" onchange="updateTLabel()">
-        <option value="2">2 team/bảng (4 team tổng)</option>
-        <option value="3" selected>3 team/bảng (6 team tổng)</option>
-        <option value="4">4 team/bảng (8 team tổng)</option>
-        <option value="5">5 team/bảng (10 team tổng)</option>
-        <option value="6">6 team/bảng (12 team tổng)</option>
-        <option value="7">7 team/bảng (14 team tổng)</option>
-        <option value="8">8 team/bảng (16 team tổng)</option>
-        <option value="9">9 team/bảng (18 team tổng)</option>
-        <option value="10">10 team/bảng (20 team tổng)</option>
-        <option value="11">11 team/bảng (22 team tổng)</option>
-        <option value="12">12 team/bảng (24 team tổng)</option>
-        <option value="13">13 team/bảng (26 team tổng)</option>
-        <option value="14">14 team/bảng (28 team tổng)</option>
-        <option value="15">15 team/bảng (30 team tổng)</option>
-        <option value="16">16 team/bảng (32 team tổng)</option>
-        <option value="17">17 team/bảng (34 team tổng)</option>
-        <option value="18">18 team/bảng (36 team tổng)</option>
-        <option value="19">19 team/bảng (38 team tổng)</option>
-        <option value="20">20 team/bảng (40 team tổng)</option>
-      </select>
-      <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Mỗi team gồm 2 người. Nhất bảng A gặp Nhì bảng B và ngược lại ở bán kết.</div>
-    </div>
-
-    <div class="fgroup" id="tFormatGroup" style="display:none">
-      <label>Thể thức</label>
-      <div style="display:flex;gap:.5rem">
-        <div class="t-mode-card selected" id="tFormatCardRR" onclick="setTFormat('roundrobin')">
-          <div style="font-size:1.2rem">🔁</div>
-          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Vòng tròn tính điểm</div>
-          <div style="font-size:.66rem;color:var(--muted);margin-top:.15rem">Round Robin</div>
-        </div>
-        <div class="t-mode-card" id="tFormatCardSE" onclick="setTFormat('singleelim')">
-          <div style="font-size:1.2rem">⚔️</div>
-          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Loại trực tiếp</div>
-          <div style="font-size:.66rem;color:var(--muted);margin-top:.15rem">Single Elimination</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="fgroup" id="tAssignGroup" style="display:none">
-      <label>Cách chia đội</label>
-      <div style="display:flex;gap:.5rem">
-        <div class="t-mode-card selected" id="tAssignCardAuto" onclick="setTAssign('auto')">
-          <div style="font-size:1.2rem">⚡</div>
-          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Hệ thống tự chia</div>
-        </div>
-        <div class="t-mode-card" id="tAssignCardManual" onclick="setTAssign('manual')">
-          <div style="font-size:1.2rem">✋</div>
-          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Tự chọn thủ công</div>
-        </div>
-      </div>
-    </div>
-
     <div class="fgroup" id="tTeamCountGroup">
       <label>Số lượng team</label>
       <select class="finput" id="tTeamCount" onchange="updateTLabel()">
@@ -6384,6 +6349,63 @@ init();
         <option value="20">20 người/team</option>
       </select>
     </div>
+
+    <div class="fgroup" id="tGroupCountGroup" style="display:none">
+      <label>Số team mỗi bảng (2 bảng: A, B)</label>
+      <select class="finput" id="tGroupTeamCount" onchange="updateTLabel()">
+        <option value="2">2 team/bảng (4 team tổng)</option>
+        <option value="3" selected>3 team/bảng (6 team tổng)</option>
+        <option value="4">4 team/bảng (8 team tổng)</option>
+        <option value="5">5 team/bảng (10 team tổng)</option>
+        <option value="6">6 team/bảng (12 team tổng)</option>
+        <option value="7">7 team/bảng (14 team tổng)</option>
+        <option value="8">8 team/bảng (16 team tổng)</option>
+        <option value="9">9 team/bảng (18 team tổng)</option>
+        <option value="10">10 team/bảng (20 team tổng)</option>
+        <option value="11">11 team/bảng (22 team tổng)</option>
+        <option value="12">12 team/bảng (24 team tổng)</option>
+        <option value="13">13 team/bảng (26 team tổng)</option>
+        <option value="14">14 team/bảng (28 team tổng)</option>
+        <option value="15">15 team/bảng (30 team tổng)</option>
+        <option value="16">16 team/bảng (32 team tổng)</option>
+        <option value="17">17 team/bảng (34 team tổng)</option>
+        <option value="18">18 team/bảng (36 team tổng)</option>
+        <option value="19">19 team/bảng (38 team tổng)</option>
+        <option value="20">20 team/bảng (40 team tổng)</option>
+      </select>
+      <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Mỗi team gồm 2 người. Nhất bảng A gặp Nhì bảng B và ngược lại ở bán kết.</div>
+    </div>
+
+    <div class="fgroup" id="tFormatGroup" style="display:none">
+      <label>Thể thức</label>
+      <div style="display:flex;gap:.5rem">
+        <div class="t-mode-card selected" id="tFormatCardRR" onclick="setTFormat('roundrobin')">
+          <div style="font-size:1.2rem">🔁</div>
+          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Vòng tròn tính điểm</div>
+          <div style="font-size:.66rem;color:var(--muted);margin-top:.15rem">Round Robin</div>
+        </div>
+        <div class="t-mode-card" id="tFormatCardSE" onclick="setTFormat('singleelim')">
+          <div style="font-size:1.2rem">⚔️</div>
+          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Loại trực tiếp</div>
+          <div style="font-size:.66rem;color:var(--muted);margin-top:.15rem">Single Elimination</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fgroup" id="tAssignGroup" style="display:none">
+      <label>Cách chia đội</label>
+      <div style="display:flex;gap:.5rem">
+        <div class="t-mode-card selected" id="tAssignCardAuto" onclick="setTAssign('auto')">
+          <div style="font-size:1.2rem">⚡</div>
+          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Hệ thống tự chia</div>
+        </div>
+        <div class="t-mode-card" id="tAssignCardManual" onclick="setTAssign('manual')">
+          <div style="font-size:1.2rem">✋</div>
+          <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Tự chọn thủ công</div>
+        </div>
+      </div>
+    </div>
+
     <div id="tPlayersSection">
       <div class="fgroup">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
