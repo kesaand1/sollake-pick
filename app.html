@@ -2253,15 +2253,25 @@ window.setMatchTypeFilter = (type) => {
 // into a unified shape matching regular matches, so both can share one Lịch sử view.
 function getAllTournamentMatchesFlat(){
   const out=[];
-  tournaments.forEach(t=>{
-    const raw = t.format==='groups'
-      ? [...(t.groupMatches||[]), ...(t.semis||[]), ...(t.final?[t.final]:[]), ...(t.thirdPlaceMatch?[t.thirdPlaceMatch]:[])]
-      : t.bracket ? t.bracket.rounds.flat().filter(m=>m&&!m.bye)
-      : (t.matches||[]);
-    raw.filter(m=>m&&m.done).forEach(m=>{
+  (tournaments||[]).forEach(t=>{
+    if(!t) return;
+    let raw=[];
+    try{
+      if(Array.isArray(t.matches)) raw.push(...t.matches);
+      if(t.bracket && Array.isArray(t.bracket.rounds)){
+        const flat=t.bracket.rounds.flat().filter(Boolean);
+        if(t.format==='teamtie') raw.push(...flat.flatMap(x=>x.subMatches||[]));
+        else raw.push(...flat);
+      }
+      if(Array.isArray(t.groupMatches)) raw.push(...t.groupMatches);
+      if(Array.isArray(t.semis)) raw.push(...t.semis);
+      if(t.final) raw.push(t.final);
+      if(t.thirdPlaceMatch) raw.push(t.thirdPlaceMatch);
+    }catch(e){ console.warn('flat tournament matches',e); }
+    raw.filter(m=>m&&m.done&&!m.bye&&Array.isArray(m.pairA)&&Array.isArray(m.pairB)&&m.pairA.length&&m.pairB.length).forEach(m=>{
       out.push({
         id:'t'+t.id+'_'+(m.id||Math.random()),
-        date:t.date, type:m.pairA.length>1?'doubles':'singles',
+        date:t.date||'', type:m.pairA.length>1?'doubles':'singles',
         a:m.pairA, b:m.pairB, scoreA:m.scoreA, scoreB:m.scoreB,
         winner:m.scoreA>m.scoreB?'A':'B', keo:'none', elo:m.elo,
         isTournament:true, tournamentName:t.name
@@ -2279,7 +2289,7 @@ function renderMatches(){
   if(_matchTypeFilter==='keo') source = matches;
   else if(_matchTypeFilter==='giai') source = getAllTournamentMatchesFlat();
   else source = [...matches, ...getAllTournamentMatchesFlat()];
-  const fullList=source.filter(m=>inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>b.date.localeCompare(a.date)||(b.id||0)-(a.id||0));
+  const fullList=source.filter(m=>m&&Array.isArray(m.a)&&Array.isArray(m.b)&&inR(m.date,from,to)&&(!playerF||[...m.a,...m.b].includes(playerF))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||((+b.id||0)-(+a.id||0)));
   if(!fullList.length){
     const e=empty('','Chưa có trận nào trong khoảng thời gian này');
     document.getElementById('matchD').innerHTML=e;document.getElementById('matchM').innerHTML=e;
@@ -3871,7 +3881,7 @@ function genTieSubMatches(doublesCount, singlesCount){
   return subs;
 }
 
-function genTieBracket(teams, doublesCount, singlesCount){
+function genTieBracket(teams, doublesCount, singlesCount, customPairs){
   const seeded = teams.map((tm,i)=>({...tm, origIdx:i})).sort((a,b)=>{
     const avgA=a.members.reduce((s,n)=>s+effectiveScoreT(n),0)/a.members.length;
     const avgB=b.members.reduce((s,n)=>s+effectiveScoreT(n),0)/b.members.length;
@@ -3888,7 +3898,10 @@ function genTieBracket(teams, doublesCount, singlesCount){
     }]] };
   }
   const order = standardSeedOrder(n);
-  const slots = order.map(seedPos => seeded[seedPos-1]);
+  let slots = order.map(seedPos => seeded[seedPos-1]);
+  if(Array.isArray(customPairs) && customPairs.length===n/2){
+    slots = customPairs.flatMap(p=>[{origIdx:p[0]},{origIdx:p[1]}]);
+  }
   const round1=[];
   let mid=1;
   for(let i=0;i<n;i+=2){
@@ -3903,18 +3916,19 @@ function genTieBracket(teams, doublesCount, singlesCount){
   return { rounds:[round1] };
 }
 
-function confirmCreateTieTournament(rawTeams){
+function confirmCreateTieTournament(rawTeams, customPairs){
   const doublesCount = parseInt(document.getElementById('tTieDoubles').value)||0;
   const singlesCount = parseInt(document.getElementById('tTieSingles').value)||0;
   if(doublesCount+singlesCount<1){ alert('Cần ít nhất 1 trận đơn hoặc đôi cho mỗi cặp đấu!'); return false; }
   const n = rawTeams.length;
   if(n<2 || (n & (n-1))!==0){ alert('Số lượng team phải là 2, 4, 8, 16, 32... (lũy thừa của 2) để chia bảng đấu loại trực tiếp đều nhau!'); return false; }
   const builtTeams = rawTeams.map((t,i)=>({id:i, name:TEAM_NAMES_8[i]||('Team '+(i+1)), members:t.members}));
+  if(n>=4 && !customPairs){ openTiePairModal(rawTeams, builtTeams); return false; }
   const tournament = {
     id: nT++, name: tCurrentName, date: today(),
     format: 'teamtie', teams: builtTeams,
     tieConfig: {doublesCount, singlesCount},
-    bracket: genTieBracket(builtTeams, doublesCount, singlesCount),
+    bracket: genTieBracket(builtTeams, doublesCount, singlesCount, customPairs),
     status: 'active'
   };
   tournaments.push(tournament);
@@ -3929,6 +3943,61 @@ function confirmCreateTieTournament(rawTeams){
     console.error('Lỗi hiển thị sau khi tạo giải (giải vẫn đã được tạo):', e);
   }
   return true;
+}
+
+// ===== Chọn team nào gặp team nào (vòng 1) =====
+let _tiePairCtx=null;
+function tieSeedPairs(builtTeams){
+  const b=genTieBracket(builtTeams, 1, 0);
+  return b.rounds[0].map(m=>[m.teamA,m.teamB]);
+}
+function openTiePairModal(rawTeams, builtTeams){
+  _tiePairCtx={rawTeams, builtTeams, mode:'auto', pairs:tieSeedPairs(builtTeams)};
+  renderTiePairModal();
+  openModal('tiePairModal');
+}
+function setTiePairMode(m){
+  const c=_tiePairCtx; if(!c) return;
+  c.mode=m;
+  if(m==='auto') c.pairs=tieSeedPairs(c.builtTeams);
+  if(m==='random'){
+    const ids=c.builtTeams.map((_,i)=>i).sort(()=>Math.random()-.5);
+    c.pairs=[]; for(let i=0;i<ids.length;i+=2) c.pairs.push([ids[i],ids[i+1]]);
+    c.mode='manual';
+  }
+  renderTiePairModal();
+}
+function setTiePairTeam(slot, side, val){
+  const c=_tiePairCtx; if(!c) return;
+  c.pairs[slot][side]=parseInt(val); c.mode='manual';
+  renderTiePairModal();
+}
+function renderTiePairModal(){
+  const c=_tiePairCtx; if(!c) return;
+  const n=c.builtTeams.length;
+  const used=c.pairs.flat();
+  const dup=new Set(used.filter((v,i)=>used.indexOf(v)!==i));
+  const opt=sel=>c.builtTeams.map((t,i)=>`<option value="${i}" ${i===sel?'selected':''}>${t.name} (${t.members.join(', ')})</option>`).join('');
+  const btn=(m,l)=>`<button class="btn ${c.mode===m?'btn-lime':'btn-ghost'} btn-xs" onclick="setTiePairMode('${m}')">${l}</button>`;
+  document.getElementById('tiePairContent').innerHTML=
+    `<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.8rem">${btn('auto','⚙️ Hệ thống (xếp hạt giống)')}${btn('manual','✋ Tự chọn')}<button class="btn btn-ghost btn-xs" onclick="setTiePairMode('random')">🎲 Ngẫu nhiên</button></div>`+
+    c.pairs.map((p,i)=>`<div style="border:1px solid var(--border);border-radius:10px;padding:.6rem;margin-bottom:.5rem">
+      <div class="small tm" style="margin-bottom:.35rem">Cặp ${i+1}</div>
+      <select class="finput" style="margin-bottom:.35rem;${dup.has(p[0])?'border-color:var(--danger)':''}" onchange="setTiePairTeam(${i},0,this.value)">${opt(p[0])}</select>
+      <div style="text-align:center;font-size:.7rem;color:var(--muted)">VS</div>
+      <select class="finput" style="margin-top:.35rem;${dup.has(p[1])?'border-color:var(--danger)':''}" onchange="setTiePairTeam(${i},1,this.value)">${opt(p[1])}</select>
+    </div>`).join('');
+  const err=document.getElementById('tiePairErr');
+  err.style.display=dup.size?'block':'none';
+  err.textContent=dup.size?'Mỗi team chỉ được xuất hiện đúng 1 lần — hãy chọn lại các team bị trùng (viền đỏ).':'';
+}
+function confirmTiePairs(){
+  const c=_tiePairCtx; if(!c) return;
+  const used=c.pairs.flat();
+  if(new Set(used).size!==c.builtTeams.length){ renderTiePairModal(); return; }
+  if(!confirmCreateTieTournament(c.rawTeams, c.pairs.map(p=>p.slice()))) return;
+  ['tiePairModal','teamSuggestionModal','manualAssignModal'].forEach(id=>{const e=document.getElementById(id); if(e) closeModal(id);});
+  _tiePairCtx=null;
 }
 
 // Thiết lập cặp đánh cho 1 trận nhỏ trong tie (chọn công khai, không cần giấu)
@@ -6558,6 +6627,19 @@ init();
 </div>
 
 <!-- MODAL: MANUAL TEAM ASSIGN -->
+<div class="modal-bg" id="tiePairModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title-row"><div class="modal-title">⚔️ Chọn team nào gặp team nào</div><button class="modal-x" onclick="closeModal('tiePairModal')" title="Đóng">✕</button></div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:.8rem">Vòng đầu tiên. Các vòng sau, đội thắng sẽ đi tiếp theo nhánh đấu.</div>
+    <div id="tiePairContent"></div>
+    <div id="tiePairErr" style="color:var(--danger);font-size:.78rem;margin-top:.5rem;display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tiePairModal')">← Quay lại</button>
+      <button class="btn btn-lime" onclick="confirmTiePairs()">✅ Tạo giải đấu</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="manualAssignModal">
   <div class="modal" style="max-width:600px">
     <div class="modal-title-row"><div class="modal-title">✋ Chia đội thủ công</div><button class="modal-x" onclick="closeModal('manualAssignModal')" title="Đóng">✕</button></div>
