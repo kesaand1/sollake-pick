@@ -3869,7 +3869,7 @@ function createTournamentFromTeams(rawTeams){
 
 // ══════════════════ TOURNAMENT: Chia team — Đấu loại Đơn & Đôi (teamtie) ══════════════════
 // Mỗi "tie" (cặp đấu giữa 2 team) gồm nhiều trận nhỏ (đôi + đơn) theo cấu hình
-// ban đầu. Đội thắng tie = tổng điểm cộng dồn tất cả trận nhỏ cao hơn.
+// ban đầu. Đội thắng tie = thắng nhiều trận nhỏ hơn; nếu bằng số trận thắng thì xét tổng điểm.
 // Người chơi chọn cặp đánh công khai cho từng trận nhỏ trước khi vào điểm.
 // Bán kết (tie còn lại = 2): 2 đội thắng → Chung kết, 2 đội thua → Tranh giải 3.
 
@@ -4042,7 +4042,7 @@ function setTieSubLineup(tId, tieId, subId){if(guardScorer())return;
     const counts = {};
     team.members.forEach(n=>counts[n]=0);
     tie.subMatches.forEach(s=>{
-      if(s.id===sub.id) return; // bỏ qua chính trận đang chốt, tính riêng bằng newPick
+      if(s.id===sub.id || s.decider) return; // bỏ qua chính trận đang chốt, tính riêng bằng newPick
       const pair = (team===teamA ? s.pairA : s.pairB) || [];
       pair.forEach(n=>{ if(counts[n]!=null) counts[n]++; });
     });
@@ -4051,7 +4051,7 @@ function setTieSubLineup(tId, tieId, subId){if(guardScorer())return;
     const max = Math.max(...vals), min = Math.min(...vals);
     return (max-min) <= 1;
   }
-  if(!checkFairness(teamA, pickA) || !checkFairness(teamB, pickB)){
+  if(!sub.decider && (!checkFairness(teamA, pickA) || !checkFairness(teamB, pickB))){
     alert('Không được xếp người chơi chênh lệch quá 1 trận so với đồng đội cùng team trong round này. Vui lòng chọn người chơi khác để các thành viên được chia đều số trận.');
     return;
   }
@@ -4062,6 +4062,48 @@ function setTieSubLineup(tId, tieId, subId){if(guardScorer())return;
   notify('✅ Đã chốt cặp đánh');
 }
 
+// Chốt kết quả 1 cặp đấu: số trận thắng → tổng điểm → nếu vẫn bằng thì
+// thêm "Trận quyết định" (mỗi bên chọn đánh đôi/đơn và chọn người).
+function resolveTie(t, tie){
+  const regs = tie.subMatches.filter(s=>!s.decider);
+  let dec = tie.subMatches.find(s=>s.decider);
+  if(!regs.every(s=>s.done)){ tie.done=false; tie.winnerIdx=null; return; }
+  const r = tieStats(tie);
+  if(r.winsA!==r.winsB || r.sumA!==r.sumB){
+    if(dec){ if(dec.done && dec.elo) reverseEloIfNeeded(dec); tie.subMatches = tie.subMatches.filter(s=>!s.decider); }
+    tie.winnerIdx = r.winsA!==r.winsB ? (r.winsA>r.winsB ? tie.teamA : tie.teamB)
+                  : (r.sumA>r.sumB ? tie.teamA : tie.teamB);
+    tie.done = true;
+    advanceTieBracket(t);
+    return;
+  }
+  if(!dec){
+    const mx = tie.subMatches.reduce((m,s)=>Math.max(m,s.id),0);
+    dec = {id:mx+1, type:'doubles', decider:true, pairA:[], pairB:[], scoreA:null, scoreB:null, done:false};
+    tie.subMatches.push(dec);
+  }
+  if(dec.done){
+    tie.winnerIdx = dec.scoreA>dec.scoreB ? tie.teamA : tie.teamB;
+    tie.done = true;
+    advanceTieBracket(t);
+  } else { tie.done=false; tie.winnerIdx=null; }
+}
+function setTieDeciderType(tId, tieId, subId, type){
+  const t = tournaments.find(x=>x.id===tId); if(!t) return;
+  const tie = t.bracket.rounds.flat().find(m=>m&&m.id===tieId); if(!tie) return;
+  const sub = tie.subMatches.find(s=>s.id===subId); if(!sub||sub.done) return;
+  sub.type = type==='singles'?'singles':'doubles'; sub.pairA=[]; sub.pairB=[];
+  saveAll(); renderTournamentInline(t);
+}
+function tieStats(tie){
+  const subs=(tie.subMatches||[]).filter(m=>!m.decider);
+  return {
+    winsA: subs.filter(m=>m.done&&m.scoreA>m.scoreB).length,
+    winsB: subs.filter(m=>m.done&&m.scoreB>m.scoreA).length,
+    sumA: subs.reduce((s,m)=>s+(m.done?m.scoreA:0),0),
+    sumB: subs.reduce((s,m)=>s+(m.done?m.scoreB:0),0)
+  };
+}
 function saveTieSubMatchScore(tId, tieId, subId){if(guardScorer())return;
   const t = tournaments.find(x=>x.id===tId); if(!t) return;
   const tie = t.bracket.rounds.flat().find(m=>m&&m.id===tieId); if(!tie) return;
@@ -4080,14 +4122,7 @@ function saveTieSubMatchScore(tId, tieId, subId){if(guardScorer())return;
   const losers  = sa>sb ? sub.pairB : sub.pairA;
   sub.elo = applyEloDelta(winners, losers, Math.max(sa,sb), Math.min(sa,sb));
 
-  // Kiểm tra tie đã xong hết các trận nhỏ chưa
-  if(tie.subMatches.every(s=>s.done)){
-    const sumA = tie.subMatches.reduce((s,m)=>s+m.scoreA,0);
-    const sumB = tie.subMatches.reduce((s,m)=>s+m.scoreB,0);
-    tie.winnerIdx = sumA>=sumB ? tie.teamA : tie.teamB;
-    tie.done = true;
-    advanceTieBracket(t);
-  }
+  resolveTie(t, tie);
 
   saveAll();
   renderTournamentInline(t);
@@ -4924,7 +4959,7 @@ function renderTournamentInlineBracket(t){
 function renderTieSubMatchHtml(t, tie, sub, cA, cB){
   const teamA = t.teams[tie.teamA], teamB = t.teams[tie.teamB];
   const need = sub.type==='doubles' ? 2 : 1;
-  const typeLabel = sub.type==='doubles' ? '👥 Đôi' : '👤 Đơn';
+  const typeLabel = (sub.decider?'⚔️ Trận quyết định · ':'')+(sub.type==='doubles' ? '👥 Đôi' : '👤 Đơn');
   // Firebase RTDB không lưu được mảng rỗng [] — khi đồng bộ lại, pairA/pairB
   // chưa chốt sẽ bị thiếu hẳn key (undefined) thay vì []. Luôn phòng vệ.
   const curA = sub.pairA || [], curB = sub.pairB || [];
@@ -4937,6 +4972,7 @@ function renderTieSubMatchHtml(t, tie, sub, cA, cB){
     const rowsB = Array.from({length:need},(_,i)=>'<select class="finput score-select" id="'+prefix+'_b'+i+'" style="font-size:.72rem;padding:.3rem .4rem;margin-bottom:.25rem">'+optsFor(teamB)+'</select>').join('');
     return '<div style="background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:var(--rs);padding:.55rem .6rem;margin-bottom:.4rem">'
       +'<div style="font-size:.68rem;color:var(--muted);margin-bottom:.4rem">'+typeLabel+' · Chưa chốt cặp đánh</div>'
+      +(sub.decider?'<div style="margin-bottom:.45rem"><div style="font-size:.66rem;color:var(--muted);margin-bottom:.2rem">Hai team bằng số trận thắng và tổng điểm — chọn thể thức đánh và người ra sân:</div><select class="finput score-select" style="font-size:.74rem;padding:.3rem .4rem" onchange="setTieDeciderType('+t.id+','+tie.id+','+sub.id+',this.value)"><option value="doubles" '+(sub.type==='doubles'?'selected':'')+'>👥 Đánh đôi</option><option value="singles" '+(sub.type==='singles'?'selected':'')+'>👤 Đánh đơn</option></select></div>':'')
       +'<div style="display:flex;gap:.5rem;align-items:flex-start">'
       +'<div style="flex:1"><div style="font-size:.65rem;color:'+cA.text+';margin-bottom:.2rem">'+teamA.name+'</div>'+rowsA+'</div>'
       +'<div style="flex:1"><div style="font-size:.65rem;color:'+cB.text+';margin-bottom:.2rem">'+teamB.name+'</div>'+rowsB+'</div>'
@@ -4972,7 +5008,7 @@ function autoAssignTieLineup(tId, tieId){if(guardScorer())return;
   const teamA = t.teams[tie.teamA], teamB = t.teams[tie.teamB];
   function buildFair(members){
     const counts={}; members.forEach(m=>counts[m]=0);
-    return tie.subMatches.map(s=>{
+    return tie.subMatches.filter(s=>!s.decider).map(s=>{
       const need = s.type==='doubles' ? 2 : 1;
       const sorted = [...members].sort((a,b)=>counts[a]-counts[b]);
       const picks = sorted.slice(0, need);
@@ -4982,7 +5018,7 @@ function autoAssignTieLineup(tId, tieId){if(guardScorer())return;
   }
   const picksA = buildFair(teamA.members);
   const picksB = buildFair(teamB.members);
-  tie.subMatches.forEach((s,i)=>{ if(!s.done){ s.pairA=picksA[i]; s.pairB=picksB[i]; } });
+  tie.subMatches.filter(s=>!s.decider).forEach((s,i)=>{ if(!s.done){ s.pairA=picksA[i]; s.pairB=picksB[i]; } });
   saveAll();
   renderTournamentInline(t);
   notify('🎲 Đã tự động xếp cặp đánh công bằng cho round này');
@@ -4993,21 +5029,22 @@ function renderTieMatchCardHtml(t, tie){
   const tB = tie.teamB!=null ? t.teams[tie.teamB] : null;
   const cA = tie.teamA!=null ? teamColors(tie.teamA) : {text:'var(--muted)',border:'var(--border)'};
   const cB = tie.teamB!=null ? teamColors(tie.teamB) : {text:'var(--muted)',border:'var(--border)'};
-  const sumA = tie.subMatches.reduce((s,m)=>s+(m.done?m.scoreA:0),0);
-  const sumB = tie.subMatches.reduce((s,m)=>s+(m.done?m.scoreB:0),0);
+  const st = tieStats(tie), sumA=st.sumA, sumB=st.sumB;
   const stageLabel = tie.stage==='final' ? '🏆 Chung kết' : tie.stage==='third' ? '🥉 Tranh giải 3' : '#'+tie.id;
-  const hasUnsetLineup = tie.subMatches.some(s=>!s.done && ((s.pairA||[]).length===0 || (s.pairB||[]).length===0));
+  const hasUnsetLineup = tie.subMatches.some(s=>!s.decider && !s.done && ((s.pairA||[]).length===0 || (s.pairB||[]).length===0));
   const canManage = window._userRole==='admin' || window._userRole==='scorer';
   return '<div class="match-card">'
     +'<div class="match-header">'
     +'<span class="pill p-gray" style="font-size:.65rem">'+stageLabel+'</span>'
     +'<span style="color:'+cA.text+';font-weight:700">'+tA.name+'</span>'
-    +'<span style="font-weight:800;color:var(--text)">'+(tie.done?sumA:'')+'</span>'
+    +'<span style="font-weight:800;color:var(--text)">'+(tie.done?st.winsA:'')+'</span>'
     +'<span style="color:var(--muted)">vs</span>'
-    +'<span style="font-weight:800;color:var(--text)">'+(tie.done?sumB:'')+'</span>'
+    +'<span style="font-weight:800;color:var(--text)">'+(tie.done?st.winsB:'')+'</span>'
     +'<span style="color:'+cB.text+';font-weight:700">'+tB.name+'</span>'
+    +(!tie.done && tie.subMatches.some(s=>s.decider)?'<span class="pill p-yellow" style="margin-left:auto;font-size:.65rem">⚔️ Chờ trận quyết định</span>':'')
     +(tie.done?'<span class="pill p-green" style="margin-left:auto;font-size:.65rem">✓ '+(tie.winnerIdx===tie.teamA?tA.name:tB.name)+' thắng</span>':'')
     +'</div>'
+    +(tie.done?'<div class="small tm" style="margin-bottom:.4rem">Số trận thắng '+st.winsA+'-'+st.winsB+(st.winsA===st.winsB?' · bằng nhau → xét tổng điểm '+sumA+'-'+sumB+(sumA===sumB?' · vẫn bằng → trận quyết định':''):' · tổng điểm '+sumA+'-'+sumB)+'</div>':'')
     +(hasUnsetLineup && canManage ? '<div style="margin-bottom:.5rem"><button class="btn btn-ghost btn-xs" onclick="autoAssignTieLineup('+t.id+','+tie.id+')">🎲 Hệ thống tự xếp cặp đánh cho cả round</button><span style="font-size:.66rem;color:var(--muted);margin-left:.4rem">hoặc tự chọn thủ công từng trận bên dưới</span></div>' : '')
     +'<div style="padding-top:.3rem">'
     +tie.subMatches.map(sub=>renderTieSubMatchHtml(t, tie, sub, cA, cB)).join('')
