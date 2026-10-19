@@ -3952,8 +3952,11 @@ function tieSeedPairs(builtTeams){
   return b.rounds[0].map(m=>[m.teamA,m.teamB]);
 }
 function openTiePairModal(rawTeams, builtTeams){
-  _tiePairCtx={rawTeams, builtTeams, mode:'auto', pairs:tieSeedPairs(builtTeams)};
+  const prev=['teamSuggestionModal','manualAssignModal'].filter(id=>{const e=document.getElementById(id); return e&&e.classList.contains('open');});
+  _tiePairCtx={rawTeams, builtTeams, mode:'auto', pairs:tieSeedPairs(builtTeams), prev};
   renderTiePairModal();
+  prev.forEach(id=>closeModal(id));
+  closeModal('newTournamentModal');
   openModal('tiePairModal');
 }
 function setTiePairMode(m){
@@ -3990,6 +3993,11 @@ function renderTiePairModal(){
   const err=document.getElementById('tiePairErr');
   err.style.display=dup.size?'block':'none';
   err.textContent=dup.size?'Mỗi team chỉ được xuất hiện đúng 1 lần — hãy chọn lại các team bị trùng (viền đỏ).':'';
+}
+function backFromTiePairs(){
+  const c=_tiePairCtx;
+  closeModal('tiePairModal');
+  if(c&&c.prev&&c.prev.length) c.prev.forEach(id=>openModal(id)); else openModal('newTournamentModal');
 }
 function confirmTiePairs(){
   const c=_tiePairCtx; if(!c) return;
@@ -6629,12 +6637,12 @@ init();
 <!-- MODAL: MANUAL TEAM ASSIGN -->
 <div class="modal-bg" id="tiePairModal">
   <div class="modal" style="max-width:520px">
-    <div class="modal-title-row"><div class="modal-title">⚔️ Chọn team nào gặp team nào</div><button class="modal-x" onclick="closeModal('tiePairModal')" title="Đóng">✕</button></div>
+    <div class="modal-title-row"><div class="modal-title">⚔️ Chọn team nào gặp team nào</div><button class="modal-x" onclick="backFromTiePairs()" title="Đóng">✕</button></div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:.8rem">Vòng đầu tiên. Các vòng sau, đội thắng sẽ đi tiếp theo nhánh đấu.</div>
     <div id="tiePairContent"></div>
     <div id="tiePairErr" style="color:var(--danger);font-size:.78rem;margin-top:.5rem;display:none"></div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('tiePairModal')">← Quay lại</button>
+      <button class="btn btn-ghost" onclick="backFromTiePairs()">← Quay lại</button>
       <button class="btn btn-lime" onclick="confirmTiePairs()">✅ Tạo giải đấu</button>
     </div>
   </div>
