@@ -2086,6 +2086,41 @@ function renderRanking(){
   renderMaXoiVang(from, to);
 }
 
+function openKeoDetail(name, from, to){
+  const KEO = {
+    nuoc:{icon:'💧',unit:'chai',f:'keoNuoc'}, bia:{icon:'🍺',unit:'cốc',f:'keoBia'},
+    bong:{icon:'<img src="pickleball.png" style="width:1em;height:1em;vertical-align:-2px;display:inline-block" alt=""/>',unit:'quả',f:'keoBong'},
+    lau:{icon:'🍲',unit:'nồi',f:'keoLau'}, ga:{icon:'🐔',unit:'con',f:'keoGa'}
+  };
+  const lost = getAllMatchesUnified().filter(m=>m&&m.keo&&m.keo!=='none'&&KEO[m.keo]&&inR(m.date,from,to)
+    && Array.isArray(m.a)&&Array.isArray(m.b) && (m.winner==='A'?m.b:m.a).includes(name))
+    .sort((x,y)=>(y.date||'').localeCompare(x.date||'')||((+y.id||0)-(+x.id||0)));
+  const fl = fines.filter(f=>f.player===name&&f.paid&&inR(f.date,from,to)).sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  const nm = n=>`<span style="${n===name?'font-weight:700;color:#FB923C':''}">${n}</span>`;
+  const rows = lost.map(m=>{
+    const k=KEO[m.keo], raw=(m[k.f]||1)/(m.type==='doubles'?2:1);
+    const val=parseFloat(raw.toFixed(1));
+    const lostSide = m.winner==='A'?m.a:m.b, winSide = m.winner==='A'?m.b:m.a;
+    const sLose = m.winner==='A'?m.scoreB:m.scoreA, sWin = m.winner==='A'?m.scoreA:m.scoreB;
+    return `<div style="border:1px solid var(--border);border-radius:10px;padding:.6rem .7rem;margin-bottom:.45rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.3rem">
+        <span class="small tm">${fmtD(m.date)} · ${m.type==='doubles'?'Đôi':'Đơn'}</span>
+        <span style="font-weight:700;font-size:.82rem;color:#FB923C">${k.icon} ${val} ${k.unit}</span>
+      </div>
+      <div style="font-size:.82rem;line-height:1.5">${lostSide.map(nm).join(' & ')} <span style="color:var(--danger);font-weight:700">${sLose}</span> <span class="tm">:</span> <span style="font-weight:700">${sWin}</span> ${winSide.join(' & ')}</div>
+      ${m.type==='doubles'&&(m[k.f]||1)!==val?`<div class="small tm" style="margin-top:.2rem">Kèo ${m[k.f]||1} ${k.unit} chia đều cho 2 người</div>`:''}
+    </div>`;
+  }).join('');
+  const frows = fl.map(f=>`<div style="border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:.55rem .7rem;margin-bottom:.45rem;display:flex;justify-content:space-between;gap:.5rem;font-size:.82rem">
+      <span><span class="small tm">${fmtD(f.date)}</span> · 🚨 ${f.reason||f.note||'Phạt'}</span><span style="font-weight:700;color:#FCA5A5">${fmt(f.amount)}</span></div>`).join('');
+  document.getElementById('keoDetailTitle').textContent = '🥄 Chi tiết kèo thua — '+name;
+  document.getElementById('keoDetailContent').innerHTML =
+    (rows?`<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">Kèo đã thua (${lost.length} trận)</div>${rows}`:'')
+    +(frows?`<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin:.7rem 0 .4rem">Phạt đã nộp</div>${frows}`:'')
+    +((!rows&&!frows)?empty('🥄','Không có kèo thua hoặc phạt nào trong khoảng thời gian này'):'');
+  openModal('keoDetailModal');
+}
+
 function renderMaXoiVang(from, to){
   const {bal, lossScore, allBal} = computeKeoBalances(from, to);
   const loserList = allBal
@@ -2119,9 +2154,10 @@ function renderMaXoiVang(from, to){
       <td><span class="rnum ${i===0?'r1':i===1?'r2':i===2?'r3':''}">${medal}</span></td>
       <td>${p?avWTrophy(p.name,p.color):n}</td>
       <td style="font-size:.85rem">${keoBadges(d)}</td>
+      <td><button class="btn btn-ghost btn-xs" onclick="openKeoDetail(${JSON.stringify(n).replace(/"/g,'&quot;')},'${from||''}','${to||''}')">Chi tiết</button></td>
     </tr>`;
   }).join('');
-  maXoiD.innerHTML = `<table><thead><tr><th>#</th><th>Thành viên</th><th>Kèo thua</th></tr></thead><tbody>${rowsD}</tbody></table>`;
+  maXoiD.innerHTML = `<table><thead><tr><th>#</th><th>Thành viên</th><th>Kèo thua</th><th></th></tr></thead><tbody>${rowsD}</tbody></table>`;
 
   const cardsM = loserList.map(([n,d],i)=>{
     const p = players.find(pp=>pp.name===n);
@@ -2135,6 +2171,7 @@ function renderMaXoiVang(from, to){
         </div>
       </div>
       <div class="card-meta mt1"><span>${keoBadges(d)}</span></div>
+      <div style="margin-top:.5rem"><button class="btn btn-ghost btn-xs" onclick="openKeoDetail(${JSON.stringify(n).replace(/"/g,'&quot;')},'${from||''}','${to||''}')">Chi tiết</button></div>
     </div>`;
   }).join('');
   maXoiM.innerHTML = `<div class="card-list">${cardsM}</div>`;
@@ -2961,7 +2998,7 @@ function renderProfile(name){
             <span style="font-size:1rem">🚨</span>
             <span style="font-size:.82rem;font-weight:700;color:#FCA5A5">Đã nộp phạt: ${fmt(finesPaid)}</span>
           </div>` : '')
-        + `</div>`;
+        + `</div><div style="margin-top:.7rem"><button class="btn btn-ghost btn-xs" onclick="openKeoDetail(${JSON.stringify(name).replace(/"/g,'&quot;')},'${profFrom||''}','${profTo||''}')">Chi tiết</button></div>`;
     }
   })();
 
@@ -6682,6 +6719,13 @@ init();
       <button class="btn btn-ghost" onclick="backFromTiePairs()">← Quay lại</button>
       <button class="btn btn-lime" onclick="confirmTiePairs()">✅ Tạo giải đấu</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="keoDetailModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title-row"><div class="modal-title" id="keoDetailTitle">🥄 Chi tiết kèo thua</div><button class="modal-x" onclick="closeModal('keoDetailModal')" title="Đóng">✕</button></div>
+    <div id="keoDetailContent" style="max-height:65vh;overflow-y:auto"></div>
   </div>
 </div>
 
