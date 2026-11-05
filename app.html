@@ -2159,6 +2159,9 @@ const avTrophy=(n,c,lg='')=>{
 };
 const avW=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${av(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
 const avWTrophy=(n,c,ex='',clickable=true)=>`<div class="av-wrap">${avTrophy(n,c)}${clickable?`<span class="aname" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px" onclick="openProfile('${n}')">${n}${ex}</span>`:`<span class="aname">${n}${ex}</span>`}</div>`;
+// Tên người chơi bấm được (mở thống kê cá nhân) — dùng cho cả desktop & mobile
+const pn=n=>`<span data-n="${String(n).replace(/"/g,'&quot;')}" onclick="event.stopPropagation();openProfile(this.dataset.n)" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.3);text-underline-offset:3px;-webkit-tap-highlight-color:rgba(181,240,51,.2);touch-action:manipulation">${n}</span>`;
+const pnPair=s=>String(s).split(' & ').map(pn).join(' & ');
 const gp=n=>players.find(p=>p.name===n);
 const gpc=n=>{const p=gp(n);return p?p.color:'c0'};
 const inR=(d,f,t)=>{if(f&&d<f)return false;if(t&&d>t)return false;return true};
@@ -2472,7 +2475,7 @@ function renderPairsStats(){
   // Desktop
   const rows=entries.map((e,i)=>`<tr>
     <td style="text-align:center"><span class="rnum ${i===0?'r1':i===1?'r2':i===2?'r3':''}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span></td>
-    <td class="bold">${e.pair}</td>
+    <td class="bold">${pnPair(e.pair)}</td>
     <td style="text-align:center">${e.total}</td>
     <td style="text-align:center" class="ts">${e.w}</td>
     <td style="text-align:center" class="td">${e.l}</td>
@@ -2484,7 +2487,7 @@ function renderPairsStats(){
   // Mobile
   const cards=entries.map((e,i)=>`<div class="card-item">
     <div class="card-item-row">
-      <div><div class="bold">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''+(i+1)+'. '}${e.pair}</div>
+      <div><div class="bold">${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''+(i+1)+'. '}${pnPair(e.pair)}</div>
       <div class="card-meta">${e.total} trận · <span class="ts">${e.w}W</span> · <span class="td">${e.l}L</span></div></div>
       <span class="pill ${e.wr>=60?'p-green':e.wr>=40?'p-yellow':'p-red'}" style="font-size:.85rem;padding:.3rem .8rem">${e.wr}%</span>
     </div>
@@ -2730,11 +2733,11 @@ function renderOverviewCards(){
   }
 
   // Top nộp display
-  const topNopNames = topNopList.map(e=>e[0]).join(' - ');
+  const topNopNames = topNopList.map(e=>pn(e[0])).join(' - ');
   const topNopData  = topNopList.length ? topNopList[0][1] : null;
 
   const champMembersHtml = latestChampion
-    ? latestChampion.members.map(n=>n + ' <span style="display:inline-flex;align-items:center;gap:2px;background:#FACC15;color:#0B1929;font-size:.65rem;font-weight:800;padding:1px 6px;border-radius:50px;vertical-align:middle">🏆</span>').join(' & ')
+    ? latestChampion.members.map(n=>pn(n) + ' <span style="display:inline-flex;align-items:center;gap:2px;background:#FACC15;color:#0B1929;font-size:.65rem;font-weight:800;padding:1px 6px;border-radius:50px;vertical-align:middle">🏆</span>').join(' & ')
     : '';
 
   el.innerHTML = `
@@ -2752,7 +2755,7 @@ function renderOverviewCards(){
     <div class="ov-card ov-card-purple">
       <div>
         <div class="ov-card-label">📈 Phong độ đang lên</div>
-        <div class="ov-card-name">${topPhong?topPhong[0]:'—'}</div>
+        <div class="ov-card-name">${topPhong?pn(topPhong[0]):'—'}</div>
         ${topPhong
           ? `<div class="ov-card-val">${topPhong[1].delta>=0?'+':''}${topPhong[1].delta.toFixed(2)}<span class="ov-card-unit">điểm</span></div>
              <div style="font-size:.82rem;color:var(--muted);margin-top:2px">${topPhong[1].wins} thắng / ${topPhong[1].played} trận</div>`
@@ -2834,7 +2837,7 @@ function renderRanking(){
         <div class="av-wrap">
           <span class="rnum ${rc}" style="min-width:26px;text-align:center">${medal||('#'+(i+1))}</span>
           ${avTrophy(p.name,p.color,'av-lg')}
-          <div><div class="bold">${p.name}</div><div class="small tm">${getLevel(p.score).icon} ${getLevel(p.score).label}</div></div>
+          <div><div class="bold">${pn(p.name)}</div><div class="small tm">${getLevel(p.score).icon} ${getLevel(p.score).label}</div></div>
         </div>
         <div style="text-align:right">
           <div style="font-size:1.25rem;font-weight:700;color:var(--lime)">${p.score.toFixed(2)}</div>
@@ -2936,7 +2939,7 @@ function renderMaXoiVang(from, to){
         <div class="av-wrap">
           <span class="rnum ${i===0?'r1':i===1?'r2':i===2?'r3':''}" style="min-width:26px;text-align:center">${medal||('#'+(i+1))}</span>
           ${p?avTrophy(p.name,p.color,'av-lg'):''}
-          <div class="bold">${n}</div>
+          <div class="bold">${pn(n)}</div>
         </div>
       </div>
       <div class="card-meta mt1"><span>${keoBadges(d)}</span></div>
@@ -3260,7 +3263,7 @@ function renderFinance(){
   const {pageItems:list, page, totalPages} = paginateListSized(fullList, _finPage, 20);
   _finPage = page;
   document.getElementById('finList').innerHTML=list.map(f=>`<div class="fin-row">
-    <div class="fleft"><div class="bold" style="overflow-wrap:break-word">${f.desc}</div><div class="small tm">${f.player||'Quỹ chung'} · ${fmtD(f.date)}</div></div>
+    <div class="fleft"><div class="bold" style="overflow-wrap:break-word">${f.desc}</div><div class="small tm">${f.player?pn(f.player):'Quỹ chung'} · ${fmtD(f.date)}</div></div>
     <div class="fright">
       <span class="bold ${f.type==='thu'?'ts':'td'}">${f.type==='thu'?'+':'-'}${fmt(f.amount)}</span>
       <button class="btn btn-danger btn-xs" onclick="delFinance(${f.id})">🗑</button>
@@ -3277,7 +3280,7 @@ function renderFines(){
     <div class="fleft">
       <div style="display:flex;align-items:flex-start;gap:.4rem;min-width:0">
         ${av(f.player,gpc(f.player))}
-        <div style="min-width:0"><div class="bold" style="overflow-wrap:break-word">${f.player}</div><div class="small tm" style="overflow-wrap:break-word">${f.reason} · ${fmtD(f.date)}</div></div>
+        <div style="min-width:0"><div class="bold" style="overflow-wrap:break-word">${pn(f.player)}</div><div class="small tm" style="overflow-wrap:break-word">${f.reason} · ${fmtD(f.date)}</div></div>
       </div>
     </div>
     <div class="fright">
@@ -5089,11 +5092,13 @@ function computeGroupStandings(t, groupIdx){
     if(m.scoreA>m.scoreB){A.w++;B.l++;} else {B.w++;A.l++;}
   });
   function h2h(aIdx,bIdx){
-    const m = t.groupMatches.find(mm=>mm&&mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
-    if(!m) return 0;
-    const aScore = m.teamA===aIdx?m.scoreA:m.scoreB;
-    const bScore = m.teamA===aIdx?m.scoreB:m.scoreA;
-    return aScore>bScore?1:(aScore<bScore?-1:0);
+    let aw=0,bw=0;
+    t.groupMatches.filter(mm=>mm&&mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx))).forEach(m=>{
+      const aScore = m.teamA===aIdx?m.scoreA:m.scoreB;
+      const bScore = m.teamA===aIdx?m.scoreB:m.scoreA;
+      if(aScore>bScore) aw++; else if(aScore<bScore) bw++;
+    });
+    return aw>bw?1:(aw<bw?-1:0);
   }
   return [...stats].sort((a,b)=>{
     if(b.w!==a.w) return b.w-a.w;
@@ -5427,14 +5432,17 @@ function getTournamentTopStandings(t){
     }));
   }
   // 'teams' (chia team) format
-  const standings=t.teams.map((team,i)=>({idx:i, name:team.name, members:team.members, w:0, l:0, pts:0}));
+  const standings=t.teams.map((team,i)=>({idx:i, name:team.name, members:team.members, w:0, l:0, pts:0, pf:0, pa:0}));
   (t.matches||[]).filter(m=>m&&m.done).forEach(m=>{
     const winner=m.scoreA>m.scoreB?m.teamA:m.teamB;
     const loser=m.scoreA>m.scoreB?m.teamB:m.teamA;
     standings[winner].w++;standings[winner].pts+=2;
     standings[loser].l++;
+    standings[m.teamA].pf+=m.scoreA; standings[m.teamA].pa+=m.scoreB;
+    standings[m.teamB].pf+=m.scoreB; standings[m.teamB].pa+=m.scoreA;
   });
-  return [...standings].sort((a,b)=>b.pts-a.pts||b.w-a.w).slice(0,3)
+  // Ưu tiên số trận thắng; nếu bằng nhau mới xét hiệu số điểm, rồi tổng điểm ghi được
+  return [...standings].sort((a,b)=>b.w-a.w||(b.pf-b.pa)-(a.pf-a.pa)||b.pf-a.pf).slice(0,3)
     .map(s=>({idx:s.idx, name:s.name, members:s.members, w:s.w, l:s.l, label:'+'+s.pts+'đ'}));
 }
 
@@ -5592,7 +5600,7 @@ function renderTournamentInlineTeams(t){
       +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:'+c.text+';margin-bottom:.35rem">'+team.name+' <span style="font-weight:400;color:var(--muted)">TB: '+avg+'</span></div>'
       +team.members.map(function(n){
         const p=gp(n);
-        return '<div style="font-size:.78rem;padding:2px 0;color:var(--text)">'+n+(p?' <span style="color:var(--muted)">('+p.score.toFixed(2)+')</span>':'')+'</div>';
+        return '<div style="font-size:.78rem;padding:2px 0;color:var(--text)">'+pn(n)+(p?' <span style="color:var(--muted)">('+p.score.toFixed(2)+')</span>':'')+'</div>';
       }).join('')
       +'</div>';
   }).join('');
@@ -5678,7 +5686,7 @@ function renderTournamentInlineRoundRobin(t){
       +'<div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:'+c.text+';margin-bottom:.35rem">'+team.name+' <span style="font-weight:400;color:var(--muted)">TB: '+avg+'</span></div>'
       +team.members.map(n=>{
         const p=gp(n);
-        return '<div style="font-size:.78rem;padding:2px 0;color:var(--text)">'+n+(p?' <span style="color:var(--muted)">('+p.score.toFixed(2)+')</span>':'')+'</div>';
+        return '<div style="font-size:.78rem;padding:2px 0;color:var(--text)">'+pn(n)+(p?' <span style="color:var(--muted)">('+p.score.toFixed(2)+')</span>':'')+'</div>';
       }).join('')
       +'</div>';
   }).join('');
@@ -6078,7 +6086,7 @@ function renderTournamentView(t){
   // Standings
   const standings = t.teams.map(team=>({
     name:team.name,members:team.members,
-    w:0,l:0,pts:0,
+    w:0,l:0,pts:0,pf:0,pa:0,
     color:teamColors(team.id)
   }));
   t.matches.filter(m=>m&&m.done).forEach(m=>{
@@ -6086,14 +6094,17 @@ function renderTournamentView(t){
     const loser =m.scoreA>m.scoreB?m.teamB:m.teamA;
     standings[winner].w++; standings[winner].pts+=2;
     standings[loser].l++;
+    standings[m.teamA].pf+=m.scoreA; standings[m.teamA].pa+=m.scoreB;
+    standings[m.teamB].pf+=m.scoreB; standings[m.teamB].pa+=m.scoreA;
   });
-  const sorted=[...standings].sort((a,b)=>b.pts-a.pts||b.w-a.w);
+  // Ưu tiên số trận thắng; nếu bằng nhau mới xét hiệu số điểm, rồi tổng điểm ghi được
+  const sorted=[...standings].sort((a,b)=>b.w-a.w||(b.pf-b.pa)-(a.pf-a.pa)||b.pf-a.pf);
 
   const standHtml=sorted.map(function(s,i){
     return '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:var(--rs);background:'+(i===0?'rgba(181,240,51,.08)':'rgba(255,255,255,.02)')+'">'
       +'<span style="font-weight:700;color:'+(i===0?'var(--lime)':'var(--muted)')+';min-width:18px">'+(i+1)+'</span>'
       +'<span style="flex:1;font-size:.82rem;font-weight:600;color:'+s.color.text+'">'+s.name+'</span>'
-      +'<span style="font-size:.75rem;color:var(--muted)">'+s.w+'T '+s.l+'B</span>'
+      +'<span style="font-size:.75rem;color:var(--muted)">'+s.w+'T '+s.l+'B · '+((s.pf-s.pa)>=0?'+':'')+(s.pf-s.pa)+'</span>'
       +'<span style="font-weight:700;color:var(--lime);min-width:24px;text-align:right">'+s.pts+'đ</span>'
       +'</div>';
   }).join('');
