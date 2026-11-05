@@ -297,6 +297,11 @@ const I18N_PAIRS = [
 ['Tự chọn thủ công','Manual selection'],
 ['🏅 Bộ Sưu Tập Cúp','🏅 Trophy Collection'],
 ['Vòng tròn nội bộ','Internal round-robin'],
+['Số lượt đấu vòng tròn','Round-robin legs'],
+['1 lượt','1 leg'],
+['2 lượt (mỗi cặp gặp nhau 2 lần)','2 legs (every pair meets twice)'],
+['🔁 Lượt 1','🔁 Leg 1'],
+['🔁 Lượt 2','🔁 Leg 2'],
 ['⬜ Bỏ chọn tất cả','⬜ Deselect all'],
 ['(Tổng quan), mục','(Overview), section'],
 ['Số trận đánh đơn','Number of singles matches'],
@@ -4103,7 +4108,7 @@ function openNewTournamentModal(){if(guardScorer())return;
   openModal('newTournamentModal');
   tSelectedPlayers = [];
   const saBtn=document.getElementById('tSelectAllBtn'); if(saBtn) saBtn.innerHTML='☑️ Chọn tất cả';
-  tFormat='roundrobin'; tAssign='auto'; tManualAssign={};
+  tFormat='roundrobin'; tAssign='auto'; setTLegs(1); tManualAssign={};
   document.getElementById('tModeCardTeams').classList.add('selected');
   document.getElementById('tModeCardTournament').classList.remove('selected');
   document.getElementById('tModeCardGroups').classList.remove('selected');
@@ -4127,6 +4132,7 @@ function setTMode(mode){
   document.getElementById('tTeamFormatGroup').style.display = mode==='teams' ? '' : 'none';
   if(mode!=='teams') setTTeamFormat('roundrobin');
   if(mode==='groups') document.getElementById('tTeamSize').value='2';
+  updateTLegsVisibility();
   updateTLabel();
   updatePrimaryBtn();
 }
@@ -4143,12 +4149,26 @@ function setTTeamFormat(fmt){
     sel.innerHTML = Array.from({length:29},(_,i)=>i+2).map(n=>'<option value="'+n+'"'+(n===4?' selected':'')+'>'+n+' teams</option>').join('');
     if([...sel.options].some(o=>o.value===prevVal)) sel.value = prevVal;
   }
+  updateTLegsVisibility();
   updateTLabel();
+}
+let tLegs = 1;
+function setTLegs(n){
+  tLegs = n;
+  const a=document.getElementById('tLegs1'), b=document.getElementById('tLegs2');
+  if(a) a.checked = n===1;
+  if(b) b.checked = n===2;
+}
+function updateTLegsVisibility(){
+  const g=document.getElementById('tLegsGroup'); if(!g) return;
+  const show = (tMode==='tournament' && tFormat==='roundrobin') || (tMode==='teams' && tTeamFormat==='roundrobin');
+  g.style.display = show ? '' : 'none';
 }
 function setTFormat(fmt){
   tFormat = fmt;
   document.getElementById('tFormatCardRR').classList.toggle('selected', fmt==='roundrobin');
   document.getElementById('tFormatCardSE').classList.toggle('selected', fmt==='singleelim');
+  updateTLegsVisibility();
 }
 function setTAssign(a){
   tAssign = a;
@@ -4566,7 +4586,11 @@ function showTeamSuggestion(tc, ts){
     + content;
 }
 
-function genTournamentMatches(teams){
+function genTournamentMatches(teams, legs){
+  const base = genTournamentMatchesOneLeg(teams);
+  return legs===2 ? addSecondLeg(base) : base;
+}
+function genTournamentMatchesOneLeg(teams){
   // Build internal pairs for each team (combinations of 2)
   function combos2(arr){
     var res=[];
@@ -4620,7 +4644,7 @@ function genTournamentMatches(teams){
 function confirmCreateTournament(){if(guardScorer())return;
   const teamNames=TEAM_NAMES_8;
   const builtTeams=tCurrentTeams.map(function(t,i){return {id:i,name:teamNames[i],members:t.members};});
-  const matches_t=genTournamentMatches(builtTeams);
+  const matches_t=genTournamentMatches(builtTeams, tLegs);
 
   const tournament = {
     id: nT++,
@@ -4628,7 +4652,7 @@ function confirmCreateTournament(){if(guardScorer())return;
     date: today(),
     format: 'teams',
     teams: builtTeams,
-    matches: matches_t,
+    matches: matches_t, legs: tLegs,
     status:'active'
   };
 
@@ -4650,7 +4674,7 @@ function createTournamentFromTeams(rawTeams){
     tournament = {
       id: nT++, name: tCurrentName, date: today(),
       format: 'roundrobin', teams: builtTeams,
-      matches: genRoundRobinMatches(builtTeams),
+      matches: genRoundRobinMatches(builtTeams, tLegs), legs: tLegs,
       status: 'active'
     };
   } else {
@@ -5232,7 +5256,22 @@ function saveFinalResult(tId){
   }
 }
 
-function genRoundRobinMatches(teams){
+// Lượt 2: sau khi hết lượt 1, các cặp gặp lại nhau (đổi bên A/B)
+function addSecondLeg(matches){
+  let mid = matches.reduce((m,x)=>Math.max(m,x.id),0)+1;
+  matches.forEach(m=>{ m.leg=1; });
+  const second = matches.map(m=>({
+    id:mid++, leg:2, teamA:m.teamB, teamB:m.teamA,
+    pairA:m.pairB.slice(), pairB:m.pairA.slice(),
+    scoreA:null, scoreB:null, done:false
+  }));
+  return matches.concat(second);
+}
+function genRoundRobinMatches(teams, legs){
+  const base = genRoundRobinMatchesOneLeg(teams);
+  return legs===2 ? addSecondLeg(base) : base;
+}
+function genRoundRobinMatchesOneLeg(teams){
   // Circle method: schedule into rounds so every team plays once per round
   // (interleaved order), instead of grouping all of one team's matches together.
   const n0 = teams.length;
@@ -5273,11 +5312,14 @@ function computeRoundRobinStandings(t){
     if(m.scoreA>m.scoreB){A.w++;B.l++;} else {B.w++;A.l++;}
   });
   function h2h(aIdx,bIdx){
-    const m = t.matches.find(mm=>mm&&mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
-    if(!m) return 0;
-    const aScore = m.teamA===aIdx?m.scoreA:m.scoreB;
-    const bScore = m.teamA===aIdx?m.scoreB:m.scoreA;
-    return aScore>bScore?1:(aScore<bScore?-1:0);
+    const ms = t.matches.filter(mm=>mm&&mm.done && ((mm.teamA===aIdx&&mm.teamB===bIdx)||(mm.teamA===bIdx&&mm.teamB===aIdx)));
+    let aw=0,bw=0;
+    ms.forEach(m=>{
+      const aScore = m.teamA===aIdx?m.scoreA:m.scoreB;
+      const bScore = m.teamA===aIdx?m.scoreB:m.scoreA;
+      if(aScore>bScore) aw++; else if(aScore<bScore) bw++;
+    });
+    return aw>bw?1:(aw<bw?-1:0);
   }
   return [...stats].sort((a,b)=>{
     if(b.w!==a.w) return b.w-a.w;
@@ -5641,11 +5683,15 @@ function renderTournamentInlineRoundRobin(t){
       +'</div>';
   }).join('');
 
+  const twoLegs = t.matches.some(m=>m&&m.leg===2);
+  let _lastLeg = 0;
   const matchHtml = t.matches.filter(Boolean).map(m=>{
     const tA=t.teams[m.teamA], tB=t.teams[m.teamB];
     const cA=teamColors(m.teamA), cB=teamColors(m.teamB);
     const isDone=m.done;
-    return '<div class="match-card">'
+    let legHd='';
+    if(twoLegs && (m.leg||1)!==_lastLeg){ _lastLeg=m.leg||1; legHd='<div style="font-size:.78rem;font-weight:800;color:var(--lime);margin:.7rem 0 .4rem">🔁 Lượt '+_lastLeg+'</div>'; }
+    return legHd+'<div class="match-card">'
       +'<div class="match-header">'
       +'<span class="pill p-gray" style="font-size:.65rem">#'+m.id+'</span>'
       +'<span style="color:'+cA.text+';font-weight:600">'+tA.name+'</span>'
@@ -7424,6 +7470,14 @@ init();
           <div style="font-weight:700;font-size:.8rem;margin-top:.2rem">Loại trực tiếp</div>
           <div style="font-size:.66rem;color:var(--muted);margin-top:.15rem">Single Elimination</div>
         </div>
+      </div>
+    </div>
+
+    <div class="fgroup" id="tLegsGroup" style="display:none">
+      <label>Số lượt đấu vòng tròn</label>
+      <div style="display:flex;gap:1.2rem;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem"><input type="checkbox" id="tLegs1" checked onchange="setTLegs(this.checked?1:2)"/> 1 lượt</label>
+        <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem"><input type="checkbox" id="tLegs2" onchange="setTLegs(this.checked?2:1)"/> 2 lượt (mỗi cặp gặp nhau 2 lần)</label>
       </div>
     </div>
 
