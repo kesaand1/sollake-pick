@@ -21,6 +21,177 @@
 <meta name="twitter:title" content="11Points.me - Hệ thống quản lý CLB Pickleball"/>
 <meta name="twitter:description" content="Hệ thống quản lý câu lạc bộ Pickleball chuyên nghiệp"/>
 <meta name="twitter:image" content="https://11points.me/banner.png"/>
+<script>
+const I18N_PAIRS = [
+['CLB và tài khoản quản trị của bạn đã được tạo, đang chờ quản trị viên hệ thống xét duyệt và kích hoạt. Địa chỉ CLB của bạn:','Your club and admin account have been created and are awaiting approval and activation by the system administrator. Your club address:'],
+['CLB và tài khoản quản trị của bạn đã được tạo và kích hoạt. Bạn có thể vào CLB ngay bây giờ:','Your club and admin account have been created and activated. You can enter your club now:'],
+['Bạn sẽ đăng nhập được sau khi CLB được kích hoạt. Vui lòng quay lại sau hoặc liên hệ quản trị viên hệ thống nếu cần hỗ trợ.','You will be able to log in once the club is activated. Please come back later or contact the system administrator if you need help.'],
+['Vui lòng lưu lại thông tin này — mật khẩu sẽ không hiển thị lại sau khi đóng màn hình này.','Please save this information — the password will not be shown again after you close this screen.'],
+['Chúng tôi đã gửi email thông tin đăng nhập vào','We have emailed the login details to'],
+['. Vui lòng kiểm tra mục','. Please check the'],
+['Spam/Thư rác','Spam/Junk'],
+['nếu bạn không tìm thấy trong hòm mail.','folder if you cannot find it in your inbox.'],
+['Đăng ký bằng email/mật khẩu hiện đang bị tắt trên hệ thống. Liên hệ quản trị viên.','Email/password registration is currently disabled on the system. Please contact the administrator.'],
+['Không có quyền ghi dữ liệu (Firebase Rules chặn). Liên hệ quản trị viên hệ thống.','No permission to write data (blocked by Firebase Rules). Please contact the system administrator.'],
+['Email này đã được đăng ký trước đó. Vui lòng dùng email khác hoặc đăng nhập.','This email is already registered. Please use another email or log in.'],
+['Lỗi kết nối mạng. Vui lòng kiểm tra Internet và thử lại.','Network error. Please check your Internet connection and try again.'],
+['Bạn đã thử quá nhiều lần. Vui lòng đợi ít phút rồi thử lại.','You have tried too many times. Please wait a few minutes and try again.'],
+['Vui lòng điền đầy đủ thông tin tài khoản quản lý.','Please fill in all admin account information.'],
+['Vui lòng điền đầy đủ thông tin câu lạc bộ.','Please fill in all club information.'],
+['Mã CLB chỉ dùng chữ thường, số, dấu gạch dưới.','Club code may only use lowercase letters, digits and underscores.'],
+['Email không đúng định dạng. VD: ten@gmail.com','Invalid email format. E.g. name@gmail.com'],
+['VD: huy.nguyen (không dấu, không cách)','E.g. huy.nguyen (no accents, no spaces)'],
+['Có thể đăng nhập bằng username này thay vì email','You can log in with this username instead of email'],
+['Mã CLB (ID duy nhất, không dấu, không cách)','Club code (unique ID, no accents, no spaces)'],
+['Đây sẽ là địa chỉ web CLB của bạn:','This will be your club\'s web address:'],
+['Hệ thống quản lý câu lạc bộ Pickleball chuyên nghiệp','Professional Pickleball club management system'],
+['11Points.me - Hệ thống quản lý CLB Pickleball','11Points.me - Pickleball Club Management System'],
+['Hệ thống quản lý câu lạc bộ Pickleball','Pickleball club management system'],
+['Hệ thống quản lý CLB Pickleball','Pickleball club management system'],
+['Theo dõi điểm ELO và phong độ từng thành viên theo thời gian thực.','Track each member\'s ELO rating and form in real time.'],
+['Lịch sử trận, tỷ lệ thắng/thua, kèo chấp và phân tích chi tiết.','Match history, win/loss rates, stakes and detailed analysis.'],
+['Thuật toán ghép cặp cân bằng dựa trên điểm số và phong độ.','A balanced pairing algorithm based on rating and form.'],
+['Tổ chức giải, chia team tự động, lịch thi đấu Round Robin.','Organise tournaments, auto team split, Round Robin schedules.'],
+['Thu chi, phạt vi phạm, báo cáo tài chính minh bạch.','Income & expenses, fines, transparent financial reports.'],
+['Giao diện tối ưu cho điện thoại, đồng bộ real-time mọi thiết bị.','Interface optimised for phones, real-time sync across all devices.'],
+['Tạo tài khoản quản lý và câu lạc bộ của bạn','Create your admin account and your club'],
+['Đăng ký thành công!','Registration successful!'],
+['Thông tin đăng nhập lần đầu','First login details'],
+['Mật khẩu quá yếu (tối thiểu 6 ký tự).','Password too weak (minimum 6 characters).'],
+['Email không đúng định dạng.','Invalid email format.'],
+['Mật khẩu tối thiểu 6 ký tự.','Password must be at least 6 characters.'],
+['Tên đăng nhập đã được sử dụng.','Username is already taken.'],
+['Không thể tạo tài khoản:','Could not create account:'],
+['Tối thiểu 6 ký tự','At least 6 characters'],
+['Tên đăng nhập (username)','Username'],
+['đã được sử dụng, vui lòng chọn mã khác.','is already in use, please choose another code.'],
+['Mã CLB "','Club code "'],
+['Mã CLB','Club code'],
+['Lỗi không xác định','Unknown error'],
+['Tài khoản quản lý','Admin account'],
+['Hệ thống quản lý','Management system'],
+['Ghép đôi thông minh','Smart pairing'],
+['Thống kê trận đấu','Match statistics'],
+['Bảng xếp hạng','Leaderboard'],
+['Quản lý quỹ','Fund management'],
+['Đang kiểm tra...','Checking...'],
+['Đã sao chép','Copied'],
+['Sao chép link','Copy link'],
+['Vào CLB ngay →','Enter club now →'],
+['Đăng ký CLB mới','Register a new club'],
+['Đang tạo...','Creating...'],
+['Tên hiển thị','Display name'],
+['Tên đăng nhập:','Username:'],
+['Mật khẩu:','Password:'],
+['Mật khẩu','Password'],
+['Hướng dẫn','User guide'],
+['Câu lạc bộ','Club'],
+['Giải đấu','Tournaments'],
+['Đăng ký','Register'],
+['Tên CLB','Club name'],
+['VD: Sollake Pick Hà Nội','E.g. Sollake Pick Hanoi'],
+['Nguyễn Văn A','John Smith'],
+['Đóng','Close'],
+['Hủy','Cancel'],
+['Thông tin','Information'],
+];
+
+// ===== I18N: Vietnamese (default) / English =====
+(function(){
+  var LANG='vi';
+  function rootDomain(){ var h=location.hostname.split('.'); return h.length>=3 ? h.slice(1).join('.') : (h.length===2 ? h.join('.') : ''); }
+  function getCk(){ var m=document.cookie.match(/(?:^|; )sp_lang=([^;]*)/); return m?decodeURIComponent(m[1]):null; }
+  try{ LANG=getCk()||localStorage.getItem('sp_lang')||'vi'; }catch(e){}
+  if(LANG!=='en') LANG='vi';
+  window._lang=LANG;
+  window.setLang=function(l){
+    try{localStorage.setItem('sp_lang',l);}catch(e){}
+    var d=rootDomain();
+    try{ document.cookie='sp_lang='+l+';path=/;max-age=31536000;SameSite=Lax'+(d&&!/^\d+\.\d+/.test(d)&&d.indexOf('.')>0?';domain=.'+d:''); }catch(e){}
+    location.reload();
+  };
+  document.addEventListener('DOMContentLoaded',function(){var sel=document.getElementById('langSel'); if(sel) sel.value=LANG;});
+  if(LANG!=='en') return;
+  document.documentElement.lang='en';
+
+  var exact=new Map(), phrases=[];
+  I18N_PAIRS.forEach(function(p){ if(!exact.has(p[0])) exact.set(p[0],p[1]); if(p[0].length>=7) phrases.push(p); });
+  phrases.sort(function(a,b){return b[0].length-a[0].length;});
+  var esc=function(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');};
+  var phraseRe=new RegExp(phrases.map(function(p){return esc(p[0]);}).join('|'),'g');
+  var phraseMap=new Map(phrases);
+  var PAT=[
+    [/(\d+) team\/bảng \((\d+) team tổng\)/g,'$1 teams/group ($2 teams total)'],
+    [/(\d+) người\/team/g,'$1 players/team'],
+    [/(\d+) trận đơn/g,'$1 singles'],
+    [/(\d+) trận đôi/g,'$1 doubles'],
+    [/(\d+) trận/g,'$1 matches'],
+    [/(\d+(?:\.\d+)?) chai/g,'$1 bottles'],
+    [/(\d+(?:\.\d+)?) cốc/g,'$1 beers'],
+    [/(\d+(?:\.\d+)?) quả/g,'$1 balls'],
+    [/(\d+(?:\.\d+)?) nồi/g,'$1 hotpots'],
+    [/(\d+(?:\.\d+)?) con\b/g,'$1 chickens'],
+    [/(\d+) người/g,'$1 players'],
+    [/(\d+) ngày/g,'$1 days'],
+    [/±(\d+(?:\.\d+)?) điểm/g,'±$1 pts'],
+    [/(\d+(?:\.\d+)?) điểm/g,'$1 pts']
+  ];
+  var VI=/[À-ỹà-ỹĐđ]/;
+  function tr(s){
+    if(!s) return s;
+    var m=s.match(/^(\s*)([\s\S]*?)(\s*)$/), core=m[2];
+    if(!VI.test(s) && !(core.indexOf(' ')>0 && exact.has(core))) return s;
+    if(exact.has(core)) return m[1]+exact.get(core)+m[3];
+    var out=core;
+    out=out.replace(phraseRe,function(k){return phraseMap.get(k);});
+    for(var i=0;i<PAT.length;i++) out=out.replace(PAT[i][0],PAT[i][1]);
+    return m[1]+out+m[3];
+  }
+  window.t_=tr;
+  var ATTRS=['placeholder','title','alt','aria-label'];
+  var last=new WeakMap();
+  function doText(n){
+    var v=n.nodeValue;
+    if(last.get(n)===v) return;
+    var p=n.parentNode; if(p&&(p.nodeName==='SCRIPT'||p.nodeName==='STYLE')) return;
+    var nv=tr(v); last.set(n,nv); if(nv!==v) n.nodeValue=nv;
+  }
+  function doEl(el){
+    if(el.nodeType!==1) return;
+    if(el.nodeName==='SCRIPT'||el.nodeName==='STYLE') return;
+    ATTRS.forEach(function(a){ var v=el.getAttribute&&el.getAttribute(a); if(v&&VI.test(v)){ var nv=tr(v); if(nv!==v) el.setAttribute(a,nv);} });
+  }
+  function walk(root){
+    if(root.nodeType===3){ doText(root); return; }
+    if(root.nodeType!==1 && root.nodeType!==9 && root.nodeType!==11) return;
+    if(root.nodeType===1) doEl(root);
+    var w=document.createTreeWalker(root,5,null);
+    var n; while((n=w.nextNode())){ if(n.nodeType===3) doText(n); else doEl(n); }
+  }
+  var busy=false;
+  var mo=new MutationObserver(function(muts){
+    if(busy) return; busy=true;
+    try{
+      muts.forEach(function(m){
+        if(m.type==='characterData') doText(m.target);
+        else if(m.type==='attributes') doEl(m.target);
+        else m.addedNodes.forEach(function(n){ walk(n); });
+      });
+    }finally{ busy=false; }
+  });
+  function start(){
+    document.title=tr(document.title);
+    document.querySelectorAll('meta[name=description],meta[property="og:title"],meta[property="og:description"],meta[name="twitter:title"],meta[name="twitter:description"]').forEach(function(m){var v=m.getAttribute('content'); if(v) m.setAttribute('content',tr(v));});
+    walk(document.body);
+    mo.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTRS});
+  }
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded',start);
+  var _a=window.alert, _c=window.confirm, _p=window.prompt;
+  window.alert=function(m){return _a.call(window,tr(String(m)));};
+  window.confirm=function(m){return _c.call(window,tr(String(m)));};
+  window.prompt=function(m,d){return _p.call(window,tr(String(m)),d);};
+})();
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -140,6 +311,7 @@ footer{
   <a class="logo" href="/">Sollake <span>Pick</span></a>
   <span class="slogan-text" style="font-size:.85rem;font-weight:700;color:var(--text);letter-spacing:.6px;text-transform:uppercase;text-align:center;white-space:nowrap">Hệ thống quản lý câu lạc bộ Pickleball</span>
   <div class="header-right">
+    <select id="langSel" onchange="setLang(this.value)" title="Ngôn ngữ / Language" style="background:#fff;border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:.82rem;font-weight:600;padding:.45rem .4rem;border-radius:var(--rs);outline:none"><option value="vi">🇻🇳 Tiếng Việt</option><option value="en">🇬🇧 English</option></select>
     <a href="/guide.html" class="btn btn-ghost" style="font-size:.82rem">📖 Hướng dẫn</a>
     <button class="btn btn-lime" id="registerBtn" style="font-size:.82rem;display:none" onclick="openRegister()">✍️ Đăng ký</button>
   </div>

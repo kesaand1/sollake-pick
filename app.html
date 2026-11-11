@@ -685,10 +685,19 @@ const I18N_PAIRS = [
 
 // ===== I18N: Vietnamese (default) / English =====
 (function(){
-  var LANG='vi'; try{ LANG=localStorage.getItem('sp_lang')||'vi'; }catch(e){}
+  var LANG='vi';
+  function rootDomain(){ var h=location.hostname.split('.'); return h.length>=3 ? h.slice(1).join('.') : (h.length===2 ? h.join('.') : ''); }
+  function getCk(){ var m=document.cookie.match(/(?:^|; )sp_lang=([^;]*)/); return m?decodeURIComponent(m[1]):null; }
+  try{ LANG=getCk()||localStorage.getItem('sp_lang')||'vi'; }catch(e){}
+  if(LANG!=='en') LANG='vi';
   window._lang=LANG;
+  window.setLang=function(l){
+    try{localStorage.setItem('sp_lang',l);}catch(e){}
+    var d=rootDomain();
+    try{ document.cookie='sp_lang='+l+';path=/;max-age=31536000;SameSite=Lax'+(d&&!/^\d+\.\d+/.test(d)&&d.indexOf('.')>0?';domain=.'+d:''); }catch(e){}
+    location.reload();
+  };
   document.addEventListener('DOMContentLoaded',function(){var sel=document.getElementById('langSel'); if(sel) sel.value=LANG;});
-  window.setLang=function(l){ try{localStorage.setItem('sp_lang',l);}catch(e){} location.reload(); };
   if(LANG!=='en') return;
   document.documentElement.lang='en';
 
@@ -704,24 +713,21 @@ const I18N_PAIRS = [
     [/(\d+) trận đơn/g,'$1 singles'],
     [/(\d+) trận đôi/g,'$1 doubles'],
     [/(\d+) trận/g,'$1 matches'],
-    [/(\d+(?:\.\d+)?) chai/g,function(m,n){return n+(n==='1'?' bottle':' bottles');}],
-    [/(\d+(?:\.\d+)?) cốc/g,function(m,n){return n+(n==='1'?' beer':' beers');}],
-    [/(\d+(?:\.\d+)?) quả/g,function(m,n){return n+(n==='1'?' ball':' balls');}],
-    [/(\d+(?:\.\d+)?) nồi/g,function(m,n){return n+(n==='1'?' hotpot':' hotpots');}],
-    [/(\d+(?:\.\d+)?) con\b/g,function(m,n){return n+(n==='1'?' chicken':' chickens');}],
-    [/k phạt/g,'k fines'],[/đ phạt/g,'đ fines'],[/\(cùng /g,'(with '],
-    [/· Đôi/g,'· Doubles'],[/· Đơn/g,'· Singles'],
-    [/Kèo Nước/g,'Water stake'],[/Kèo Bia/g,'Beer stake'],[/Kèo Bóng/g,'Ball stake'],[/Kèo Lẩu/g,'Hotpot stake'],[/Kèo Gà/g,'Chicken stake'],[/Kèo (\d)/g,'Stake $1'],
+    [/(\d+(?:\.\d+)?) chai/g,'$1 bottles'],
+    [/(\d+(?:\.\d+)?) cốc/g,'$1 beers'],
+    [/(\d+(?:\.\d+)?) quả/g,'$1 balls'],
+    [/(\d+(?:\.\d+)?) nồi/g,'$1 hotpots'],
+    [/(\d+(?:\.\d+)?) con\b/g,'$1 chickens'],
     [/(\d+) người/g,'$1 players'],
     [/(\d+) ngày/g,'$1 days'],
-    [/Tháng (\d+)\/(\d+)/g,'Month $1/$2'],
     [/±(\d+(?:\.\d+)?) điểm/g,'±$1 pts'],
     [/(\d+(?:\.\d+)?) điểm/g,'$1 pts']
   ];
   var VI=/[À-ỹà-ỹĐđ]/;
   function tr(s){
-    if(!s || !VI.test(s)) return s;
+    if(!s) return s;
     var m=s.match(/^(\s*)([\s\S]*?)(\s*)$/), core=m[2];
+    if(!VI.test(s) && !(core.indexOf(' ')>0 && exact.has(core))) return s;
     if(exact.has(core)) return m[1]+exact.get(core)+m[3];
     var out=core;
     out=out.replace(phraseRe,function(k){return phraseMap.get(k);});
