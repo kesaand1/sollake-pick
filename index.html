@@ -89,7 +89,7 @@ const I18N_PAIRS = [
 ['Giải đấu','Tournaments'],
 ['Đăng ký','Register'],
 ['Tên CLB','Club name'],
-['VD: Sollake Pick Hà Nội','E.g. Sollake Pick Hanoi'],
+['VD: CLB Pickleball Hà Nội','E.g. Hanoi Pickleball Club'],
 ['Nguyễn Văn A','John Smith'],
 ['Đóng','Close'],
 ['Hủy','Cancel'],
@@ -116,32 +116,51 @@ const I18N_PAIRS = [
 
   var exact=new Map(), phrases=[];
   I18N_PAIRS.forEach(function(p){ if(!exact.has(p[0])) exact.set(p[0],p[1]); if(p[0].length>=7) phrases.push(p); });
+  var lead=/^[^A-Za-zÀ-ỹà-ỹĐđ0-9]+/, exactN=new Map(), seenP=new Set(phrases.map(function(p){return p[0];}));
+  I18N_PAIRS.forEach(function(p){
+    var k=p[0].replace(lead,''), v=p[1].replace(lead,'');
+    if(k && k!==p[0] && k.length>=4){
+      if(!exactN.has(k)) exactN.set(k,v);
+      if(k.length>=7 && !seenP.has(k)){ seenP.add(k); phrases.push([k,v]); }
+    }
+  });
   phrases.sort(function(a,b){return b[0].length-a[0].length;});
   var esc=function(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');};
   var phraseRe=new RegExp(phrases.map(function(p){return esc(p[0]);}).join('|'),'g');
   var phraseMap=new Map(phrases);
+  var pl=function(sing,plur){return function(m,n){return n+' '+(parseFloat(n)===1?sing:plur);};};
   var PAT=[
     [/(\d+) team\/bảng \((\d+) team tổng\)/g,'$1 teams/group ($2 teams total)'],
     [/(\d+) người\/team/g,'$1 players/team'],
+    [/chấp (\d+(?:\.\d+)?) quả/g,function(m,n){return 'gives '+n+' '+(parseFloat(n)===1?'ball':'balls');}],
+    [/Cặp (A|B)\b/g,'Pair $1'],
     [/(\d+) trận đơn/g,'$1 singles'],
     [/(\d+) trận đôi/g,'$1 doubles'],
-    [/(\d+) trận/g,'$1 matches'],
-    [/(\d+(?:\.\d+)?) chai/g,'$1 bottles'],
-    [/(\d+(?:\.\d+)?) cốc/g,'$1 beers'],
-    [/(\d+(?:\.\d+)?) quả/g,'$1 balls'],
-    [/(\d+(?:\.\d+)?) nồi/g,'$1 hotpots'],
-    [/(\d+(?:\.\d+)?) con\b/g,'$1 chickens'],
+    [/(\d+) trận/g,pl('match','matches')],
+    [/(\d+(?:\.\d+)?) chai/g,pl('bottle','bottles')],
+    [/(\d+(?:\.\d+)?) cốc/g,pl('beer','beers')],
+    [/(\d+(?:\.\d+)?) quả/g,pl('ball','balls')],
+    [/(\d+(?:\.\d+)?) nồi/g,pl('hotpot','hotpots')],
+    [/(\d+(?:\.\d+)?) con\b/g,pl('chicken','chickens')],
+    [/k phạt/g,'k fines'],[/đ phạt/g,'đ fines'],[/\(cùng /g,'(with '],
+    [/· Đôi/g,'· Doubles'],[/· Đơn/g,'· Singles'],[/Đôi ·/g,'Doubles ·'],[/Đơn ·/g,'Singles ·'],
+    [/Kèo Nước/g,'Water stake'],[/Kèo Bia/g,'Beer stake'],[/Kèo Bóng/g,'Ball stake'],[/Kèo Lẩu/g,'Hotpot stake'],[/Kèo Gà/g,'Chicken stake'],[/Kèo (\d)/g,'Stake $1'],
     [/(\d+) người/g,'$1 players'],
     [/(\d+) ngày/g,'$1 days'],
+    [/Tháng (\d+)\/(\d+)/g,'Month $1/$2'],
+    [/Điểm (\d)/g,'Score $1'],
+    [/PĐ/g,'Form'],
     [/±(\d+(?:\.\d+)?) điểm/g,'±$1 pts'],
-    [/(\d+(?:\.\d+)?) điểm/g,'$1 pts']
+    [/(\d+(?:\.\d+)?) điểm/g,'$1 pts'],
+    [/(Nước|Bóng|Bia|Lẩu|Gà):/g,function(m,k){return {'Nước':'Water','Bóng':'Ball','Bia':'Beer','Lẩu':'Hotpot','Gà':'Chicken'}[k]+':';}],
+    [/\bchấp\b/g,'handicap']
   ];
   var VI=/[À-ỹà-ỹĐđ]/;
   function tr(s){
-    if(!s) return s;
+    if(!s || !VI.test(s)) return s;
     var m=s.match(/^(\s*)([\s\S]*?)(\s*)$/), core=m[2];
-    if(!VI.test(s) && !(core.indexOf(' ')>0 && exact.has(core))) return s;
     if(exact.has(core)) return m[1]+exact.get(core)+m[3];
+    var lm=core.match(lead); if(lm){ var rest=core.slice(lm[0].length); if(exactN.has(rest)) return m[1]+lm[0]+exactN.get(rest)+m[3]; }
     var out=core;
     out=out.replace(phraseRe,function(k){return phraseMap.get(k);});
     for(var i=0;i<PAT.length;i++) out=out.replace(PAT[i][0],PAT[i][1]);
@@ -308,7 +327,7 @@ footer{
 
 <!-- HEADER -->
 <div class="header">
-  <a class="logo" href="/">Sollake <span>Pick</span></a>
+  <span class="logo"></span>
   <span class="slogan-text" style="font-size:.85rem;font-weight:700;color:var(--text);letter-spacing:.6px;text-transform:uppercase;text-align:center;white-space:nowrap">Hệ thống quản lý câu lạc bộ Pickleball</span>
   <div class="header-right">
     <select id="langSel" onchange="setLang(this.value)" title="Ngôn ngữ / Language" style="background:#fff;border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:.82rem;font-weight:600;padding:.45rem .4rem;border-radius:var(--rs);outline:none"><option value="vi">🇻🇳 Tiếng Việt</option><option value="en">🇬🇧 English</option></select>
@@ -319,7 +338,7 @@ footer{
 
 <!-- HERO -->
 <div class="hero">
-  <img src="banner.png" alt="Sollake Pick"/>
+  <img src="banner.png" alt=""/>
   <div class="hero-overlay">
     <div class="hero-content">
     </div>
@@ -361,7 +380,7 @@ footer{
 </div>
 
 <footer>
-  © 2026 Sollake Pick · Hệ thống quản lý CLB Pickleball
+  © 2026 · Hệ thống quản lý CLB Pickleball
 </footer>
 
 <!-- MODAL: STEP 1 - CREATE CLUB -->
@@ -393,7 +412,7 @@ footer{
     <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:1rem 0 .5rem;padding-top:.75rem;border-top:1px solid var(--border)">🏸 Câu lạc bộ</div>
     <div class="fgroup">
       <label>Tên CLB</label>
-      <input class="finput" id="regClubName" placeholder="VD: Sollake Pick Hà Nội"/>
+      <input class="finput" id="regClubName" placeholder="VD: CLB Pickleball Hà Nội"/>
     </div>
     <div class="fgroup">
       <label>Mã CLB (ID duy nhất, không dấu, không cách)</label>

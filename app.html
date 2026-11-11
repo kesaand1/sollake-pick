@@ -6,6 +6,29 @@
 <title>11Points.me - Hệ thống quản lý CLB Pickleball</title>
 <script>
 const I18N_PAIRS = [
+['Thưởng điểm giải đấu:','Tournament bonus:'],
+[', Á quân +',', Runner-up +'],
+['Vô địch +','Champion +'],
+['/ thành viên','/ member'],
+['Vòng tròn tính điểm — xếp hạng theo: Thắng > Hiệu số điểm > Đối đầu trực tiếp','Round-robin by points — ranked by: Wins > Point difference > Head-to-head'],
+['Chia team — Đấu loại Đơn & Đôi','Team split — Knockout Singles & Doubles'],
+['Mỗi cặp đấu:','Each tie:'],
+['Hiệu số điểm','Point difference'],
+['Đối đầu trực tiếp','Head-to-head'],
+['điểm','pts'],
+['Nguyễn Văn A','John Smith'],
+['Nước:','Water:'],
+['Bóng:','Ball:'],
+['Bia:','Beer:'],
+['Lẩu:','Hotpot:'],
+['Gà:','Chicken:'],
+['5 trận gần nhất','last 5 matches'],
+['gần nhất','most recent'],
+['Quỹ chung','Club fund'],
+['Chưa nộp','Unpaid'],
+['Điểm','Score'],
+['PĐ','Form'],
+['chấp','handicap'],
 ['Chọn số đội, số người/đội, để hệ thống tự chia (⚡) hoặc tự chọn thủ công (✋), rồi chọn đủ thành viên tham gia và tạo giải. Nhập kết quả từng trận ngay trong giải để cập nhật bảng xếp hạng.','Choose the number of teams and players per team, let the system split them (⚡) or pick manually (✋), then select enough participants and create the tournament. Enter each match result inside the tournament to update the standings.'],
 ['Không được xếp người chơi chênh lệch quá 1 trận so với đồng đội cùng team trong round này. Vui lòng chọn người chơi khác để các thành viên được chia đều số trận.','A player cannot play more than 1 match more than a teammate in this round. Please choose other players so members get an even number of matches.'],
 ['để ghi lại các khoản thu (phí thành viên, quỹ CLB...) và khoản chi (thuê sân, mua dụng cụ...). Có thể lọc theo thời gian và xem tổng quan số dư quỹ.','to record income (membership fees, club fund...) and expenses (court rental, equipment...). You can filter by time and see the fund balance overview.'],
@@ -703,32 +726,55 @@ const I18N_PAIRS = [
 
   var exact=new Map(), phrases=[];
   I18N_PAIRS.forEach(function(p){ if(!exact.has(p[0])) exact.set(p[0],p[1]); if(p[0].length>=7) phrases.push(p); });
+  var lead=/^[^A-Za-zÀ-ỹà-ỹĐđ0-9]+/, exactN=new Map(), seenP=new Set(phrases.map(function(p){return p[0];}));
+  I18N_PAIRS.forEach(function(p){
+    var k=p[0].replace(lead,''), v=p[1].replace(lead,'');
+    if(k && k!==p[0] && k.length>=4){
+      if(!exactN.has(k)) exactN.set(k,v);
+      if(k.length>=7 && !seenP.has(k)){ seenP.add(k); phrases.push([k,v]); }
+    }
+  });
   phrases.sort(function(a,b){return b[0].length-a[0].length;});
   var esc=function(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');};
   var phraseRe=new RegExp(phrases.map(function(p){return esc(p[0]);}).join('|'),'g');
   var phraseMap=new Map(phrases);
+  var pl=function(sing,plur){return function(m,n){return n+' '+(parseFloat(n)===1?sing:plur);};};
   var PAT=[
+    [/thắng (\d+) trận liên tiếp/g,'won $1 matches in a row'],
+    [/Lượt (\d)/g,'Leg $1'],
     [/(\d+) team\/bảng \((\d+) team tổng\)/g,'$1 teams/group ($2 teams total)'],
     [/(\d+) người\/team/g,'$1 players/team'],
+    [/chấp (\d+(?:\.\d+)?) quả/g,function(m,n){return 'gives '+n+' '+(parseFloat(n)===1?'ball':'balls');}],
+    [/Cặp (A|B)\b/g,'Pair $1'],
     [/(\d+) trận đơn/g,'$1 singles'],
     [/(\d+) trận đôi/g,'$1 doubles'],
-    [/(\d+) trận/g,'$1 matches'],
-    [/(\d+(?:\.\d+)?) chai/g,'$1 bottles'],
-    [/(\d+(?:\.\d+)?) cốc/g,'$1 beers'],
-    [/(\d+(?:\.\d+)?) quả/g,'$1 balls'],
-    [/(\d+(?:\.\d+)?) nồi/g,'$1 hotpots'],
-    [/(\d+(?:\.\d+)?) con\b/g,'$1 chickens'],
+    [/(\d+) trận/g,pl('match','matches')],
+    [/(\d+(?:\.\d+)?) chai/g,pl('bottle','bottles')],
+    [/(\d+(?:\.\d+)?) cốc/g,pl('beer','beers')],
+    [/(\d+(?:\.\d+)?) quả/g,pl('ball','balls')],
+    [/(\d+(?:\.\d+)?) nồi/g,pl('hotpot','hotpots')],
+    [/(\d+(?:\.\d+)?) con\b/g,pl('chicken','chickens')],
+    [/k phạt/g,'k fines'],[/đ phạt/g,'đ fines'],[/\(cùng /g,'(with '],
+    [/· Đôi/g,'· Doubles'],[/· Đơn/g,'· Singles'],[/Đôi ·/g,'Doubles ·'],[/Đơn ·/g,'Singles ·'],
+    [/Kèo Nước/g,'Water stake'],[/Kèo Bia/g,'Beer stake'],[/Kèo Bóng/g,'Ball stake'],[/Kèo Lẩu/g,'Hotpot stake'],[/Kèo Gà/g,'Chicken stake'],[/Kèo (\d)/g,'Stake $1'],
     [/(\d+) người/g,'$1 players'],
     [/(\d+) ngày/g,'$1 days'],
+    [/Tháng (\d+)\/(\d+)/g,'Month $1/$2'],
+    [/Vòng (\d+)/g,'Round $1'],
+    [/Điểm (\d)/g,'Score $1'],
+    [/PĐ/g,'Form'],
     [/±(\d+(?:\.\d+)?) điểm/g,'±$1 pts'],
-    [/(\d+(?:\.\d+)?) điểm/g,'$1 pts']
+    [/(\d+(?:\.\d+)?) điểm/g,'$1 pts'],
+    [/(Nước|Bóng|Bia|Lẩu|Gà):/g,function(m,k){return {'Nước':'Water','Bóng':'Ball','Bia':'Beer','Lẩu':'Hotpot','Gà':'Chicken'}[k]+':';}],
+    [/\+(\d(?:\.\d+)?) điểm/g,'+$1 pts'],
+    [/\bchấp\b/g,'handicap']
   ];
   var VI=/[À-ỹà-ỹĐđ]/;
   function tr(s){
-    if(!s) return s;
+    if(!s || !VI.test(s)) return s;
     var m=s.match(/^(\s*)([\s\S]*?)(\s*)$/), core=m[2];
-    if(!VI.test(s) && !(core.indexOf(' ')>0 && exact.has(core))) return s;
     if(exact.has(core)) return m[1]+exact.get(core)+m[3];
+    var lm=core.match(lead); if(lm){ var rest=core.slice(lm[0].length); if(exactN.has(rest)) return m[1]+lm[0]+exactN.get(rest)+m[3]; }
     var out=core;
     out=out.replace(phraseRe,function(k){return phraseMap.get(k);});
     for(var i=0;i<PAT.length;i++) out=out.replace(PAT[i][0],PAT[i][1]);
@@ -3417,7 +3463,7 @@ function calcPairing(){
 
   if(!a1n||!a2n||!b1n||!b2n){
     el.innerHTML='';
-    const w=document.getElementById('aiKeoWrap');
+    const w=document.getElementById('aiKeoWrap')||{style:{}};
     if(w) w.style.display='none';
     return;
   }
@@ -3602,7 +3648,7 @@ function calcPairing(){
     +h2hHtml
     +'</div>';
 
-  document.getElementById('aiKeoWrap').style.display='none';
+  const _ai=document.getElementById('aiKeoWrap'); if(_ai) _ai.style.display='none';
 }
 
 
